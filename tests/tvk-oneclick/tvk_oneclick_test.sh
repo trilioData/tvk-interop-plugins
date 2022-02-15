@@ -151,7 +151,6 @@ if [[ $retCode -ne 0 ]]; then
   ONECLICK_TESTS_SUCCESS=false
 fi
 
-'''
 testconfigure_ui
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
@@ -187,7 +186,6 @@ retCode=$?
 if [[ $retCode -ne 0 ]]; then
   ONECLICK_TESTS_SUCCESS=false
 fi
-'''
 
 # Check status of TVK-oneclick test-cases
 if [ $ONECLICK_TESTS_SUCCESS == "true" ]; then
