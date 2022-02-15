@@ -38,6 +38,11 @@ jobs:
           reporter: local
           filter_mode: nofilter
 
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.42
+
       - name: Run Shell lint
         run: make shell-lint
 
