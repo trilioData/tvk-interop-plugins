@@ -1,0 +1,85 @@
+# goreleaser build and release config
+builds:
+- id: log-collector
+  main: ./cmd/log-collector/
+  binary: log-collector
+  env:
+  - CGO_ENABLED=0
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    - amd64
+    - arm64
+    - arm
+
+- id: target-browser
+  main: ./cmd/target-browser/
+  binary: target-browser
+  env:
+    - CGO_ENABLED=0
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    - amd64
+    - arm64
+    - arm
+
+- id: preflight
+  main: ./cmd/preflight/
+  binary: preflight
+  env:
+    - CGO_ENABLED=0
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    - amd64
+    - arm64
+    - arm
+
+archives:
+- id: log-collector-archive
+  name_template: |-
+    log-collector_{{ .Tag }}_{{ .Os }}_{{ .Arch -}}
+  builds:
+    - log-collector
+  format_overrides:
+    - goos: windows
+      format: zip
+  files: ["LICENSE.md"]
+
+- id: target-browser-archive
+  name_template: |-
+    target-browser_{{ .Tag }}_{{ .Os }}_{{ .Arch -}}
+  builds:
+    - target-browser
+  format_overrides:
+    - goos: windows
+      format: zip
+  files: ["LICENSE.md"]
+
+- id: preflight-archive
+  name_template: |-
+    preflight_{{ .Tag }}_{{ .Os }}_{{ .Arch -}}
+  builds:
+    - preflight
+  format_overrides:
+    - goos: windows
+      format: zip
+  files: ["LICENSE.md"]
+
+checksum:
+  name_template: "tvk-plugins-sha256.txt"
+  algorithm: sha256
+
+release:
+  # If set to auto, will mark the release as not ready for production
+  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+  # If set to true, will mark the release as not ready for production.
+  # Default is false.
+  prerelease: true
