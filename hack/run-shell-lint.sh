@@ -13,6 +13,7 @@ fi
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
+set -x
 # run shell fmt
 shfmt_out="$(shfmt -l -i=2 "${SRC_ROOT}/hack" "${SRC_ROOT}/tools/" "${SRC_ROOT}/tests/")"
 if [[ -n "${shfmt_out}" ]]; then
@@ -22,6 +23,6 @@ if [[ -n "${shfmt_out}" ]]; then
 fi
 
 # run shell lint
-find "${SRC_ROOT}" -type f -name "*.sh" -not -path "*/vendor/*" -exec "shellcheck" {} +
+find "${SRC_ROOT}" -type f -name "*.sh" -exec "shellcheck" {} +
 
 echo >&2 "shell-lint: No issues detected!"
