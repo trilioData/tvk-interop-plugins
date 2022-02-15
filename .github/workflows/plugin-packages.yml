@@ -54,9 +54,6 @@ jobs:
               - 'hack/**'
               - '.goreleaser.yml'
               - '.github/workflows/plugin-packages.yml'
-            
-            testTargetBrowser:
-              - *sharedTargetBrowser
             sharedOneclick: &sharedOneclick
               - *shared
               - 'tools/tvk-oneclick/**'
