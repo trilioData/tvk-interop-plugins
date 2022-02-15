@@ -6,7 +6,7 @@
 masterIngName=k8s-triliovault-master
 ingressGateway=k8s-triliovault-ingress-gateway
 
-#Function to execute preflight test
+#Function to execute preflight checks test
 preflight_checks() {
   ret=$(kubectl krew 2>/dev/null)
   if [[ -z "$ret" ]]; then
