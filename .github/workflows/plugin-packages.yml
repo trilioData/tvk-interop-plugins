@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       oneclick: ${{ steps.filter.outputs.oneclick }}
+      testoneclick: ${{ steps.filter.outputs.testoneclick }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
