@@ -2395,5 +2395,5 @@ if [ "$ret_code" -ne 0 ]; then
   exit 1
 fi
 if [ "${1}" != "--source-only" ]; then
-    main "${@}"
+  main "${@}"
 fi
