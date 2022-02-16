@@ -115,7 +115,8 @@ cleanup() {
   local rc=$?
 
   # cleanup namespaces and helm release
-  INSTALL_NAMESPACE=$tvk_ns
+  # shellcheck disable=SC2154
+  INSTALL_NAMESPACE="$tvk_ns"
   #shellcheck disable=SC2143
   if [[ $(helm list -n "${INSTALL_NAMESPACE}" | grep "${INSTALL_NAMESPACE}") ]]; then
     helm delete "${HELM_RELEASE_NAME}" --namespace "${INSTALL_NAMESPACE}"
@@ -134,8 +135,10 @@ cleanup() {
   kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -A | grep -E "${INSTALL_NAMESPACE}" || true
 
   kubectl get crd | grep trilio | awk '{print $1}' | xargs -i kubectl delete crd '{}'
-  s3cmd del --recursive s3://$bucket_name
-  s3cmd rb s3://$bucket_name
+  # shellcheck disable=SC2154
+  s3cmd del --recursive s3://"$bucket_name"
+  # shellcheck disable=SC2154
+  s3cmd rb s3://"$bucket_name"
   # shellcheck disable=SC2154
   helm delete "$build_id" --namespace default
   #Destroying virtual cluster created
