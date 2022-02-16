@@ -43,9 +43,9 @@ testconfigure_ui() {
 testcreate_target() {
   # debug message
   # shellcheck disable=SC2154
-  echo "env variable = $nfs_server_ip"
+  #echo "env variable = $nfs_server_ip"
   # shellcheck disable=SC2154
-  sed -i "s/^\(nfs_server\s*=\s*\).*$/\1\'$nfs_server_ip\'/" "$input_config"
+  #sed -i "s/^\(nfs_server\s*=\s*\).*$/\1\'$nfs_server_ip\'/" "$input_config"
   create_target
   rc=$?
   # shellcheck disable=SC2181
@@ -139,7 +139,6 @@ cleanup() {
   helm delete "$build_id" --namespace default
   #Destroying virtual cluster created
   # shellcheck disable=SC2154
-  vcluster delete "$build_id" -n default
   exit ${rc}
 }
 

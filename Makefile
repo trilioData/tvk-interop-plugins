@@ -17,7 +17,6 @@ yaml-lint:
 shell-lint:
 	./hack/run-shell-lint.sh
 
-
 lint: yaml-lint shell-lint 
 
 install-required-utilities:
@@ -39,7 +38,7 @@ test-tvk-oneclick-plugin-locally:
 	./hack/test-tvk-oneclick-plugin-locally.sh
 
 test-tvk_oneclick-integration:
-	./tests/tvk-oneclick/create_virtual_cluster.sh
+	./tests/tvk-oneclick/install-required-utilities.sh
 	./tests/tvk-oneclick/tvk_oneclick_test.sh
 
 test: test-tvk_oneclick-integration
