@@ -40,10 +40,11 @@ jobs:
           reporter: local
           filter_mode: nofilter
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
+      - name: Run goenv
+        uses: actions/setup-go@v2
         with:
-          version: v1.42
+          go-version: '^1.13.1' # The Go version to download (if necessary) and use.
+        run: go version
 
       - name: Run Shell lint
         run: make shell-lint
