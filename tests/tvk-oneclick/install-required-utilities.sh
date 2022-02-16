@@ -27,8 +27,8 @@ install_yq_if_needed() {
 
     local -r YQ_VERSION="v4.18.1"
     local -r BINARY=yq_linux_amd64
-    wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${BINARY} -O /usr/bin/yq &&\
-    chmod +x /usr/bin/yq
+    wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${BINARY} -O /usr/bin/yq &&
+      chmod +x /usr/bin/yq
     yq -V
     echo >&2 "installed yq"
   fi
