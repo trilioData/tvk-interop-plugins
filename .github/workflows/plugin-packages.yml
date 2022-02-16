@@ -17,7 +17,7 @@ on:
       - '.github/workflows/plugin-manifests.yml'
 
 env:
-  GKE_CLUSTER: ci-cluster
+  GKE_CLUSTER: tvk-interop-ci
   GKE_ZONE: us-east1-b
   GKE_ENDPOINT: "https://storage.googleapis.com"
 
@@ -47,6 +47,14 @@ jobs:
 
       - name: Run Shell lint
         run: make shell-lint
+
+      - name: Run Pylint
+        uses: gabriel-milan/action-pylint@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: "./*.py" # Glob pattern for files to lint
+          fail: true # Fail the action if pylint errors are found
+          pr-message: true # Send a PR message if pylint errors are found
 
       - name: Verify code patterns
         run: make verify-code-patterns

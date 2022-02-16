@@ -2,10 +2,12 @@
 
 #This program is use to install/configure/test TVK product with one click and few required inputs
 
-#This module is used to perform preflight check which checks if all the pre-requisites are satisfied before installing Triliovault for Kubernetes application in a Kubernetes cluster
 masterIngName=k8s-triliovault-master
 ingressGateway=k8s-triliovault-ingress-gateway
+operatorSA=triliovault-operator-k8s-triliovault-operator-service-account
+tvkmanagerSA=k8s-triliovault
 
+#This module is used to perform preflight check which checks if all the pre-requisites are satisfied before installing Triliovault for Kubernetes application in a Kubernetes cluster
 preflight_checks() {
   ret=$(kubectl krew 2>/dev/null)
   if [[ -z "$ret" ]]; then
@@ -70,7 +72,7 @@ preflight_checks() {
 #This function is use to compare 2 versions
 vercomp() {
   if [[ $1 == "$2" ]]; then
-    return 0
+    return 1
   fi
   ret2=$(python3 -c "from packaging import version;print(version.parse(\"$1\") < version.parse(\"$2\"))")
   ret1=$(python3 -c "from packaging import version;print(version.parse(\"$1\") == version.parse(\"$2\"))")
@@ -108,6 +110,12 @@ wait_install() {
 #This module is used to install TVK along with its free trial license
 install_tvk() {
   # Add helm repo and install triliovault-operator chart
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+  ret_val=$?
+  open_flag=0
+  if [ "$ret_code" -eq 0 ]; then
+    open_flag=1
+  fi
   helm repo add triliovault-operator http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator 1>> >(logit) 2>> >(logit)
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
@@ -118,8 +126,8 @@ install_tvk() {
   helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
   if [[ -z ${input_config} ]]; then
-    read -r -p "Please provide the operator version to be installed (default - 2.6.0): " operator_version
-    read -r -p "Please provide the triliovault manager version (default - 2.6.1): " triliovault_manager_version
+    read -r -p "Please provide the operator version to be installed (default - 2.6.6): " operator_version
+    read -r -p "Please provide the triliovault manager version (default - 2.6.6): " triliovault_manager_version
     read -r -p "Namespace name in which TVK should be installed: (default - default): " tvk_ns
     read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
@@ -127,10 +135,10 @@ install_tvk() {
     if_resource_exists_still_proceed='y'
   fi
   if [[ -z "$operator_version" ]]; then
-    operator_version='2.6.0'
+    operator_version='2.6.6'
   fi
   if [[ -z "$triliovault_manager_version" ]]; then
-    triliovault_manager_version='2.6.1'
+    triliovault_manager_version='2.6.6'
   fi
   if [[ -z "$tvk_ns" ]]; then
     tvk_ns="default"
@@ -152,6 +160,19 @@ install_tvk() {
     if [ "$retcode" -ne 0 ]; then
       echo "There is some error in helm install triliovaul operator,please resolve and try again" 2>> >(logit)
       return 1
+    fi
+    if [ "$open_flag" -eq 1 ]; then
+      cmd="kubectl get sa $operatorSA -n $tvk_ns 2>> >(logit)"
+      wait_install 10 "$cmd"
+      kubectl get sa $operatorSA -n $tvk_ns 2>> >(logit) 1>> >(logit)
+      ret_code=$?
+      if [[ $ret_code == 0 ]]; then
+        kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+      else
+        echo "Something wrong when assigning privilege to Trilio operator SA"
+        exit 1
+      fi
     fi
     get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
   else
@@ -225,10 +246,105 @@ install_tvk() {
     new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
     vercomp "$old_tvm_version" "$new_triliovault_manager_version"
     ret_val=$?
+    vercomp "2.6.5" "$new_triliovault_manager_version"
+    ret_val1=$?
     if [[ $ret_val != 2 ]]; then
       echo "TVM cannot be upgraded! Please check version"
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
+      fi
+      install_license "$tvk_ns"
+      return
+
+    elif [[ $upgrade_tvo == 1 ]] && [[ $ret_val1 == 2 ]]; then
+      svc_type=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.spec.type}')
+      if [[ $svc_type == LoadBalancer ]]; then
+        get_host=$(kubectl get ingress "$masterIngName" -n "$tvk_ns" -o 'jsonpath={.spec.rules[0].host}')
+        cat <<EOF | kubectl apply -f - 1>> >(logit) 2>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: TrilioVaultManager
+metadata:
+  labels:
+    triliovault: triliovault
+  name: ${tvm_name}
+  namespace: ${tvk_ns}
+spec:
+  trilioVaultAppVersion: ${triliovault_manager_version}
+  ingressConfig:
+    host: "${get_host}"
+  # TVK components configuration, currently supports control-plane, web, exporter, web-backend, ingress-controller, admission-webhook.
+  # User can configure resources for all componentes and can configure service type and host for the ingress-controller
+  componentConfiguration:
+    ingress-controller:
+      service:
+        type: LoadBalancer
+  applicationScope: Cluster
+EOF
+        retcode=$?
+      elif [[ $svc_type == NodePort ]]; then
+        get_host=$(kubectl get ingress "$masterIngName" -n "$tvk_ns" -o 'jsonpath={.spec.rules[0].host}')
+        cat <<EOF | kubectl apply -f - 1>> >(logit) 2>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: TrilioVaultManager
+metadata:
+  labels:
+    triliovault: triliovault
+  name: ${tvm_name}
+  namespace: ${tvk_ns}
+spec:
+  trilioVaultAppVersion: ${triliovault_manager_version}
+  ingressConfig:
+    host: "${get_host}"
+  # TVK components configuration, currently supports control-plane, web, exporter, web-backend, ingress-controller, admission-webhook.
+  # User can configure resources for all componentes and can configure service type and host for the ingress-controller
+  componentConfiguration:
+    ingress-controller:
+      service:
+        type: NodePort
+  applicationScope: Cluster
+EOF
+        retcode=$?
+      fi
+      if [ "$retcode" -ne 0 ]; then
+        echo "There is error upgrading triliovault manager,please resolve and try again" 2>> >(logit)
+        return 0
+      else
+        echo "Upgrading Triliovault manager"
+      fi
+      tvm_upgrade=1
+    elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
+      if [ "$open_flag" -eq 1 ]; then
+        cmd="kubectl get sa $tvkmanagerSA -n $tvk_ns 2>> >(logit)"
+        wait_install 10 "$cmd"
+        kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+        retcode=$?
+        if [[ $retcode == 0 ]]; then
+          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+        else
+          echo "Something wrong when assigning privilege to Trilio operator SA"
+          exit 1
+        fi
+      fi
+      echo "Waiting for Pods to come up.."
+      sleep 10
+      if [ "$open_flag" -eq 1 ]; then
+        kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
+      fi
+      cmd="kubectl get pods -l app=k8s-triliovault-control-plane -n $tvk_ns -ojsonpath='{.items[*].status.conditions[?(@.type == \"ContainersReady\")].status}' 2>/dev/null | grep True"
+      wait_install 10 "$cmd"
+      cmd="kubectl get pods -l app=k8s-triliovault-admission-webhook -n $tvk_ns -ojsonpath='{.items[*].status.conditions[?(@.type == \"ContainersReady\")].status}' 2>/dev/null | grep True"
+      wait_install 10 "$cmd"
+      kubectl get pods -l app=k8s-triliovault-control-plane -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
+      ret_val1=$?
+      kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
+      ret_val=$?
+      if [[ $ret_val != 0 ]] || [[ $ret_val1 != 0 ]]; then
+        echo "TVM installation failed"
+        exit 1
+      else
+        echo "TVM is up and running!"
       fi
       install_license "$tvk_ns"
       return
@@ -426,13 +542,25 @@ EOF
   if [[ $tvm_upgrade == 1 ]]; then
     echo "Waiting for Pods to come up.."
   else
+    if [ "$open_flag" -eq 1 ]; then
+      while true; do
+        kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+        return_val=$?
+        if [[ $return_val == 0 ]]; then
+          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+          break
+        fi
+      done
+    fi
+
     echo "Installing Triliovault manager...."
   fi
   cmd="kubectl get pods -l app=k8s-triliovault-control-plane -n $tvk_ns 2>/dev/null | grep Running"
   wait_install 10 "$cmd"
   cmd="kubectl get pods -l app=k8s-triliovault-admission-webhook -n $tvk_ns 2>/dev/null | grep Running"
   wait_install 10 "$cmd"
-  if ! kubectl get pods -l app=k8s-triliovault-control-plane -n "$tvk_ns" 2>/dev/null | grep -q Running && ! kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" 2>/dev/null | grep -q Running; then
+  if ! kubectl get pods -l app=k8s-triliovault-control-plane -n "$tvk_ns" 2>/dev/null | grep -q Running || ! kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" 2>/dev/null | grep -q Running; then
     if [[ $tvm_upgrade == 1 ]]; then
       echo "TVM upgrade failed"
     else
@@ -453,7 +581,7 @@ install_license() {
   tvk_ns=$1
   flag=0
   ret=$(kubectl get license -n "$tvk_ns" 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-  if [[ -n "$ret" ]]; then
+  if [[ ! -z "$ret" ]]; then
     ret_val=$(kubectl get license "$ret" -n "$get_ns" 2>> >(logit) | grep -q Active)
     ret_code_A=$?
     if [ "$ret_code_A" -eq 0 ]; then
@@ -514,7 +642,6 @@ EOF
   else
     echo "License is installed successfully"
   fi
-  rm -f license_file1.yaml
 }
 
 #This module is used to configure TVK UI
@@ -537,18 +664,35 @@ configure_ui() {
   if [[ -z "$ui_access_type" ]]; then
     ui_access_type=2
   fi
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+  ret_val=$?
+  open_flag=0
+  if [ "$ret_val" -eq 0 ]; then
+    oc -n openshift-ingress-operator patch ingresscontroller/default --patch '{"spec":{"routeAdmission":{"namespaceOwnership":"InterNamespaceAllowed"}}}' --type=merge
+  fi
+  get_node=$(kubectl get nodes | awk 'NR==2{print $1}')
+  ret_val=$(kubectl get nodes "$get_node" -ojsonpath='{.spec.providerID}' 2>> >(logit) | grep digitalocean)
+  ret_code=$?
   case $ui_access_type in
   3)
     get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
     echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
-    echo "Copy & paste the command above into your terminal session and TVK management console traffic will be forwarded to your localhost IP of 127.0.0.1 via port 80."
+    echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> <ingress_host_name>' in /etc/hosts file.TVK management console traffic will be forwarded to your localhost IP via port 80."
     ;;
   2)
-    configure_nodeport_for_tvkui
+    if [[ $ret_code == 0 ]]; then
+      configure_nodeport_for_tvkui "True"
+    else
+      configure_nodeport_for_tvkui "False"
+    fi
     return 0
     ;;
   1)
-    configure_loadbalancer_for_tvkUI
+    if [[ $ret_code == 0 ]]; then
+      configure_loadbalancer_for_tvkUI "True"
+    else
+      configure_loadbalancer_for_tvkUI "False"
+    fi
     return 0
     ;;
   *)
@@ -561,11 +705,15 @@ configure_ui() {
 
 #This function is used to configure TVK UI through nodeport
 configure_nodeport_for_tvkui() {
-  ret=$(doctl auth list 2>/dev/null)
-  if [[ -z $ret ]]; then
-    echo "This functionality requires doctl installed"
-    echo "Please follow  to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl"
-    return 1
+  do=$?
+  # shellcheck disable=SC2154
+  if [[ $do -eq "True" ]]; then
+    ret=$(doctl auth list 2>/dev/null)
+    if [[ -z $ret ]]; then
+      echo "This functionality requires doctl installed"
+      echo "Please follow  to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl"
+      return 1
+    fi
   fi
   if [[ -z ${input_config} ]]; then
     read -r -p "Please enter host name for tvk ingress (default - tvk-doks.com): " tvkhost_name
@@ -632,47 +780,73 @@ EOF
       return 1
     fi
   fi
-  cluster_name=$(kubectl config view --minify -o jsonpath='{.clusters[].name}' | cut -d'-' -f3-)
-  doctl kubernetes cluster kubeconfig show "${cluster_name}" >config_"${cluster_name}" 2>> >(logit)
-  echo "Please add '$ip $tvkhost_name' entry to your /etc/host file before launching the console"
-  echo "After creating an entry,TVK UI can be accessed through http://$tvkhost_name:$port/login"
-  echo "provide config file stored at location: $PWD/config_${cluster_name}"
+  if [[ $do -eq "True" ]]; then
+    doctl kubernetes cluster kubeconfig show "${cluster_name}" >config_"${cluster_name}" 2>> >(logit)
+    echo "Kubeconfig file is stored at location: $PWD/config_${cluster_name}"
+  fi
+
+  if [[ -z ${ip} ]] || [[ $ip == "none" ]]; then
+    echo "since the nodes are not public, we need use port forwarding"
+    echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
+    echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> $tvkhost_name' in /etc/hosts file.TVK management console traffic will be forwarded to your localhost IP via port 80."
+    echo "After creating an entry,TVK UI can be accessed through http://$tvkhost_name"
+  else
+    echo "Please add '$ip $tvkhost_name' entry to your /etc/host file before launching the console"
+    echo "After creating an entry,TVK UI can be accessed through http://$tvkhost_name:$port/login"
+    echo "If there is an issue accesing TVK console please refer https://docs.trilio.io/kubernetes/support/troubleshooting-guide/issues-and-workaround#management-console-not-accessible-using-nodeport"
+  fi
+  echo "provide config file to login"
   echo "For https access, please refer - https://docs.trilio.io/kubernetes/management-console/user-interface/accessing-the-ui"
 }
 
 #This function is used to configure TVK UI through Loadbalancer
+#This function is used to configure TVK UI through Loadbalancer
 configure_loadbalancer_for_tvkUI() {
-  ret=$(doctl auth list 2>/dev/null)
-  if [[ -z $ret ]]; then
-    echo "This functionality requires doctl installed"
-    echo "Please follow  to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl"
-    return 1
-  fi
-  if [[ -z ${input_config} ]]; then
-    echo "To use DigitalOcean DNS, you need to register a domain name with a registrar and update your domain’s NS records to point to DigitalOcean’s name servers."
-    read -r -p "Please enter domainname for cluster (Domain name you have registered and added in Doks console): " domain
-    read -r -p "Please enter host name for tvk ingress (default - tvk-doks): " tvkhost_name
-    read -r -p "Please enter auth token for doctl: " doctl_token
-  fi
-  if [[ -z ${doctl_token} ]]; then
-    echo "This functionality requires Digital Ocean authentication token"
-    return 1
-  fi
-  if [[ -z ${tvkhost_name} ]]; then
-    tvkhost_name="tvk-doks"
-  fi
-  ret=$(doctl auth init -t "$doctl_token")
-  ret_code=$?
-  if [ "$ret_code" -ne 0 ]; then
-    echo "Cannot authenticate with the provided doctl auth token"
-    return 1
+  do=$?
+  if [[ $do -eq "True" ]]; then
+    ret=$(doctl auth list 2>/dev/null)
+    if [[ -z $ret ]]; then
+      echo "This functionality requires doctl installed"
+      echo "Please follow  to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl"
+      return 1
+    fi
+    if [[ -z ${input_config} ]]; then
+      echo "To use DigitalOcean DNS, you need to register a domain name with a registrar and update your domain’s NS records to point to DigitalOcean’s name servers."
+      read -r -p "Please enter domainname for cluster (Domain name you have registered and added in Doks console): " domain
+      read -r -p "Please enter host name for tvk ingress (default - tvk-doks): " tvkhost_name
+      read -r -p "Please enter auth token for doctl: " doctl_token
+    fi
+    if [[ -z ${doctl_token} ]]; then
+      echo "This functionality requires Digital Ocean authentication token"
+      return 1
+    fi
+    ret=$(doctl auth init -t "$doctl_token")
+    ret_code=$?
+    if [ "$ret_code" -ne 0 ]; then
+      echo "Cannot authenticate with the provided doctl auth token"
+      return 1
+    fi
+    if [[ -z ${tvkhost_name} ]]; then
+      tvkhost_name="tvk-doks"
+    fi
+    tvk_name=$tvkhost_name.$domain
+  else
+    if [[ -z ${input_config} ]]; then
+      read -r -p "Please enter host name for tvk ingress (default - tvk-doks.com): " tvkhost_name
+    fi
+    if [[ -z ${tvkhost_name} ]]; then
+      tvkhost_name="tvk-doks.com"
+    fi
+    tvk_name=$tvkhost_name
   fi
   get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-  cluster_name=$(kubectl config view --minify -o jsonpath='{.clusters[].name}' | cut -d'-' -f3-)
-  if [[ -z ${cluster_name} ]]; then
-    echo "Error in getting cluster name from the current-context set in kubeconfig"
-    echo "Please check the current-context"
-    return 1
+  if [[ $do -eq "True" ]]; then
+    cluster_name=$(kubectl config view --minify -o jsonpath='{.clusters[].name}' | cut -d'-' -f3-)
+    if [[ -z ${cluster_name} ]]; then
+      echo "Error in getting cluster name from the current-context set in kubeconfig"
+      echo "Please check the current-context"
+      return 1
+    fi
   fi
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
@@ -694,7 +868,7 @@ metadata:
 spec:
   applicationScope: Cluster
   ingressConfig:
-    host: ${tvkhost_name}.${domain}
+    host: ${tvk_name}
   # TVK components configuration, currently supports control-plane, web, exporter, web-backend, ingress-controller, admission-webhook.
   # User can configure resources for all componentes and can configure service type and host for the ingress-controller
   componentConfiguration:
@@ -720,6 +894,7 @@ EOF
     fi
   fi
   echo "Configuring UI......This may take some time"
+  sleep 10
   cmd="kubectl get svc $ingressGateway -n $get_ns -o 'jsonpath={.status.loadBalancer}'"
   wait_install 20 "$cmd"
   val_status=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.status.loadBalancer}')
@@ -728,21 +903,102 @@ EOF
     return 1
   fi
   external_ip=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.status.loadBalancer.ingress[0].ip}' 2>> >(logit))
+  if [[ -z "$external_ip" ]]; then
+    hostname=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.status.loadBalancer.ingress[0].hostname}' 2>> >(logit))
+    if [[ -z "$hostname" ]]; then
+      echo "ExternalIP is not set, please check configurations"
+      return 1
+    fi
+    external_ip=$(dig "$hostname" +short | awk 'NR==2 {print $1}' 2>> >(logit))
+    # Do what you want
+  fi
   if [[ $ret_val != 2 ]] && [[ $ret_val != 1 ]]; then
     kubectl patch ingress k8s-triliovault-ingress-master -n "$get_ns" -p '{"spec":{"rules":[{"host":"'"${tvkhost_name}.${domain}"'"}]}}' 1>> >(logit) 2>> >(logit)
   fi
-  doctl compute domain records create "${domain}" --record-type A --record-name "${tvkhost_name}" --record-data "${external_ip}" 1>> >(logit) 2>> >(logit)
-  retCode=$?
-  if [[ "$retCode" -ne 0 ]]; then
-    echo "Failed to create record, please check domain name"
+  if [[ $do -eq "True" ]]; then
+    doctl compute domain records create "${domain}" --record-type A --record-name "${tvkhost_name}" --record-data "${external_ip}" 1>> >(logit) 2>> >(logit)
+    retCode=$?
+    if [[ "$retCode" -ne 0 ]]; then
+      echo "Failed to create record, please check domain name"
+      return 1
+    fi
+
+    doctl kubernetes cluster kubeconfig show "${cluster_name}" >config_"${cluster_name}" 2>> >(logit)
+    echo "Config file can be found at location: $PWD/config_${cluster_name}"
+    link="http://${tvkhost_name}.${domain}/login"
+    echo "You can access TVK UI: $link"
+    echo "provide config file to login"
+    echo "Info:UI may take 30 min to come up"
+  else
+    echo "Add the /etc/hosts entry: '${external_ip} ${tvkhost_name}'"
+    echo "Hit the URL in browser: http://${tvkhost_name}"
+  fi
+}
+
+create_secret() {
+  secret_name=$1
+  access_key=$2
+  secret_key=$3
+  secret_ns=$4
+  cat <<EOF | kubectl apply -f - 1>> >(logit) 2>> >(logit)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${secret_name}
+  namespace: ${secret_ns}
+type: Opaque
+stringData:
+  accessKey: ${access_key}
+  secretKey: ${secret_key}
+EOF
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "Secret for target creation failed..Exiting"
     return 1
   fi
+}
 
-  doctl kubernetes cluster kubeconfig show "${cluster_name}" >config_"${cluster_name}" 2>> >(logit)
-  link="http://${tvkhost_name}.${domain}/login"
-  echo "You can access TVK UI: $link"
-  echo "provide config file stored at location: $PWD/config_${cluster_name}"
-  echo "Info:UI may take 30 min to come up"
+check_target_existence() {
+  target_name=$1
+  target_namespace=$2
+  access_key=$3
+  secret_key=$4
+  url=$5
+  bucket_name=$6
+  region=$7
+  if [[ $(kubectl get target "$target_name" -n "$target_namespace" 2>> >(logit)) ]]; then
+    if kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
+      echo "Target with same name already exists but is in Unavailable state"
+      return 1
+    else
+      secret_name=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.credentialSecret.name}')
+      if [[ $secret_name == "" ]]; then
+        old_access=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.accessKey}')
+        old_secret=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.secretKey}')
+      else
+        secret_namespace=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.credentialSecret.namespace}')
+        old_access=$(kubectl get secret "$secret_name" -n "$secret_namespace" -o 'jsonpath={.data.accessKey}' | base64 -d)
+        old_secret=$(kubectl get secret "$secret_name" -n "$secret_namespace" -o 'jsonpath={.data.secretKey}' | base64 -d)
+      fi
+      old_url=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.url}')
+      old_bucket=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.bucketName}')
+      old_region=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.region}')
+      flag=0
+      new_str="Target with same name already exists"
+      [[ "$old_access" != "$access_key" ]] && new_str="$new_str with different access key"
+      [[ "$old_secret" != "$secret_key" ]] && new_str="$new_str with different secret key"
+      [[ "$old_bucket" != "$bucket_name" ]] && new_str="$new_str with different bucket name"
+      [[ "$old_region" != "$region" ]] && new_str="$new_str with different region name"
+      [[ "$old_url" != "$url" ]] && new_str="$new_str with different URL name"
+      echo "$new_str"
+    fi
+    if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+      exit 1
+    else
+      return 1
+    fi
+  fi
+  return 0
 }
 
 call_s3cfg_doks() {
@@ -854,20 +1110,6 @@ create_doks_s3() {
   if [[ -z "$target_namespace" ]]; then
     target_namespace="default"
   fi
-  if [[ $(kubectl get target "$target_name" -n "$target_namespace" 2>> >(logit)) ]]; then
-    if kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
-      echo "Target with same name already exists but is in Unavailable state"
-      return 1
-    else
-      echo "Target with same name already exists"
-      return 0
-    fi
-    if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-      exit 1
-    else
-      return 0
-    fi
-  fi
   if [[ -z "$gpg_passphrase" ]]; then
     gpg_passphrase="trilio"
   fi
@@ -879,6 +1121,13 @@ create_doks_s3() {
   fi
   if [[ -z "$host_bucket" ]]; then
     host_bucket="%(bucket)s.nyc3.digitaloceanspaces.com"
+  fi
+  region="$(cut -d '.' -f 1 <<<"$host_base")"
+  url="https://$host_base"
+  check_target_existence "$target_name" "$target_namespace" "$access_key" "$secret_key" "$url" "$bucket_name" "$region"
+  ret_code=$?
+  if [[ $ret_code -ne 0 ]]; then
+    return 1
   fi
   call_s3cfg_doks "$access_key" "$secret_key" "$host_base" "$host_bucket" "$gpg_passphrase"
   region="$(cut -d '.' -f 1 <<<"$host_base")"
@@ -892,11 +1141,22 @@ create_doks_s3() {
     if [[ "$ret_code" ]] || [[ $ret_code_err ]]; then
       echo "WARNING: Bucket already exists"
     else
+      echo "$ret_mgs"
       echo "Error in creating spaces,please check credentials"
+      exit 1
     fi
   fi
   #create S3 target
-  url="https://$host_base"
+
+  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  secret_name="$target_name-$rand_name"
+  #Create secret from the credentials provided
+  create_secret "$secret_name" "$access_key" "$secret_key" "${target_namespace}"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "Exiting..."
+    exit 1
+  fi
   cat <<EOF | kubectl apply -f - 1>> >(logit) 2>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: Target
@@ -907,9 +1167,10 @@ spec:
   type: ObjectStore
   vendor: Other
   objectStoreCredentials:
-    url: "$url"
-    accessKey: "$access_key"
-    secretKey: "$secret_key"
+    url: "${url}"
+    credentialSecret:
+      name: ${secret_name}
+      namespace: ${target_namespace}
     bucketName: "$bucket_name"
     region: "$region"
   thresholdCapacity: $thresholdCapacity
@@ -927,6 +1188,7 @@ call_s3cfg_aws() {
   host_base=$3
   host_bucket=$4
   bucket_location=$5
+  use_https=$6
   cat >s3cfg_config <<-EOM
 [default]
 access_key = ${access_key}
@@ -984,7 +1246,7 @@ simpledb_host = sdb.amazonaws.com
 skip_existing = False
 socket_timeout = 300
 urlencoding_mode = normal
-use_https = True
+use_https = ${use_https}
 use_mime_magic = True
 verbosity = WARNING
 website_endpoint = http://%(bucket)s.s3-website-% (location)s.amazonaws.com/
@@ -1018,21 +1280,6 @@ create_aws_s3() {
   if [[ -z "$target_namespace" ]]; then
     target_namespace="default"
   fi
-  if [[ $(kubectl get target "$target_name" -n "$target_namespace" 2>> >(logit)) ]]; then
-    if kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
-      echo "Target with same name already exists but is in Unavailable state"
-      return 1
-    else
-      echo "Target with same name already exists"
-      return 0
-    fi
-
-    if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-      exit 1
-    else
-      return 0
-    fi
-  fi
   if [[ -z "$thresholdCapacity" ]]; then
     thresholdCapacity='1000Gi'
   fi
@@ -1045,22 +1292,42 @@ create_aws_s3() {
   if [[ -z "$bucket_location" ]]; then
     bucket_location="us-east-1"
   fi
-  call_s3cfg_aws "$access_key" "$secret_key" "$host_base" "$host_bucket" "$bucket_location"
+  url="https://s3.amazonaws.com"
+  check_target_existence "$target_name" "$target_namespace" "$access_key" "$secret_key" "$url" "$bucket_name" "$bucket_location"
+  ret_code=$?
+  if [[ $ret_code -ne 0 ]]; then
+    return 1
+  fi
+  call_s3cfg_aws "$access_key" "$secret_key" "$host_base" "$host_bucket" "$bucket_location" "True"
   #create bucket
   ret_val=$(s3cmd --config s3cfg_config mb s3://"$bucket_name" 2>&1)
   ret_mgs=$?
+
   if [[ "$ret_mgs" -ne 0 ]]; then
     ret_code=$(echo "$ret_val" | grep 'BucketAlreadyOwnedByYou')
+    ret_code1=$(echo "$ret_val" | grep 'BucketNameUnavailable')
     if [[ "$ret_code" ]]; then
       echo "WARNING: Bucket already exists"
+    elif [[ "$ret_code1" ]]; then
+      echo "WARNING: Bucket Name unavailable,please use different name"
+      exit 1
     else
-      echo "Error in creating bucket,please check credentials"
-      return 1
+      echo "$ret_val"
+      echo "Error in creating bucket,please check credentials/name"
+      exit 1
     fi
   fi
   #create S3 target
   region=$(s3cmd --config s3cfg_config info s3://"$bucket_name"/ | grep Location | cut -d':' -f2- | sed 's/^ *//g')
-  url="https://s3.amazonaws.com"
+  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  secret_name="$target_name-$rand_name"
+  #Create secret from the credentials provided
+  create_secret "$secret_name" "$access_key" "$secret_key" "${target_namespace}"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "Exiting..."
+    exit 1
+  fi
   cat <<EOF | kubectl apply -f - 1>> >(logit) 2>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: Target
@@ -1072,10 +1339,306 @@ spec:
   vendor: Other
   objectStoreCredentials:
     url: "$url"
-    accessKey: "$access_key"
-    secretKey: "$secret_key"
+    credentialSecret:
+      name: ${secret_name}
+      namespace: ${target_namespace}
     bucketName: "$bucket_name"
     region: "$region"
+  thresholdCapacity: $thresholdCapacity
+EOF
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "Target creation failed"
+    return 1
+  fi
+}
+
+#create readymade Minio server and create target
+create_readymade_minio() {
+  echo "Minio requires sufficient memory.So please check memory and then configure"
+  if [[ -z ${input_config} ]]; then
+    read -r -p "Minio server Namespace (minio): " minio_server_namespace
+    read -r -p "Bucket Name: (tvk-target): " bucket_name
+    read -r -p "Target Name (tvk-target): " target_name
+    read -r -p "Target Namespace (default): " target_namespace
+    read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
+  fi
+  if [[ -z "$minio_server_namespace" ]]; then
+    minio_server_namespace="minio"
+  fi
+  if [[ -z "$if_resource_exists_still_proceed" ]]; then
+    if_resource_exists_still_proceed='y'
+  fi
+  if [[ -z "$target_namespace" ]]; then
+    target_namespace="default"
+  fi
+  if [[ -z "$target_name" ]]; then
+    target_name="tvk-target"
+  fi
+  if [[ -z "$bucket_name" ]]; then
+    bucket_name="tvk-target"
+  fi
+  #check if minio_server_namespace already exists
+  res=$(kubectl get ns $minio_server_namespace 2>/dev/null)
+  if [[ -z "$res" ]]; then
+    kubectl create ns $minio_server_namespace 2>/dev/null
+    ret_code=$?
+    if [ "$ret_code" -ne 0 ]; then
+      echo "Error in creating namespace $minio_server_namespace.Exiting..."
+      exit 1
+    fi
+  fi
+  helm repo add minio https://helm.min.io/ 1>> >(logit) 2>> >(logit)
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "There is some error in helm update,please resolve and try again" 1>> >(logit) 2>> >(logit)
+    echo "Error ading helm repo"
+    exit 1
+  fi
+  #check if minio server already exists
+  helm show chart minio/minio -n $minio_server_namespace 1>> >(logit) 2>> >(logit)
+  rel_name=$(helm list -n $minio_server_namespace | awk '$9 ~ "^minio" { print $0 }' | sed -n '1p' | awk '{print $1}')
+  if [[ "$rel_name" != "" ]]; then
+    echo "minio is already installed"
+    #rel_name=$(helm list -n $minio_server_namespace | awk '$9 ~ "^minio" { print $0 }' | sed -n '1p'| awk '{print $1}')
+    #pod_name=$(kubectl get pod -n $minio_server_namespace | grep "$rel_name" | awk '{print $1}')
+    if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+      exit 1
+    fi
+    if [[ -z ${input_config} ]]; then
+      read -r -p "Use existing minio server if available ('Y'): " use_existing_minio
+    fi
+    if [[ -z "$use_existing_minio" ]]; then
+      use_existing_minio="y"
+    fi
+  fi
+  if [[ "$use_existing_minio" != "Y" ]] && [[ "$use_existing_minio" != "y" ]] || [[ "$rel_name" == "" ]]; then
+    ret_val=$(helm install --namespace $minio_server_namespace --generate-name minio/minio 2>> >(logit))
+    #echo "$ret_val" 1>> >(logit)
+    retcode=$?
+    if [ "$retcode" -ne 0 ]; then
+      echo "There is some error in installing minio helm chart, please resolve and try again"
+      exit 1
+    fi
+    rel_name=$(awk 'NR==1 {print $2}' <<<"$ret_val")
+  else
+    if [[ -z ${input_config} ]]; then
+      read -r -p "use any available minio server (y/n) ('Y') : " default_minio
+    fi
+    if [[ -z "$default_minio" ]]; then
+      default_minio="y"
+    fi
+    if [[ "$default_minio" != "Y" ]] && [[ "$default_minio" != "y" ]]; then
+      #read -r -p "Enter the service name of the existing minio: " pod_name
+      read -r -p "Enter the namespace in which th minio pod resides: " minio_server_namespace
+      read -r -p "Enter the secret name for the existing minio server: " rel_name
+    else
+      i=1
+      minio_num=$(helm list -n "$minio_server_namespace" | awk '$9 ~ "^minio" { print $0 }' | wc -l)
+      while [ "$minio_num" -ge $i ]; do
+        rel_name=$(helm list -n "$minio_server_namespace" | awk '$9 ~ "^minio" { print $0 }' | sed -n $i'p' | awk '{print $1}')
+        if ! kubectl get deployment "$rel_name" -n "$minio_server_namespace" -o jsonpath="{.status.conditions[*].status}" | grep -q false; then
+          break
+        fi
+        rel_name=""
+        i=$((i + 1))
+      done
+    fi
+    if [[ "$rel_name" == "" ]]; then
+      echo "No minio server is in available state"
+      exit 1
+    fi
+  fi
+  #Check if minio is deployed correctly
+  #rel_name=$(echo $ret_val | awk '{print $2}')
+  #pod_name=$(kubectl get pod -n "$minio_server_namespace" | grep $rel_name | awk '{print $1}')
+  echo "Waiting for Minio deployment to be in Ready state.."
+  cmd="kubectl get deployment $rel_name -n $minio_server_namespace -o 'jsonpath={.status.conditions[*].status}' | grep -v False"
+  wait_install 10 "$cmd"
+  if ! kubectl get deployment $rel_name -n "$minio_server_namespace" -o jsonpath="{.status.conditions[*].status}" | grep -q True; then
+    echo "Minio deployment taking more time than usual to be in Ready state, Exiting.."
+    return 1
+  fi
+  #get credentials and create target crd and apply it.
+  ACCESS_KEY=$(kubectl get secret $rel_name -n "$minio_server_namespace" -o jsonpath="{.data.accesskey}" | base64 --decode)
+  SECRET_KEY=$(kubectl get secret $rel_name -n "$minio_server_namespace" -o jsonpath="{.data.secretkey}" | base64 --decode)
+  URL="http://$rel_name.$minio_server_namespace.svc:9000"
+  check_target_existence "$target_name" "$target_namespace" "$ACCESS_KEY" "$SECRET_KEY" "$URL" "$bucket_name" "us-east1"
+  ret_code=$?
+  if [[ $ret_code -ne 0 ]]; then
+    return 1
+  fi
+  #create pod to run minio clinet command
+  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  mc_pod_nm="minio-$rand_name"
+  ret_val=$(kubectl run "$mc_pod_nm" --image=minio/mc -n "$minio_server_namespace" --restart=Never --command -- /bin/sh -c 'while true; do sleep 5s; done' 1>> >(logit) 2>> >(logit))
+  ret_code=$?
+  if [[ "$ret_code" -ne 0 ]]; then
+    echo "not able to run minio cclinet image/container"
+    return 1
+  fi
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+  ret_val=$?
+  open_flag=0
+  if [ "$ret_code" -eq 0 ]; then
+    kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+    kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+    open_flag=1
+  fi
+  echo "Waiting for minio client pod to be in Ready state.."
+  cmd="kubectl get pod $mc_pod_nm -n $minio_server_namespace -o jsonpath='{.status.phase}' 2>/dev/null | grep -e Running"
+  wait_install 10 "$cmd"
+  if ! kubectl get pod "$mc_pod_nm" -n "$minio_server_namespace" -o jsonpath="{.status.phase}" | grep -q Running; then
+    echo "Minio client container taking more time than usual to be in Ready state, Exiting.."
+    return 1
+  fi
+  kubectl -n "$minio_server_namespace" exec -i "$mc_pod_nm" -- mc alias set minio "$URL" "$ACCESS_KEY" "$SECRET_KEY"
+  ret_msg=$(kubectl -n "$minio_server_namespace" exec -i "$mc_pod_nm" -- mc mb minio/$bucket_name 2>&1)
+  #echo "my val = $ret_msg"
+  #create bucket
+  #ret_val=$(s3cmd --config s3cfg_config mb s3://"$bucket_name" 2>&1)
+  ret_code=$?
+  if [[ "$ret_code" -ne 0 ]]; then
+    ret_val=$(echo "$ret_msg" | grep 'you already own it')
+    if [[ "$ret_val" ]]; then
+      echo "WARNING: Bucket already exists"
+    else
+      echo "Error in creating bucket,please check credentials"
+      exit 1
+    fi
+  fi
+  kubectl delete pod -n "$minio_server_namespace" "$mc_pod_nm" 1>> >(logit) 2>> >(logit)
+  #echo "$ACCESS_KEY $SECRET_KEY  $URL"
+  #create bucket
+  #call_s3cfg_aws "$ACCESS_KEY" "$SECRET_KEY" "$URL" "$URL" "us-east1" "False"
+  #create bucket
+  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  secret_name="$target_name-$rand_name"
+  #Create secret from the credentials provided
+  create_secret "$secret_name" "$ACCESS_KEY" "$SECRET_KEY" "${target_namespace}"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "Exiting..."
+    exit 1
+  fi
+  cat <<EOF | kubectl apply -f - 1>> >(logit) 2>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Target
+metadata:
+  name: $target_name
+  namespace: $target_namespace
+spec:
+  type: ObjectStore
+  vendor: MinIO
+  objectStoreCredentials:
+    url: "$URL"
+    credentialSecret:
+      name: ${secret_name}
+      namespace: ${target_namespace}
+    bucketName: "$bucket_name"
+    region: "us-east1"
+  thresholdCapacity: 100Gi
+EOF
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "Target creation failed"
+    return 1
+  fi
+}
+
+create_gcp_s3() {
+  if [[ -z ${input_config} ]]; then
+    echo "Please go through https://linux.die.net/man/1/s3cmd to know about options"
+    echo "for creation of bucket, please provide input"
+    read -r -p "Access_key: " access_key
+    read -r -p "Secret_key: " secret_key
+    read -r -p "Host Base (default - https://storage.googleapis.com): " host_base
+    read -r -p "Host Bucket (default - https://storage.googleapis.com): " host_bucket
+    read -r -p "Bucket Location Region to create bucket in. As of now the regions are:
+                       northamerica-northeast1, northamerica-northeast2, southamerica-east1,
+                       southamerica-west1, us-central1, us-east1, us-east4, us-west1, us-west2,
+                       us-west3, us-west4, europe-central2, europe-north1
+                       europe-west1, europe-west2, europe-west3, europe-west4, europe-west6,
+                       asia-east1, asia-east2, asia-northeast1, asia-northeast2
+                       asia-northeast3, asia-south1, asia-south2, asia-southeast1,
+                       asia-southeast2, australia-southeast1, australia-southeast2
+                       (default - us-east-1): " bucket_location
+    read -r -p "Bucket Name: " bucket_name
+    read -r -p "Target Name: " target_name
+    read -r -p "Target Namespace (default) : " target_namespace
+    read -r -p "thresholdCapacity (Units can be[Mi/Gi/Ti]) (default - 1000Gi): " thresholdCapacity
+    read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
+  fi
+  if [[ -z "$if_resource_exists_still_proceed" ]]; then
+    if_resource_exists_still_proceed='y'
+  fi
+  if [[ -z "$target_namespace" ]]; then
+    target_namespace="default"
+  fi
+  if [[ -z "$thresholdCapacity" ]]; then
+    thresholdCapacity='1000Gi'
+  fi
+  if [[ -z "$host_base" ]]; then
+    host_base="https://storage.googleapis.com"
+  fi
+  if [[ -z "$host_bucket" ]]; then
+    host_bucket="https://storage.googleapis.com"
+  fi
+  if [[ -z "$bucket_location" ]]; then
+    bucket_location="us-east-1"
+  fi
+
+  url="https://storage.googleapis.com"
+  check_target_existence "$target_name" "$target_namespace" "$access_key" "$secret_key" "$url" "$bucket_name" "$bucket_location"
+  ret_code=$?
+  if [[ $ret_code -ne 0 ]]; then
+    return 1
+  fi
+  call_s3cfg_aws "$access_key" "$secret_key" "$host_base" "$host_bucket" "$bucket_location" "True"
+  #create bucket
+  ret_val=$(s3cmd --config s3cfg_config mb s3://"$bucket_name" 2>&1)
+  ret_mgs=$?
+  if [[ "$ret_mgs" -ne 0 ]]; then
+    ret_code=$(echo "$ret_val" | grep 'BucketAlreadyOwnedByYou')
+    ret_code1=$(echo "$ret_val" | grep 'BucketNameUnavailable')
+    if [[ "$ret_code" ]]; then
+      echo "WARNING: Bucket already exists"
+    elif [[ "$ret_code1" ]]; then
+      echo "WARNING: Bucket Name unavailable,please use different name"
+      exit 1
+    else
+      echo "$ret_val"
+      echo "Error in creating bucket,please check credentials/name"
+      exit 1
+    fi
+  fi
+  #create S3 target
+  #region=$(s3cmd --config s3cfg_config info s3://"$bucket_name"/ | grep Location | cut -d':' -f2- | sed 's/^ *//g')
+  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  secret_name="$target_name-$rand_name"
+  #Create secret from the credentials provided
+  create_secret "$secret_name" "$access_key" "$secret_key" "${target_namespace}"
+  retcode=$?
+  if [ "$retcode" -ne 0 ]; then
+    echo "Exiting..."
+    exit 1
+  fi
+  cat <<EOF | kubectl apply -f - 1>> >(logit) 2>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Target
+metadata:
+  name: ${target_name}
+  namespace: ${target_namespace}
+spec:
+  type: ObjectStore
+  vendor: Other
+  objectStoreCredentials:
+    url: "$url"
+    credentialSecret:
+      name: ${secret_name}
+      namespace: ${target_namespace}
+    bucketName: "$bucket_name"
+    region: "$bucket_location"
   thresholdCapacity: $thresholdCapacity
 EOF
   retcode=$?
@@ -1111,13 +1674,17 @@ create_target() {
       return 1
     fi
     if [[ -z ${input_config} ]]; then
-      echo -e "Please select vendor\n1.Digital_Ocean\n2.Amazon_AWS"
+      echo -e "Please select vendor\n1.Digital_Ocean\n2.Amazon_AWS\n3.Readymade_Minio\n4.GCP"
       read -r -p "select option: " vendor_type
     else
       if [[ $vendor_type == "Digital_Ocean" ]]; then
         vendor_type=1
       elif [[ $vendor_type == "Amazon_AWS" ]]; then
         vendor_type=2
+      elif [[ $vendor_type == "Readymade_Minio" ]]; then
+        vendor_type=3
+      elif [[ $vendor_type == "GCP" ]]; then
+        vendor_type=4
       else
         echo "Wrong value provided for target"
       fi
@@ -1132,6 +1699,20 @@ create_target() {
       ;;
     2)
       create_aws_s3
+      ret_code=$?
+      if [ "$ret_code" -ne 0 ]; then
+        return 1
+      fi
+      ;;
+    3)
+      create_readymade_minio
+      ret_code=$?
+      if [ "$ret_code" -ne 0 ]; then
+        return 1
+      fi
+      ;;
+    4)
+      create_gcp_s3
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
         return 1
@@ -1204,6 +1785,7 @@ EOF
     ;;
   esac
   shift
+  echo "Creating Target.."
   cmd="kubectl get target $target_name -n $target_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Unavailable"
   wait_install 20 "$cmd"
   if ! kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
@@ -1266,6 +1848,13 @@ sample_test() {
       return 1
     fi
   fi
+  #Check if cluster is OCP
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+  ret_val=$?
+  open_flag=0
+  if [ "$ret_code" -eq 0 ]; then
+    open_flag=1
+  fi
   if [[ -z $backup_way ]]; then
     echo "Please provide valid backup-way..exiting.."
     return 1
@@ -1313,6 +1902,10 @@ EOM
         exit 1
       fi
       echo "Waiting for application to be in Ready state"
+      if [ "$open_flag" -eq 1 ]; then
+        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      fi
       cmd="kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep Running"
       wait_install 15 "$cmd"
       if ! kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep -q Running; then
@@ -1322,14 +1915,29 @@ EOM
     else
       helm install mysql-qa stable/mysql -n $backup_namespace 1>> >(logit) 2>> >(logit)
       echo "Installing Application"
-      cmd="kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep Running"
-      wait_install 15 "$cmd"
-      if ! kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep -q Running; then
-        echo "Application installation failed"
+      sleep 10
+      cmd=$(kubectl get pods -l app=mysql-qa -n $backup_namespace 2>&1)
+      if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+        echo "Error in creating pod, please check security context"
         return 1
       fi
-      echo "Requested application is installed successfully"
+      runtime=20
+      spin='-\|/'
+      i=0
+      sleep 5
+      endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app=mysql-qa -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+        i=$(((i + 1) % 4))
+        printf "\r %s" "${spin:$i:1}"
+        sleep .1
+      done
+      if kubectl get pods -l app=mysql-qa -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+        echo "Mysql Application taking more time than usual to be in Ready state, Exiting.."
+        return 1
+      fi
     fi
+    echo "Requested application is Up and Running!"
+
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
     yq eval -i '.spec.backupPlanComponents.custom[0].matchLabels.app="mysql-qa"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
@@ -1346,9 +1954,19 @@ EOM
       helm install my-wordpress bitnami/wordpress -n $backup_namespace 1>> >(logit) 2>> >(logit)
       echo "Installing Application"
     fi
+    if [ "$open_flag" -eq 1 ]; then
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+    fi
     runtime=20
     spin='-\|/'
     i=0
+    sleep 5
+    cmd=$(kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n $backup_namespace 2>&1)
+    if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+      echo "Error in creating pod, please check security context"
+      return 1
+    fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
     while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
       i=$(((i + 1) % 4))
@@ -1379,9 +1997,19 @@ EOM
       fi
       echo "Installing MySQL Operator..."
     fi
+    if [ "$open_flag" -eq 1 ]; then
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+    fi
     runtime=15
     spin='-\|/'
     i=0
+    sleep 5
+    cmd=$(kubectl get pod -l app=mysql-operator -n $backup_namespace 2>&1)
+    if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+      echo "Error in creating pod, please check security context"
+      return 1
+    fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
     while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app=mysql-operator -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
       i=$(((i + 1) % 4))
@@ -1402,9 +2030,19 @@ EOM
       echo "Installing MySQL cluster..."
       sleep 10
     fi
+    if [ "$open_flag" -eq 1 ]; then
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+    fi
     runtime=15
     spin='-\|/'
     i=0
+    sleep 5
+    cmd=$(kubectl get pod -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace 2>&1)
+    if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+      echo "Error in creating pod, please check security context"
+      return 1
+    fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
     while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
       i=$(((i + 1) % 4))
@@ -1449,9 +2087,19 @@ EOM
       } 2>> >(logit)
       echo "Installing App..."
     fi
+    if [ "$open_flag" -eq 1 ]; then
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+    fi
     runtime=15
     spin='-\|/'
     i=0
+    sleep 5
+    cmd=$(kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace 2>&1)
+    if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+      echo "Error in creating pod, please check security context"
+      return 1
+    fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
     while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q -w False; do
       i=$(((i + 1) % 4))
@@ -1510,6 +2158,7 @@ EOF
       return 1
     fi
   fi
+  echo "Waiting for backupplan to be Available to use.."
   cmd="kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Unavailable"
   wait_install 10 "$cmd"
   if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
@@ -1546,6 +2195,7 @@ EOF
       return 1
     fi
   fi
+  echo "Waiting for backup to be available.."
   cmd="kubectl get backup $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Failed"
   wait_install 60 "$cmd"
   if ! kubectl get backup $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq Available; then
@@ -1611,10 +2261,12 @@ EOF
         return 1
       fi
     fi
+    echo "Waiting for restore to complete.."
     cmd="kubectl get restore $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Completed -e Failed"
     wait_install 60 "$cmd"
     if ! kubectl get restore $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq 'Completed'; then
       echo "Restore Failed"
+      echo "It may because of some resource already exits, please check and try again!"
       return 1
     else
       echo "Restore is Completed"
