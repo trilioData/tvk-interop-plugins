@@ -3,16 +3,14 @@
 set -o pipefail
 
 ONECLICK_TESTS_SUCCESS=true
-
 # shellcheck source=/dev/null
-source tests/tvk-oneclick/input_config
+. tests/tvk-oneclick/input_config
 
 # shellcheck disable=SC1091
 export input_config=tests/tvk-oneclick/input_config
 
 # shellcheck disable=SC1091
-source tools/tvk-oneclick/tvk-oneclick.sh --source-only
-
+. tools/tvk-oneclick/tvk-oneclick.sh --source-only
 #install yq
 sudo snap install yq
 sudo cp /snap/bin/yq /bin/

@@ -2394,4 +2394,6 @@ if [ "$ret_code" -ne 0 ]; then
   echo "pip3 install is failing.Please check the permisson and try again.."
   exit 1
 fi
-main "$@"
+if [ "${1}" != "--source-only" ]; then
+    main "${@}"
+fi

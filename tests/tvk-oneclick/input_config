@@ -52,7 +52,7 @@ cluster_name='trilio-test2'
 TARGET=True
 
 #Specify vendor name for s3 bucket ['Digital_Ocean','Amazon_AWS', 'Readymade_Minio', 'GCP']
-vendor_type='Readymade_Minio'
+vendor_type='GCP'
 
 #Specify DigitalOcean token [ https://cloud.digitalocean.com/account/api/tokens. ]
 doctl_token='DO token'
@@ -73,7 +73,7 @@ default_minio='Y'
 minio_server_namespace=''
 
 #Specify access_key for accessing/creating bucket/spaces
-access_key='access_key'
+access_key='<access_key>'
 
 #Specify secret key for accessing/creating bucket/spaces
 secret_key='<secret_key>'
@@ -120,24 +120,24 @@ thresholdCapacity='1000Gi'
 SAMPLE_TEST=True
 
 #Specify backup plan name
-bk_plan_name='trilio-test-backup'
+bk_plan_name='trilio-test-operator'
 
 #Specify namespace where backupplan needs to be created
 bk_plan_namespae='trilio-test-backup'
 
 #Specify backup name
-backup_name='trilio-test-backup'
+backup_name='trilio-test-operator'
 #Specify backup namespace[Note: currently backup plan and backup should be in same namespace]
 backup_namespace='trilio-test-backup'
 
 #Specify the way in which backup should be taken ['Label_based','Namespace_based','Operator_base','Helm_based']
-backup_way='Helm_based'
+backup_way='Operator_based'
 
 #Whether or not restore should be performed [True, False]
 restore=True
 
 #Specify TVK restore name
-restore_name='tvk-restore'
+restore_name='trilio-test-operator'
 
 #Specify namespace in which restore should be performed
 restore_namespace='tvk-restore'
