@@ -140,7 +140,6 @@ cleanup() {
     # NOTE: need sleep for resources to be garbage collected by api-controller
     sleep 20
 
-
     kubectl get tvm triliovault-manager -n "${INSTALL_NAMESPACE}" -o json | jq '.metadata.finalizers=[]' | kubectl replace -f -
     kubectl delete tvm triliovault-manager -n "${INSTALL_NAMESPACE}"
 
