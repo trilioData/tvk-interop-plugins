@@ -57,6 +57,9 @@ testcreate_target() {
 
 testsample_test() {
   sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Label_based\'/" "$input_config"
+  sed -i "s/^\(bk_plan_name\s*=\s*\).*$/\1\'trilio-test-label\'/" "$input_config"
+  sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-label\'/" "$input_config"
+  sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-label\'/" "$input_config"
   # shellcheck disable=SC1091
   . tests/tvk-oneclick/input_config
   sample_test
@@ -71,6 +74,9 @@ testsample_test() {
 
 testsample_test_helm() {
   sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Helm_based\'/" "$input_config"
+  sed -i "s/^\(bk_plan_name\s*=\s*\).*$/\1\'trilio-test-helm\'/" "$input_config"
+  sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-helm\'/" "$input_config"
+  sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-helm\'/" "$input_config"
   # shellcheck disable=SC1091
   . tests/tvk-oneclick/input_config
   sample_test
@@ -85,6 +91,9 @@ testsample_test_helm() {
 
 testsample_test_namespace() {
   sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Namespace_based\'/" "$input_config"
+  sed -i "s/^\(bk_plan_name\s*=\s*\).*$/\1\'trilio-test-namespace\'/" "$input_config"
+  sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-namespace\'/" "$input_config"
+  sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-namespace\'/" "$input_config"
   # shellcheck disable=SC1091
   . tests/tvk-oneclick/input_config
   sample_test
@@ -99,6 +108,9 @@ testsample_test_namespace() {
 
 testsample_test_operator() {
   sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Operator_based\'/" "$input_config"
+  sed -i "s/^\(bk_plan_name\s*=\s*\).*$/\1\'trilio-test-operator\'/" "$input_config"
+  sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-operator\'/" "$input_config"
+  sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-operator\'/" "$input_config"
   # shellcheck disable=SC1091
   . tests/tvk-oneclick/input_config
   sample_test
@@ -120,17 +132,14 @@ cleanup() {
   if [ "$TVK_install" == "true" ]; then
 
     # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob --all -n "${backup_namespace}"
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,role,job,target,backup,backupplan,policy,restore,cronjob --all -n "${backup_namespace}"
 
     # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob --all -n "${restore_namespace}"
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,job,target,backup,backupplan,policy,restore,cronjob --all -n "${restore_namespace}"
 
     # NOTE: need sleep for resources to be garbage collected by api-controller
     sleep 20
-    # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob --all -n "${INSTALL_NAMESPACE}"
 
-    kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -A | grep -E "${INSTALL_NAMESPACE}" || true
 
     kubectl get tvm triliovault-manager -n "${INSTALL_NAMESPACE}" -o json | jq '.metadata.finalizers=[]' | kubectl replace -f -
     kubectl delete tvm triliovault-manager -n "${INSTALL_NAMESPACE}"
@@ -142,6 +151,9 @@ cleanup() {
 
     #shellcheck disable=SC2143
     helm list --namespace "${INSTALL_NAMESPACE}" | grep "k8s-triliovault" | awk '{print $1}' | xargs -i helm uninstall '{}' -n "${INSTALL_NAMESPACE}"
+
+    # shellcheck disable=SC2154
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,job,target,backup,backupplan,policy,restore,cronjob --all -n "${INSTALL_NAMESPACE}"
 
     kubectl delete ns "${INSTALL_NAMESPACE}" --request-timeout 2m || true
     # shellcheck disable=SC2154
