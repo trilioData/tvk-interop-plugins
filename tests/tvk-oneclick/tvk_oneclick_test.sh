@@ -117,33 +117,41 @@ cleanup() {
   # cleanup namespaces and helm release
   # shellcheck disable=SC2154
   INSTALL_NAMESPACE="$tvk_ns"
-  #shellcheck disable=SC2143
-  if [[ $(helm list -n "${INSTALL_NAMESPACE}" | grep "${INSTALL_NAMESPACE}") ]]; then
-    helm delete "${HELM_RELEASE_NAME}" --namespace "${INSTALL_NAMESPACE}"
+  if [ "$TVK_install" == "true" ]; then
+    #shellcheck disable=SC2143
+
+    helm delete "${HELM_RELEASE_NAME}" --namespace "${INSTALL_NAMESPACE}" | grep "k8s-triliovault" | awk '{print $1}' | xargs -i helm uninstall '{}' -n "${INSTALL_NAMESPACE}"
+
+    kubectl get validatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete validatingwebhookconfigurations || true
+    kubectl get mutatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete mutatingwebhookconfigurations || true
+
+    # NOTE: need sleep for resources to be garbage collected by api-controller
+    sleep 20
+
+    # shellcheck disable=SC2154
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob -n "${INSTALL_NAMESPACE}" || true
+
+    # shellcheck disable=SC2154
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob -n "${backup_namespace}"
+
+    # shellcheck disable=SC2154
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob -n "${restore_namespace}"
+
+    kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -A | grep -E "${INSTALL_NAMESPACE}" || true
+
+    kubectl get crd | grep trilio | awk '{print $1}' | xargs -i kubectl delete crd '{}'
+
+    kubectl delete ns "${INSTALL_NAMESPACE}" --request-timeout 2m || true
+    # shellcheck disable=SC2154
+    s3cmd --config s3cfg_config del --recursive s3://"$bucket_name"
+    # shellcheck disable=SC2154
+    s3cmd s3cmd --config s3cfg_config rb s3://"$bucket_name"
+    # shellcheck disable=SC2154
+    #helm delete "$build_id" --namespace default
+    #Destroying virtual cluster created
+    # shellcheck disable=SC2154
+    exit ${rc}
   fi
-
-  kubectl get validatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete validatingwebhookconfigurations || true
-  kubectl get mutatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete mutatingwebhookconfigurations || true
-
-  # NOTE: need sleep for resources to be garbage collected by api-controller
-  sleep 20
-
-  kubectl delete ns "${INSTALL_NAMESPACE}" --request-timeout 2m || true
-
-  kubectl get po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob -n "${INSTALL_NAMESPACE}" || true
-
-  kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -A | grep -E "${INSTALL_NAMESPACE}" || true
-
-  kubectl get crd | grep trilio | awk '{print $1}' | xargs -i kubectl delete crd '{}'
-  # shellcheck disable=SC2154
-  s3cmd del --recursive s3://"$bucket_name"
-  # shellcheck disable=SC2154
-  s3cmd rb s3://"$bucket_name"
-  # shellcheck disable=SC2154
-  helm delete "$build_id" --namespace default
-  #Destroying virtual cluster created
-  # shellcheck disable=SC2154
-  exit ${rc}
 }
 
 trap "cleanup" EXIT
@@ -152,6 +160,8 @@ testinstallTVK
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
   ONECLICK_TESTS_SUCCESS=false
+else
+  TVK_install=true
 fi
 
 testconfigure_ui
