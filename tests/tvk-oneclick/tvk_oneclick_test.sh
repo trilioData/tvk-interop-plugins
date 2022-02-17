@@ -125,9 +125,6 @@ cleanup() {
     # shellcheck disable=SC2154
     kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob --all -n "${restore_namespace}"
 
-    kubectl get validatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete validatingwebhookconfigurations || true
-    kubectl get mutatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete mutatingwebhookconfigurations || true
-
     # NOTE: need sleep for resources to be garbage collected by api-controller
     sleep 20
     # shellcheck disable=SC2154
@@ -135,10 +132,15 @@ cleanup() {
 
     kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -A | grep -E "${INSTALL_NAMESPACE}" || true
 
+    kubectl get tvm triliovault-manager -n "${INSTALL_NAMESPACE}" | yq d -i 'metadata.finalizers'
+    kubectl delete yq d -i 'metadata.finalizers'
+
     kubectl get crd | grep trilio | awk '{print $1}' | xargs -i kubectl delete crd '{}'
 
-    #shellcheck disable=SC2143
+    kubectl get validatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete validatingwebhookconfigurations || true
+    kubectl get mutatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete mutatingwebhookconfigurations || true
 
+    #shellcheck disable=SC2143
     helm list --namespace "${INSTALL_NAMESPACE}" | grep "k8s-triliovault" | awk '{print $1}' | xargs -i helm uninstall '{}' -n "${INSTALL_NAMESPACE}"
 
     kubectl delete ns "${INSTALL_NAMESPACE}" --request-timeout 2m || true
@@ -177,6 +179,24 @@ if [[ $retCode -ne 0 ]]; then
 fi
 
 testsample_test
+retCode=$?
+if [[ $retCode -ne 0 ]]; then
+  ONECLICK_TESTS_SUCCESS=false
+fi
+
+testsample_test_helm
+retCode=$?
+if [[ $retCode -ne 0 ]]; then
+  ONECLICK_TESTS_SUCCESS=false
+fi
+
+testsample_test_namespace
+retCode=$?
+if [[ $retCode -ne 0 ]]; then
+  ONECLICK_TESTS_SUCCESS=false
+fi
+
+testsample_test_operator
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
   ONECLICK_TESTS_SUCCESS=false
