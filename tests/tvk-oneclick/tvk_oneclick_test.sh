@@ -56,6 +56,7 @@ testcreate_target() {
 }
 
 testsample_test() {
+  sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Label_based\'/" "$input_config"
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -67,10 +68,7 @@ testsample_test() {
 }
 
 testsample_test_helm() {
-  sed -i "s/\(backup_way *= *\).*/\1\'Helm_based\'/" "$input_config"
-  sed -i "s/\(bk_plan_name *= *\).*/\1\'trilio-test-helm\'/" "$input_config"
-  sed -i "s/\(backup_name *= *\).*/\1\'trilio-test-helm\'/" "$input_config"
-  sed -i "s/\(restore_name *= *\).*/\1\'trilio-test-helm\'/" "$input_config"
+  sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Helm_based\'/" "$input_config"
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -82,10 +80,7 @@ testsample_test_helm() {
 }
 
 testsample_test_namespace() {
-  sed -i "s/\(backup_way *= *\).*/\1\'Namespace_based\'/" "$input_config"
-  sed -i "s/\(bk_plan_name *= *\).*/\1\'trilio-test-namespace\'/" "$input_config"
-  sed -i "s/\(backup_name *= *\).*/\1\'trilio-test-namespace\'/" "$input_config"
-  sed -i "s/\(restore_name *= *\).*/\1\'trilio-test-namespace\'/" "$input_config"
+  sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Namespace_based\'/" "$input_config"
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -97,10 +92,7 @@ testsample_test_namespace() {
 }
 
 testsample_test_operator() {
-  sed -i "s/\(backup_way *= *\).*/\1\'Operator_based\'/" "$input_config"
-  sed -i "s/\(bk_plan_name *= *\).*/\1\'trilio-test-operator\'/" "$input_config"
-  sed -i "s/\(backup_name *= *\).*/\1\'trilio-test-operator\'/" "$input_config"
-  sed -i "s/\(restore_name *= *\).*/\1\'trilio-test-operator\'/" "$input_config"
+  sed -i "s/^\(backup_way\s*=\s*\).*$/\1\'Operator_based\'/" "$input_config"
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -120,22 +112,21 @@ cleanup() {
   if [ "$TVK_install" == "true" ]; then
     #shellcheck disable=SC2143
 
-    helm delete "${HELM_RELEASE_NAME}" --namespace "${INSTALL_NAMESPACE}" | grep "k8s-triliovault" | awk '{print $1}' | xargs -i helm uninstall '{}' -n "${INSTALL_NAMESPACE}"
+    helm list --namespace "${INSTALL_NAMESPACE}" | grep "k8s-triliovault" | awk '{print $1}' | xargs -i helm uninstall '{}' -n "${INSTALL_NAMESPACE}"
 
     kubectl get validatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete validatingwebhookconfigurations || true
     kubectl get mutatingwebhookconfigurations -A | grep "${INSTALL_NAMESPACE}" | awk '{print $1}' | xargs -r kubectl delete mutatingwebhookconfigurations || true
 
     # NOTE: need sleep for resources to be garbage collected by api-controller
     sleep 20
+    # shellcheck disable=SC2154
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob --all -n "${INSTALL_NAMESPACE}" || true
 
     # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob -n "${INSTALL_NAMESPACE}" || true
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob --all -n "${backup_namespace}"
 
     # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob -n "${backup_namespace}"
-
-    # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob -n "${restore_namespace}"
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,secret,sa,role,rolebinding,job,target,backup,backupplan,policy,restore,cronjob --all -n "${restore_namespace}"
 
     kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -A | grep -E "${INSTALL_NAMESPACE}" || true
 
