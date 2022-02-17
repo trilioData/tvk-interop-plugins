@@ -589,7 +589,7 @@ install_license() {
   tvk_ns=$1
   flag=0
   ret=$(kubectl get license -n "$tvk_ns" 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-  if [[ ! -z "$ret" ]]; then
+  if [[ -n "$ret" ]]; then
     ret_val=$(kubectl get license "$ret" -n "$get_ns" 2>> >(logit) | grep -q Active)
     ret_code_A=$?
     if [ "$ret_code_A" -eq 0 ]; then
