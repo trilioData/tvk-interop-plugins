@@ -170,7 +170,7 @@ install_tvk() {
         kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
       else
-        echo "Something wrong when assigning privilege to Trilio operator SA"
+        echo "Something went wrong when assigning privilege to Trilio operator SA"
         exit 1
       fi
     fi

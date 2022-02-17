@@ -132,8 +132,8 @@ cleanup() {
 
     kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations -A | grep -E "${INSTALL_NAMESPACE}" || true
 
-    kubectl get tvm triliovault-manager -n "${INSTALL_NAMESPACE}" | yq d -i 'metadata.finalizers'
-    kubectl delete yq d -i 'metadata.finalizers'
+    kubectl get tvm triliovault-manager -n "${INSTALL_NAMESPACE}" -o json | jq '.metadata.finalizers=[]' | kubectl replace -f -
+    kubectl delete tvm triliovault-manager -n "${INSTALL_NAMESPACE}"
 
     kubectl get crd | grep trilio | awk '{print $1}' | xargs -i kubectl delete crd '{}'
 
