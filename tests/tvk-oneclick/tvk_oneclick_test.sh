@@ -132,10 +132,10 @@ cleanup() {
   if [ "$TVK_install" == "true" ]; then
 
     # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,role,job,target,backup,backupplan,policy,restore,cronjob --all -n "${backup_namespace}"
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,role,job,backup,backupplan,target,policy,restore,cronjob --all -n "${backup_namespace}"
 
     # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,job,target,backup,backupplan,policy,restore,cronjob --all -n "${restore_namespace}"
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,job,backup,backupplan,target,policy,restore,cronjob --all -n "${restore_namespace}"
 
     # NOTE: need sleep for resources to be garbage collected by api-controller
     sleep 20
@@ -152,9 +152,15 @@ cleanup() {
     helm list --namespace "${INSTALL_NAMESPACE}" | grep "k8s-triliovault" | awk '{print $1}' | xargs -i helm uninstall '{}' -n "${INSTALL_NAMESPACE}"
 
     # shellcheck disable=SC2154
-    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,job,target,backup,backupplan,policy,restore,cronjob --all -n "${INSTALL_NAMESPACE}"
+    kubectl delete po,rs,deployment,pvc,svc,sts,cm,sa,job,backup,backupplan,target,policy,restore,cronjob --all -n "${INSTALL_NAMESPACE}"
 
     kubectl delete ns "${INSTALL_NAMESPACE}" --request-timeout 2m || true
+
+    kubectl get mysqlcluster.mysql.presslabs.org/my-cluster -n tvk-restore -o json | jq '.metadata.finalizers=[]' | kubectl replace -f -
+    kubectl get mysqlcluster.mysql.presslabs.org/my-cluster -n trilio-test-backup -o json | jq '.metadata.finalizers=[]' | kubectl replace -f -
+
+    kubectl delete ns tvk-restore --request-timeout 2m || true
+    kubectl delete ns trilio-test-backup --request-timeout 2m || true
     # shellcheck disable=SC2154
     s3cmd --config s3cfg_config del --recursive s3://"$bucket_name"
     # shellcheck disable=SC2154
@@ -189,6 +195,12 @@ if [[ $retCode -ne 0 ]]; then
   ONECLICK_TESTS_SUCCESS=false
 fi
 
+testsample_test_namespace
+retCode=$?
+if [[ $retCode -ne 0 ]]; then
+  ONECLICK_TESTS_SUCCESS=false
+fi
+
 testsample_test
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
@@ -196,12 +208,6 @@ if [[ $retCode -ne 0 ]]; then
 fi
 
 testsample_test_helm
-retCode=$?
-if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
-fi
-
-testsample_test_namespace
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
   ONECLICK_TESTS_SUCCESS=false

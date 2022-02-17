@@ -3,7 +3,9 @@
 #This program is use to install/configure/test TVK product with one click and few required inputs
 
 masterIngName=k8s-triliovault-master
+masterIngName_2_7_0=k8s-triliovault
 ingressGateway=k8s-triliovault-ingress-gateway
+ingressGateway_2_7_0=k8s-triliovault-ingress-nginx-controller
 operatorSA=triliovault-operator-k8s-triliovault-operator-service-account
 tvkmanagerSA=k8s-triliovault
 
@@ -170,7 +172,7 @@ install_tvk() {
         kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
       else
-        echo "Something went wrong when assigning privilege to Trilio operator SA"
+        echo "Something wrong when assigning privilege to Trilio operator SA"
         exit 1
       fi
     fi
@@ -242,6 +244,12 @@ install_tvk() {
     tvk_ns="$get_ns"
     #Check if TVM can be upgraded
     old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+    vercomp "$old_tvm_version" "2.7.0"
+    ret_ingress=$?
+    if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+      ingressGateway="${ingressGateway_2_7_0}"
+      masterIngName="${masterIngName_2_7_0}"
+    fi
     # shellcheck disable=SC2001
     new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
     vercomp "$old_tvm_version" "$new_triliovault_manager_version"
@@ -315,14 +323,14 @@ EOF
     elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
       if [ "$open_flag" -eq 1 ]; then
         cmd="kubectl get sa $tvkmanagerSA -n $tvk_ns 2>> >(logit)"
-        wait_install 15 "$cmd"
+        wait_install 10 "$cmd"
         kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
         retcode=$?
         if [[ $retcode == 0 ]]; then
           kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
           kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         else
-          echo "Something went wrong when assigning privilege to Trilio operator SA"
+          echo "Something wrong when assigning privilege to Trilio operator SA"
           exit 1
         fi
       fi
@@ -581,7 +589,7 @@ install_license() {
   tvk_ns=$1
   flag=0
   ret=$(kubectl get license -n "$tvk_ns" 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-  if [[ -n "$ret" ]]; then
+  if [[ ! -z "$ret" ]]; then
     ret_val=$(kubectl get license "$ret" -n "$get_ns" 2>> >(logit) | grep -q Active)
     ret_code_A=$?
     if [ "$ret_code_A" -eq 0 ]; then
@@ -722,6 +730,16 @@ configure_nodeport_for_tvkui() {
     tvkhost_name="tvk-doks.com"
   fi
   get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
+  # Getting tvm version and setting the configs accordingly
+  tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
+  tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  vercomp "$tvm_version" "2.7.0"
+  ret_ingress=$?
+  if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+    ingressGateway="${ingressGateway_2_7_0}"
+    masterIngName="${masterIngName_2_7_0}"
+  fi
   # shellcheck disable=SC1083
   gateway=$(kubectl get pods --no-headers=true -n "$get_ns" 2>/dev/null | awk "/$ingressGateway/"{'print $1}')
   if [[ -z "$gateway" ]]; then
@@ -731,10 +749,6 @@ configure_nodeport_for_tvkui() {
   node=$(kubectl get pods "$gateway" -n "$get_ns" -o jsonpath='{.spec.nodeName}' 2>> >(logit))
   ip=$(kubectl get node "$node" -n "$get_ns" -o jsonpath='{.status.addresses[?(@.type=="ExternalIP")].address}' 2>> >(logit))
   port=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' 2>> >(logit))
-  # Getting tvm version and setting the configs accordingly
-  tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
-  tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
   vercomp "2.6.0" "$tvm_version"
   ret_val=$?
   if [[ $ret_val == 2 ]] || [[ $ret_val == 1 ]]; then
@@ -852,6 +866,12 @@ configure_loadbalancer_for_tvkUI() {
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
   tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  vercomp "$tvm_version" "2.7.0"
+  ret_ingress=$?
+  if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+    ingressGateway="${ingressGateway_2_7_0}"
+    masterIngName="${masterIngName_2_7_0}"
+  fi
   vercomp "2.6.0" "$tvm_version"
   ret_val=$?
   if [[ $ret_val == 2 ]] || [[ $ret_val == 1 ]]; then
@@ -930,8 +950,13 @@ EOF
     echo "provide config file to login"
     echo "Info:UI may take 30 min to come up"
   else
-    echo "Add the /etc/hosts entry: '${external_ip} ${tvkhost_name}'"
-    echo "Hit the URL in browser: http://${tvkhost_name}"
+    if [[ -z "$external_ip" ]]; then
+      echo "Add the /etc/hosts entry: '${hostname} ${tvkhost_name}'"
+      echo "Hit the URL in browser: http://${tvkhost_name}"
+    else
+      echo "Add the /etc/hosts entry: '${external_ip} ${tvkhost_name}'"
+      echo "Hit the URL in browser: http://${tvkhost_name}"
+    fi
   fi
 }
 
