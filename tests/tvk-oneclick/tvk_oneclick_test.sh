@@ -161,7 +161,7 @@ cleanup() {
 
     kubectl delete ns tvk-restore --request-timeout 2m || true
     kubectl delete ns trilio-test-backup --request-timeout 2m || true
-    # shellcheck disable=SC2154
+    shellcheck disable=SC2154
     #s3cmd --config s3cfg_config del --recursive s3://"$bucket_name"
     # shellcheck disable=SC2154
     #s3cmd s3cmd --config s3cfg_config rb s3://"$bucket_name"
