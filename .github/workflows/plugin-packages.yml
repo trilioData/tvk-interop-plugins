@@ -144,7 +144,7 @@ jobs:
             build/tvk-oneclick-sha256.txt
 
   # pre-release job determines whether to create release or not and sets job variables which will be used to decide
-  # what packages(preflight, cleanup, log-collector, target-browser) should be included in release
+  # what packages(tvk-oneclick) should be included in release
   pre-release:
     runs-on: ubuntu-latest
     needs: [build_test_tvk_oneclick]
