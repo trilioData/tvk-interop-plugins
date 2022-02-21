@@ -167,7 +167,6 @@ cleanup() {
     #s3cmd s3cmd --config s3cfg_config rb s3://"$bucket_name"
     # shellcheck disable=SC2154
     #helm delete "$build_id" --namespace default
-    #Destroying virtual cluster created
     # shellcheck disable=SC2154
     exit ${rc}
   fi
