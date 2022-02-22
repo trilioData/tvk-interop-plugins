@@ -170,22 +170,10 @@ jobs:
         with:
           path: build
 
-      - name: Update GoReleaser Config for Release
-        run: hack/update-goreleaser-yaml.sh
-        env:
-          release_tvk_oneclick: ${{needs.pre-release.outputs.release_tvk_oneclick }}
-
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.17
-
       - name: Release
-        uses: actions/create-release@latest
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          prerelease: true
+          artifacts: "build/tvk-oneclick/tvk-oneclick.tar.gz,build/tvk-oneclick/tvk-oneclick-sha256.txt"
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
