@@ -1,4 +1,25 @@
 # goreleaser build and release config
+builds:
+- id: tvk-oneclick
+  env:
+    - CGO_ENABLED=0
+  goos:
+    - darwin
+    - linux
+  goarch:
+    - amd64
+
+archives:
+- id: tvk-oneclick-archive
+  name_template: |-
+    tvk-oneclick_{{ .Tag }}_{{ .Os }}_{{ .Arch -}}
+  builds:
+    - tvk-oneclick
+  format_overrides:
+    - goos: windows
+      format: zip
+  files: ["LICENSE.md"]
+
 checksum:
   name_template: "tvk-plugins-sha256.txt"
   algorithm: sha256
