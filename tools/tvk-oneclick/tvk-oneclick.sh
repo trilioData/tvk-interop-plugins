@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#This program is use to install/configure/test TVK product with one click and few required inputs
+#This program is use to install/configure/test TVK product with one click and few required inputs.
 
 masterIngName=k8s-triliovault-master
 masterIngName_2_7_0=k8s-triliovault
