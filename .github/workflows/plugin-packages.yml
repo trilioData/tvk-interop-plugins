@@ -180,10 +180,12 @@ jobs:
         with:
           go-version: 1.17
 
-      - name: Release with GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+      - name: Release
+        uses: actions/create-release@latest
         with:
-          version: latest
-          args: release --rm-dist --skip-validate
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          prerelease: true
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
