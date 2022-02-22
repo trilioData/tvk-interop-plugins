@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-set -x
 # shellcheck disable=SC2046
 # shellcheck disable=SC2006
 current_tag=$(git describe --abbrev=0 --tags)
