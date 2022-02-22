@@ -25,7 +25,9 @@ echo "checking paths of modified files-"
 
 tvk_oneclick_changed=false
 
+# shellcheck disable=SC2034
 cmd_dir="cmd"
+# shellcheck disable=SC2034
 tools_dir="tools"
 
 tvk_oneclick_dir=$tools_dir/tvk-oneclick
