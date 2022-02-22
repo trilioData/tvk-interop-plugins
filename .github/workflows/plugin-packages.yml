@@ -121,13 +121,6 @@ jobs:
           sed -i "s/^\(secret_key\s*=\s*\).*$/\1\'$secret_key\'/" tests/tvk-oneclick/input_config
 
 
-      - name: Run Tvk-oneclick Integration Tests
-        if: (needs.pre-build.outputs.testoneclick == 'true') || startsWith(github.ref, 'refs/tags/')
-        run: make test-tvk_oneclick-integration
-        env:
-          nfs_server_ip: ${{ secrets.NFS_SERVER_IP }}
-          build_id: tvk-oneclick-${{ github.run_id }}
-
       - name: Ensure Required Utilities Installed
         run: make install-required-utilities
 
