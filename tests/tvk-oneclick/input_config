@@ -20,10 +20,10 @@ storage_class=
 TVK_INSTALL=True
 
 #Specify TVK operator version
-operator_version='2.6.7'
+operator_version='2.7.0'
 
 #Specify TVK Manager version
-triliovault_manager_version='2.6.7'
+triliovault_manager_version='2.7.0'
 
 #Specify namespace name in which TVK should get installed.
 tvk_ns='tvk'
