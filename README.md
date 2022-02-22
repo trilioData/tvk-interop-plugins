@@ -4,7 +4,7 @@
 [![LICENSE](https://img.shields.io/github/license/trilioData/tvk-plugins.svg)](https://github.com/trilioData/tvk-plugins/blob/master/LICENSE.md)
 [![Releases](https://img.shields.io/github/v/release/trilioData/tvk-plugins.svg?include_prereleases)](https://github.com/trilioData/tvk-plugins/releases)
 
-kubectl-plugins for log-collector, preflight and target-browser CLI.
+kubectl-plugins for tvk-oneclick CLI.
 
 ## Pre-requisites:
 
