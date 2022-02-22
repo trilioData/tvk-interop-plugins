@@ -32,8 +32,6 @@ tvk_oneclick_dir=$tools_dir/tvk-oneclick
 git diff --name-only $previous_tag $current_tag $tools_dir >files.txt
 # shellcheck disable=SC2086
 git diff --name-only $previous_tag $current_tag $cmd_dir >>files.txt
-# shellcheck disable=SC2086
-git diff --name-only $previous_tag $current_tag $internal_dir >>files.txt
 
 count=$(wc -l <files.txt)
 if [[ $count -eq 0 ]]; then
