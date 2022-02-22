@@ -26,6 +26,5 @@ checksum:
 
 release:
   # If set to auto, will mark the release as not ready for production
-  # If set to true, will mark the release as not ready for production.
   # Default is false.
   prerelease: true
