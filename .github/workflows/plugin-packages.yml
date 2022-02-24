@@ -173,7 +173,7 @@ jobs:
       - name: Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "build/*"
+          artifacts: "build/tvk-oneclick-sha256.txt,build/tvk-oneclick.tar.gz"
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
