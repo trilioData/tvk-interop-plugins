@@ -17,7 +17,7 @@ spec:
         - darwin
         - linux
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.0/tvk-oneclick.tar.gz
-    sha256: d720399c435444c9e4cd1918b9e3abb25b71563c2c0cc16deaa7ea70f076f408
+    sha256: Not
     bin: tvk-oneclick
     files:
     - from: tvk-oneclick/*
