@@ -3,7 +3,7 @@ kind: Plugin
 metadata:
   name: tvk-oneclick
 spec:
-  homepage: https://github.com/trilioData/tvk-plugins/blob/main/docs/tvk-oneclick/README.md
+  homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/tvk-oneclick/README.md
   shortDescription: Plugin to Install/Configure/Test TVK
   version: TVK_ONECLICK_VERSION
   caveats: |
@@ -16,7 +16,7 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-plugins/releases/download/TVK_ONECLICK_VERSION/tvk-oneclick.tar.gz
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/TVK_ONECLICK_VERSION/tvk-oneclick.tar.gz
     sha256: TVK_ONECLICK_TAR_CHECKSUM
     bin: tvk-oneclick
     files:
