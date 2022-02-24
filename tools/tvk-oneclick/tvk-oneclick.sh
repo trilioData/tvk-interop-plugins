@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#This program is use to install/configure/test TVK product with one click and few required inputs.
+#This program is use to install/configure/test TVK product with one click and few required inputs
 
 masterIngName=k8s-triliovault-master
 masterIngName_2_7_0=k8s-triliovault
@@ -1917,6 +1917,8 @@ EOM
     echo "Cannot write backupplan.yaml file, please check file system permissions"
     return 1
   fi
+  chmod 666 backupplan.yaml
+  chown "$(id -u)":"$(id -g)" backupplan.yaml
   case $backup_way in
   1)
     ## Install mysql helm chart
@@ -2419,6 +2421,4 @@ if [ "$ret_code" -ne 0 ]; then
   echo "pip3 install is failing.Please check the permisson and try again.."
   exit 1
 fi
-if [ "${1}" != "--source-only" ]; then
-  main "${@}"
-fi
+main "$@"
