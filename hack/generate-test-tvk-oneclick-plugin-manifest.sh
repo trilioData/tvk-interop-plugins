@@ -2,6 +2,7 @@
 
 set -e -o pipefail
 
+set -x
 echo >&2 "Creating TVK-Oneclick plugin manifest yaml"
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
