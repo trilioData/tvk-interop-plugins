@@ -1,4 +1,4 @@
-module github.com/trilioData/tvk-plugins
+module github.com/trilioData/tvk-interop-plugins
 
 go 1.15
 
