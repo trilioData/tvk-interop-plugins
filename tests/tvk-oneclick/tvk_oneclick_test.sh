@@ -41,7 +41,6 @@ testconfigure_ui() {
 testcreate_target() {
   # debug message
   # shellcheck disable=SC2154
-  #sed -i "s/^\(nfs_server\s*=\s*\).*$/\1\'$nfs_server_ip\'/" "$input_config"
   create_target
   rc=$?
   # shellcheck disable=SC2181
