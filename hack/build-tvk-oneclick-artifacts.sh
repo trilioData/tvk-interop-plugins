@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+set -x
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
 # create tvk-oneclick tar package
