@@ -5,16 +5,16 @@ This guide intends to make contribution to this repo easier and consistent.
 ## Directory Structure:
 
 ```text
-tvk-plugins
+tvk-interop-plugins
  ├── .github/
  |    └── workflows : github actions workflow files
  |        ├── plugin-manifests.yml : CI workflow for plugin manifest validation
  |        └── plugin-packages.yml : CI workflow for plugin packages(build, test, release)
  ├── .krew : template yamls of plugin manifests(used for update of actual krew manifest and local testing)
- ├── docs : docs of tvk-plugins, contribution and release guidelines
+ ├── docs : docs of tvk-interop-plugins, contribution and release guidelines
  ├── hack : dir contains helper files for github actions CI workflows
  ├── internal : dir contains funcs to initialize kube-env clients and other helper funcs
- ├── LICENSE.md : License for tvk-plugins
+ ├── LICENSE.md : License for tvk-interop-plugins
  ├── Makefile : make targets
  ├── plugins : Krew plugin manifests
  │   └── tvk-oneclick.yaml

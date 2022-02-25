@@ -1,8 +1,8 @@
-# tvk-plugins
-[![Plugin Packages CI](https://github.com/trilioData/tvk-plugins/actions/workflows/plugin-packages.yml/badge.svg)](https://github.com/trilioData/tvk-plugins/actions/workflows/plugin-packages.yml)
-[![Plugin Manifests CI](https://github.com/trilioData/tvk-plugins/actions/workflows/plugin-manifests.yml/badge.svg)](https://github.com/trilioData/tvk-plugins/actions/workflows/plugin-manifests.yml)
-[![LICENSE](https://img.shields.io/github/license/trilioData/tvk-plugins.svg)](https://github.com/trilioData/tvk-plugins/blob/master/LICENSE.md)
-[![Releases](https://img.shields.io/github/v/release/trilioData/tvk-plugins.svg?include_prereleases)](https://github.com/trilioData/tvk-plugins/releases)
+# tvk-interop-plugins
+[![Plugin Packages CI](https://github.com/trilioData/tvk-interop-plugins/blob/main/.github/workflows/plugin-packages.yml/badge.svg)](https://github.com/trilioData/tvk-interop-plugins/blob/main/.github/workflows/plugin-packages.yml)
+[![Plugin Manifests CI](https://github.com/trilioData/tvk-interop-plugins/blob/main/.github/workflows/plugin-manifests.yml/badge.svg)](https://github.com/trilioData/tvk-interop-plugins/blob/main/.github/workflows/plugin-manifests.yml)
+[![LICENSE](https://img.shields.io/github/license/trilioData/tvk-interop-plugins.svg)](https://github.com/trilioData/tvk-interop-plugins/blob/main/LICENSE.md)
+[![Releases](https://img.shields.io/github/v/release/trilioData/tvk-interop-plugins.svg?include_prereleases)](https://github.com/trilioData/tvk-interop-plugins/releases)
 
 kubectl-plugins for tvk-oneclick CLI.
 
