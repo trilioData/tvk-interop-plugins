@@ -122,7 +122,7 @@ kubectl tvk-oneclick -c -t -s
 	TVK-OneClick can be executed in a non-interactive method by leveraging values from an input_config file. To use the plugin in a non-interactive way, create an input_config (https://github.com/trilioData/tvk-plugins/blob/main/tests/tvk-oneclick/input_config) file. After creating the input config file, run the following command to execute the plugin in a non-interactive fashion. The non-interative method will perform preflight checks, installation, configuration (Management Console and Target) as well as run sample backup and restore tests similar to the interactive mode but in a single workflow.
 
 Sample input_config file can be found here:
-https://github.com/trilioData/tvk-plugins/blob/main/tests/tvk-oneclick/input_config
+https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-oneclick/input_config
 
 This sample_config input file leverages your DO credentials and DO DNS information to create/configure a target within DO Spaces, and to configure the management console leveraging a Kubernetes LoadBalancer.
 
