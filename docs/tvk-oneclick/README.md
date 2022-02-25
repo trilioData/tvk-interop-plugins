@@ -42,13 +42,13 @@ OS:
 - Add TVK custom plugin index of krew:
 
   ```
-  kubectl krew index add tvk-plugins https://github.com/trilioData/tvk-plugins.git
+  kubectl krew index add tvk-interop-plugin https://github.com/trilioData/tvk-interop-plugins.git
   ```
 
 - Installation:
 
   ```
-  kubectl krew install tvk-plugins/tvk-oneclick
+  kubectl krew install tvk-interop-plugin/tvk-oneclick
   ```  
 
 - Upgrade:
@@ -65,7 +65,7 @@ OS:
 
 #### 2. Without `krew`:
 
-1. List of available releases: https://github.com/trilioData/tvk-plugins/releases
+1. List of available releases: https://github.com/trilioData/tvk-interop-plugins/releases
 2. Choose a version of preflight plugin to install and check if release assets have preflight plugin's package[tvk-oneclick.tar.gz]
 3. Set env variable `version=v1.x.x` [update with your desired version]. If `version` is not exported, `latest` tagged version
    will be considered.
@@ -76,9 +76,9 @@ OS:
 ```bash
 (
   set -ex; cd "$(mktemp -d)" &&
-  if [[ -z ${version} ]]; then version=$(curl -s https://api.github.com/repos/trilioData/tvk-plugins/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")'); fi &&
+  if [[ -z ${version} ]]; then version=$(curl -s https://api.github.com/repos/trilioData/tvk-interop-plugins/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")'); fi &&
   echo "Installing version=${version}" &&
-  curl -fsSLO "https://github.com/trilioData/tvk-plugins/releases/download/"${version}"/tvk-oneclick.tar.gz" &&
+  curl -fsSLO "https://github.com/trilioData/tvk-interop-plugins/releases/download/"${version}"/tvk-oneclick.tar.gz" &&
   tar zxvf tvk-oneclick.tar.gz && sudo mv tvk-oneclick/tvk-oneclick /usr/local/bin/kubectl-tvk_oneclick
 )
 ```
@@ -119,7 +119,7 @@ kubectl tvk-oneclick -c -t -s
 ```
 
 **2. Non-interactive**:
-	TVK-OneClick can be executed in a non-interactive method by leveraging values from an input_config file. To use the plugin in a non-interactive way, create an input_config (https://github.com/trilioData/tvk-plugins/blob/main/tests/tvk-oneclick/input_config) file. After creating the input config file, run the following command to execute the plugin in a non-interactive fashion. The non-interative method will perform preflight checks, installation, configuration (Management Console and Target) as well as run sample backup and restore tests similar to the interactive mode but in a single workflow.
+	TVK-OneClick can be executed in a non-interactive method by leveraging values from an input_config file. To use the plugin in a non-interactive way, create an input_config (https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-oneclick/input_config) file. After creating the input config file, run the following command to execute the plugin in a non-interactive fashion. The non-interative method will perform preflight checks, installation, configuration (Management Console and Target) as well as run sample backup and restore tests similar to the interactive mode but in a single workflow.
 
 Sample input_config file can be found here:
 https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-oneclick/input_config
