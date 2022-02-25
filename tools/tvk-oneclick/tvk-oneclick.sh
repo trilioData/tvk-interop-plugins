@@ -1482,7 +1482,7 @@ create_readymade_minio() {
   wait_install 10 "$cmd"
   if ! kubectl get deployment $rel_name -n "$minio_server_namespace" -o jsonpath="{.status.conditions[*].status}" | grep -q True; then
     echo "Minio deployment taking more time than usual to be in Ready state, Exiting.."
-    return 1
+    exit 1
   fi
   #get credentials and create target crd and apply it.
   ACCESS_KEY=$(kubectl get secret $rel_name -n "$minio_server_namespace" -o jsonpath="{.data.accesskey}" | base64 --decode)
@@ -1719,33 +1719,33 @@ create_target() {
       create_doks_s3
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        return 1
+        exit 1
       fi
       ;;
     2)
       create_aws_s3
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        return 1
+        exit 1
       fi
       ;;
     3)
       create_readymade_minio
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        return 1
+        exit 1
       fi
       ;;
     4)
       create_gcp_s3
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        return 1
+        exit 1
       fi
       ;;
     *)
       echo "Wrong selection"
-      return 1
+      exit 1
       ;;
     esac
     shift
@@ -1766,7 +1766,7 @@ create_target() {
     if [[ $(kubectl get target "$target_name" -n "$target_namespace" 2>/dev/null) ]]; then
       if kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
         echo "Target with same name already exists but is in Unavailable state"
-        return 1
+        exit 1
       else
         echo "Target with same name already exists"
         return 0
@@ -1815,7 +1815,7 @@ EOF
   wait_install 20 "$cmd"
   if ! kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
     echo "Failed to create target"
-    return 1
+    exit 1
   else
     echo "Target is Available to use"
   fi

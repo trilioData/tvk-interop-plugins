@@ -145,6 +145,7 @@ kubectl tvk-oneclick -n
 	This parameter is to check whether or not TVK UI should be configured.It accepts one of the value from [True, False]
 - **TARGET**:
 	This parameter is to check whether or not TVK Target should be created.It accepts one of the value from [True, False]
+	***Note***: Target type "Readymade_Minio" requires 4GB per node, else the target creation will fail.
 - **SAMPLE_TEST**: 
 	This parameter is to check whether or not sample test should be executed.It accepts one of the value from [True, False]
 - **storage_class**:
