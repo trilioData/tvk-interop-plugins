@@ -2,7 +2,7 @@
 
 **tvk-oneclick** is a kubectl plugin which installs, configures, and test the TrilioVault for Kuberentes (TVK).
 It installs the TVK Operator, the TVM Application, configures the TVK Management Console, and executes sample backup and restore operations.
-This plugin is specifically for Digital Ocean users.
+This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 
 ## Pre-requisites:
 
