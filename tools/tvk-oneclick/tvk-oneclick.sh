@@ -1493,7 +1493,6 @@ create_readymade_minio() {
     return 1
   fi
   #create pod to run minio clinet command
-
   rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
   mc_pod_nm="minio-$rand_name"
   ret_val=$(kubectl run "$mc_pod_nm" --image=minio/mc -n "$minio_server_namespace" --restart=Never --command -- /bin/sh -c 'while true; do sleep 5s; done' 1>> >(logit) 2>> >(logit))
