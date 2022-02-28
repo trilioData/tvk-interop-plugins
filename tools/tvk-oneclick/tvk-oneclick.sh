@@ -1172,8 +1172,7 @@ create_doks_s3() {
     fi
   fi
   #create S3 target
-
-  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 4));print (ran)")
   secret_name="$target_name-$rand_name"
   #Create secret from the credentials provided
   create_secret "$secret_name" "$access_key" "$secret_key" "${target_namespace}"
@@ -1344,7 +1343,7 @@ create_aws_s3() {
   fi
   #create S3 target
   region=$(s3cmd --config s3cfg_config info s3://"$bucket_name"/ | grep Location | cut -d':' -f2- | sed 's/^ *//g')
-  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 4));print (ran)")
   secret_name="$target_name-$rand_name"
   #Create secret from the credentials provided
   create_secret "$secret_name" "$access_key" "$secret_key" "${target_namespace}"
@@ -1494,7 +1493,7 @@ create_readymade_minio() {
     return 1
   fi
   #create pod to run minio clinet command
-  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 4));print (ran)")
   mc_pod_nm="minio-$rand_name"
   ret_val=$(kubectl run "$mc_pod_nm" --image=minio/mc -n "$minio_server_namespace" --restart=Never --command -- /bin/sh -c 'while true; do sleep 5s; done' 1>> >(logit) 2>> >(logit))
   ret_code=$?
@@ -1533,11 +1532,8 @@ create_readymade_minio() {
     fi
   fi
   kubectl delete pod -n "$minio_server_namespace" "$mc_pod_nm" 1>> >(logit) 2>> >(logit)
-  #echo "$ACCESS_KEY $SECRET_KEY  $URL"
   #create bucket
-  #call_s3cfg_aws "$ACCESS_KEY" "$SECRET_KEY" "$URL" "$URL" "us-east1" "False"
-  #create bucket
-  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 4));print (ran)")
   secret_name="$target_name-$rand_name"
   #Create secret from the credentials provided
   create_secret "$secret_name" "$ACCESS_KEY" "$SECRET_KEY" "${target_namespace}"
@@ -1638,8 +1634,7 @@ create_gcp_s3() {
     fi
   fi
   #create S3 target
-  #region=$(s3cmd --config s3cfg_config info s3://"$bucket_name"/ | grep Location | cut -d':' -f2- | sed 's/^ *//g')
-  rand_name=$(head /dev/urandom | tr -dc a-z0-9 | head -c5)
+  rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_uppercase + string.digits, k = 4));print (ran)")
   secret_name="$target_name-$rand_name"
   #Create secret from the credentials provided
   create_secret "$secret_name" "$access_key" "$secret_key" "${target_namespace}"
