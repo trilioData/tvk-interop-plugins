@@ -8,6 +8,7 @@ ingressGateway=k8s-triliovault-ingress-gateway
 ingressGateway_2_7_0=k8s-triliovault-ingress-nginx-controller
 operatorSA=triliovault-operator-k8s-triliovault-operator-service-account
 tvkmanagerSA=k8s-triliovault
+tvkingressSA=k8s-triliovault-ingress-nginx-admission
 
 #This module is used to perform preflight check which checks if all the pre-requisites are satisfied before installing Triliovault for Kubernetes application in a Kubernetes cluster
 preflight_checks() {
@@ -322,15 +323,25 @@ EOF
       tvm_upgrade=1
     elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
       if [ "$open_flag" -eq 1 ]; then
+        cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
+        wait_install 10 "$cmd"
+        kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+        retcode=$?
+        if [[ $retcode != 0 ]]; then
+          echo "Not able find service account $tvkingressSA"
+          exit 1
+        fi
+        oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+        oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         cmd="kubectl get sa $tvkmanagerSA -n $tvk_ns 2>> >(logit)"
         wait_install 10 "$cmd"
         kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
         retcode=$?
         if [[ $retcode == 0 ]]; then
-          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
-          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+          kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
+          kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
         else
-          echo "Something wrong when assigning privilege to Trilio operator SA"
+          echo "Something went wrong when assigning privilege to Trilio operator SA"
           exit 1
         fi
       fi
@@ -551,15 +562,24 @@ EOF
     echo "Waiting for Pods to come up.."
   else
     if [ "$open_flag" -eq 1 ]; then
-      while true; do
+      cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
+      wait_install 10 "$cmd"
+      kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+      retcode=$?
+      if [[ $retcode != 0 ]]; then
+        echo "Not able to find service account $tvkingressSA"
+      else
+        {
+          oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns"
+          oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns"
+        } 1>> >(logit) 2>> >(logit)
         kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
         return_val=$?
         if [[ $return_val == 0 ]]; then
           kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
           kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
-          break
         fi
-      done
+      fi
     fi
 
     echo "Installing Triliovault manager...."
