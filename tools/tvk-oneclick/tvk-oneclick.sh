@@ -191,6 +191,10 @@ install_tvk() {
     ret_val=$?
     if [[ $ret_val != 2 ]]; then
       echo "Triliovault operator cannot be upgraded, please check version number"
+      if [[ $ret_val == 1 ]]; then
+        echo "Triliovault operator is already at same version"
+        upgrade_tvo=1
+      fi
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
@@ -245,28 +249,33 @@ install_tvk() {
     tvk_ns="$get_ns"
     #Check if TVM can be upgraded
     old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+    if [[ "$old_tvm_version" == "{}" || "$old_tvm_version" == "" ]]; then
+      old_tvm_version=$(kubectl get TrilioVaultManager -n "$tvk_ns" | awk 'FNR==2 {print$2}')
+    fi
     # shellcheck disable=SC2001
     new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
-    vercomp "$new_triliovault_manager_version" "2.7.0"
+    vercomp "$old_tvm_version" "2.7.0"
     ret_ingress=$?
     if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
       ingressGateway="${ingressGateway_2_7_0}"
       masterIngName="${masterIngName_2_7_0}"
     fi
-    # shellcheck disable=SC2001
-    vercomp "$old_tvm_version" "$new_triliovault_manager_version"
-    ret_val=$?
+    if [[ -z "$old_tvm_version" ]]; then
+      # shellcheck disable=SC2001
+      vercomp "$old_tvm_version" "$new_triliovault_manager_version"
+      ret_val=$?
+      if [[ $ret_val != 2 ]]; then
+        echo "TVM cannot be upgraded! Please check version"
+        if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+          exit 1
+        fi
+        install_license "$tvk_ns"
+        return
+      fi
+    fi
     vercomp "2.6.5" "$new_triliovault_manager_version"
     ret_val1=$?
-    if [[ $ret_val != 2 ]]; then
-      echo "TVM cannot be upgraded! Please check version"
-      if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-        exit 1
-      fi
-      install_license "$tvk_ns"
-      return
-
-    elif [[ $upgrade_tvo == 1 ]] && [[ $ret_val1 == 2 ]]; then
+    if [[ $upgrade_tvo == 1 ]] && [[ $ret_val1 == 2 ]]; then
       svc_type=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.spec.type}')
       if [[ $svc_type == LoadBalancer ]]; then
         get_host=$(kubectl get ingress "$masterIngName" -n "$tvk_ns" -o 'jsonpath={.spec.rules[0].host}')
@@ -321,6 +330,7 @@ EOF
       else
         echo "Upgrading Triliovault manager"
         echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+        echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
       fi
       tvm_upgrade=1
     elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
@@ -410,6 +420,7 @@ EOF
           else
             echo "Upgrading Triliovault manager"
             echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+            echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
           fi
         fi
       elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]] && [[ $ret_val2 == 2 ]] || [[ $ret_val2 == 1 ]]; then
@@ -443,6 +454,7 @@ EOF
           else
             echo "Upgrading Triliovault manager"
             echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+            echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
           fi
         fi
       elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
@@ -500,6 +512,7 @@ EOF
         else
           echo "Upgrading Triliovault manager"
           echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+          echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
         fi
       fi
     fi
@@ -764,6 +777,9 @@ configure_nodeport_for_tvkui() {
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
   tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  if [[ "$tvm_version" == "{}" || "$tvm_version" == "" ]]; then
+    tvm_version=$(kubectl get TrilioVaultManager -n "$tvk_ns" | awk 'FNR==2 {print$2}')
+  fi
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
@@ -896,6 +912,9 @@ configure_loadbalancer_for_tvkUI() {
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
   tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  if [[ "$tvm_version" == "{}" || "$tvm_version" == "" ]]; then
+    tvm_version=$(kubectl get TrilioVaultManager -n "$tvk_ns" | awk 'FNR==2 {print$2}')
+  fi
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
