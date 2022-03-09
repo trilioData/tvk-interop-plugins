@@ -245,6 +245,7 @@ install_tvk() {
     tvk_ns="$get_ns"
     #Check if TVM can be upgraded
     old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+    # shellcheck disable=SC2001
     new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
     vercomp "$new_triliovault_manager_version" "2.7.0"
     ret_ingress=$?
