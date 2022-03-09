@@ -49,7 +49,7 @@ preflight_checks() {
   if [[ -z "$storage_class" ]]; then
     storage_class=$(kubectl get storageclass | grep -w '(default)' | awk '{print $1}')
     if [[ -z "$storage_class" ]]; then
-      echo "No default storage class found, need one to proceed"
+      echo "No default storage class found, need one to proceed."
       return 1
     fi
   fi
@@ -329,7 +329,7 @@ EOF
         return 0
       else
         echo "Upgrading Triliovault manager"
-        echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+        echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK."
         echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
       fi
       tvm_upgrade=1
