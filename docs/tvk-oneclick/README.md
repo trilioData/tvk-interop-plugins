@@ -10,7 +10,7 @@ This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 3. Helm (version >= 3)
 4. Python3(version >= 3.9, with requests package installed - pip3 install requests)
-5. S3cmd. Install from [here](https://acloud24.com/blog/installation-and-configuration-of-s3cmd-under-linux/)
+5. S3cmd. Install from [here](https://s3tools.org/s3cmd)
 6. yq(version >= 4). Information can be found @[here](https://github.com/mikefarah/yq) 
 
 
