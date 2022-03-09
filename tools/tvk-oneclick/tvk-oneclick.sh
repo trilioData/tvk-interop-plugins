@@ -245,14 +245,14 @@ install_tvk() {
     tvk_ns="$get_ns"
     #Check if TVM can be upgraded
     old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
-    vercomp "$old_tvm_version" "2.7.0"
+    new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
+    vercomp "$new_triliovault_manager_version" "2.7.0"
     ret_ingress=$?
     if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
       ingressGateway="${ingressGateway_2_7_0}"
       masterIngName="${masterIngName_2_7_0}"
     fi
     # shellcheck disable=SC2001
-    new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
     vercomp "$old_tvm_version" "$new_triliovault_manager_version"
     ret_val=$?
     vercomp "2.6.5" "$new_triliovault_manager_version"
@@ -319,20 +319,23 @@ EOF
         return 0
       else
         echo "Upgrading Triliovault manager"
+        echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
       fi
       tvm_upgrade=1
     elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
       if [ "$open_flag" -eq 1 ]; then
-        cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
-        wait_install 10 "$cmd"
-        kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
-        retcode=$?
-        if [[ $retcode != 0 ]]; then
-          echo "Not able find service account $tvkingressSA"
-          exit 1
+        if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+          cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
+          wait_install 10 "$cmd"
+          kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+          retcode=$?
+          if [[ $retcode != 0 ]]; then
+            echo "Not able find service account $tvkingressSA"
+            exit 1
+          fi
+          oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+          oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         fi
-        oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
-        oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         cmd="kubectl get sa $tvkmanagerSA -n $tvk_ns 2>> >(logit)"
         wait_install 10 "$cmd"
         kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
@@ -405,6 +408,7 @@ EOF
             return 1
           else
             echo "Upgrading Triliovault manager"
+            echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
           fi
         fi
       elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]] && [[ $ret_val2 == 2 ]] || [[ $ret_val2 == 1 ]]; then
@@ -437,6 +441,7 @@ EOF
             return 0
           else
             echo "Upgrading Triliovault manager"
+            echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
           fi
         fi
       elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
@@ -493,6 +498,7 @@ EOF
           return 1
         else
           echo "Upgrading Triliovault manager"
+          echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
         fi
       fi
     fi
@@ -562,17 +568,19 @@ EOF
     echo "Waiting for Pods to come up.."
   else
     if [ "$open_flag" -eq 1 ]; then
-      cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
-      wait_install 10 "$cmd"
-      kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
-      retcode=$?
-      if [[ $retcode != 0 ]]; then
-        echo "Not able to find service account $tvkingressSA"
-      else
-        {
-          oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns"
-          oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns"
-        } 1>> >(logit) 2>> >(logit)
+      if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+        cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
+        wait_install 10 "$cmd"
+        kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+        retcode=$?
+        if [[ $retcode != 0 ]]; then
+          echo "Not able to find service account $tvkingressSA"
+        else
+          {
+            oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns"
+            oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns"
+          } 1>> >(logit) 2>> >(logit)
+        fi
         kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
         return_val=$?
         if [[ $return_val == 0 ]]; then
@@ -627,6 +635,7 @@ install_license() {
     pip3 install beautifulsoup4
     pip3 install lxml
     pip3 install yaml
+    pip3 install pyyaml
 
   } 1>> >(logit) 2>> >(logit)
   echo "Installing Freetrial license..."
