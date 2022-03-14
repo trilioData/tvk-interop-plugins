@@ -248,11 +248,15 @@ install_tvk() {
     tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
     tvk_ns="$get_ns"
     #Check if TVM can be upgraded
-    old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+    old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
     # shellcheck disable=SC2001
     new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
     vercomp "$old_tvm_version" "2.7.0"
     ret_ingress=$?
+    if [[ $ret_ingress == 0 ]]; then
+      echo "Error in getting installed TVM, please check if TVM is installed correctly"
+      exit 1
+    fi
     if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
       ingressGateway="${ingressGateway_2_7_0}"
       masterIngName="${masterIngName_2_7_0}"
@@ -352,7 +356,9 @@ EOF
           kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
           kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
         else
-          echo "Something went wrong when assigning privilege to Trilio operator SA"
+          echo "Something went wrong when assigning privilege to Trilio Manager SA"
+          echo "or $tvkmanagerSA service account is taking more time to get created"
+          echo "Please retry after 5 minutes"
           exit 1
         fi
       fi
@@ -773,9 +779,13 @@ configure_nodeport_for_tvkui() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
+  if [[ $ret_ingress == 0 ]]; then
+    echo "Error in getting installed TVM, please check if TVM is installed correctly"
+    exit 1
+  fi
   if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
     ingressGateway="${ingressGateway_2_7_0}"
     masterIngName="${masterIngName_2_7_0}"
@@ -905,9 +915,13 @@ configure_loadbalancer_for_tvkUI() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
+  if [[ $ret_ingress == 0 ]]; then
+    echo "Error in getting installed TVM, please check if TVM is installed correctly"
+    exit 1
+  fi
   if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
     ingressGateway="${ingressGateway_2_7_0}"
     masterIngName="${masterIngName_2_7_0}"
@@ -1975,7 +1989,12 @@ EOM
         exit 1
       fi
     else
-      helm install mysql-qa stable/mysql -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      helm install mysql-qa stable/mysql --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      sleep 2
+      if [ "$open_flag" -eq 1 ]; then
+        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      fi
       echo "Installing Application"
       sleep 10
       cmd=$(kubectl get pods -l app=mysql-qa -n $backup_namespace 2>&1)
@@ -2013,7 +2032,49 @@ EOM
     else
       #Add bitnami helm repo
       helm repo add bitnami https://charts.bitnami.com/bitnami 1>> >(logit) 2>> >(logit)
-      helm install my-wordpress bitnami/wordpress -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      echo "Installing mysql which will be used as underlying db for wordpress.."
+      rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
+      helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      if [ "$open_flag" -eq 1 ]; then
+        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      fi
+      # shellcheck disable=SC2086
+      cmd=$(kubectl get pods -l app=mysql-i$rand_name -n $backup_namespace 2>&1)
+      if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+        echo "Error in creating pod, please check security context"
+        return 1
+      fi
+      runtime=20
+      spin='-\|/'
+      i=0
+      sleep 5
+      endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
+      # shellcheck disable=SC2086
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app=mysql-$rand_name -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+        i=$(((i + 1) % 4))
+        printf "\r %s" "${spin:$i:1}"
+        sleep .1
+      done
+      # shellcheck disable=SC2086
+      if kubectl get pods -l app=mysql-$rand_name -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+        echo "Wordpress underlying Mysql Application taking more time than usual to be in Ready state, Exiting.."
+        return 1
+      fi
+      cat >initcontainer.yaml <<-EOM
+initContainers:
+  - name: volume-permissions
+    image: bitnami/minideb
+    imagePullPolicy: Always
+    command: ['sh', '-c', 'chown 1001:1001 /bitnami/wordpress']
+    volumeMounts:
+    - mountPath: /bitnami/wordpress
+      name: wordpress-data
+      subPath: wordpress
+EOM
+      # shellcheck disable=SC2086
+      helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-$rand_name.$backup_namespace.svc.cluster.local --set externalDatabase.user=trilio --set externalDatabase.password=trilio --set externalDatabase.database=my-database --set externalDatabase.port=3306 -f initcontainer.yaml -n $backup_namespace 1>> >(logit) 2>> >(logit)
+
       echo "Installing Application"
     fi
     if [ "$open_flag" -eq 1 ]; then
@@ -2041,6 +2102,7 @@ EOM
     fi
     echo "Requested application is Up and Running!"
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
+    rm initcontainer.yaml
     ;;
   3)
     if helm list -n $backup_namespace | grep -w -q mysql-operator 2>> >(logit); then
@@ -2051,8 +2113,22 @@ EOM
       echo "Waiting for application to be in Ready state"
     else
       echo "MySQL operator will require enough resources, else the deployment will fail"
-      helm repo add presslabs https://presslabs.github.io/charts 1>> >(logit) 2>> >(logit)
-      errormessage=$(helm install mysql-operator presslabs/mysql-operator -n $backup_namespace 2>> >(logit))
+      helm repo add bitpoke https://helm-charts.bitpoke.io 1>> >(logit) 2>> >(logit)
+      cat >initcontainer.yaml <<-EOM
+initContainers:
+       - name: volume-permissions
+         image: busybox
+         securityContext:
+           runAsUser: 0
+         command:
+           - sh
+           - -c
+           - chmod 750 /data/mysql; chown 999:999 /data/mysql
+         volumeMounts:
+           - name: data
+             mountPath: /data/mysql
+EOM
+      errormessage=$(helm install mysql-operator bitpoke/mysql-operator --set orchestrator.persistence.enabled=false -f initcontainer.yaml -n $backup_namespace 2>> >(logit))
       if echo "$errormessage" | grep -Eq 'Error:|error:'; then
         echo "Mysql operator Installation failed with error: $errormessage"
         return 1
@@ -2067,18 +2143,18 @@ EOM
     spin='-\|/'
     i=0
     sleep 5
-    cmd=$(kubectl get pod -l app=mysql-operator -n $backup_namespace 2>&1)
+    cmd=$(kubectl get pod -l app.kubernetes.io/name=mysql-operator -n $backup_namespace 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
       echo "Error in creating pod, please check security context"
       return 1
     fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
-    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app=mysql-operator -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app.kubernetes.io/name=mysql-operator -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
       i=$(((i + 1) % 4))
       printf "\r %s" "${spin:$i:1}"
       sleep .1
     done
-    if kubectl get pod -l app=mysql-operator -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+    if kubectl get pod -l app.kubernetes.io/name=mysql-operator -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
       echo "MySQL operator taking more time than usual to be in Ready state, Exiting.."
       return 1
     fi
@@ -2130,8 +2206,8 @@ EOM
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version="v1alpha1" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version style="double"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind="MysqlCluster" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind style="double"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].objects[0]="my-cluster"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].operatorResourceSelector[0].matchLabels.name="mysql-operator"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].applicationResourceSelector[0].matchLabels.app="mysql-operator"' backupplan.yaml
+      yq eval -i '.spec.backupPlanComponents.operators[0].operatorResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql-operator"' backupplan.yaml
+      yq eval -i '.spec.backupPlanComponents.operators[0].applicationResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql"' backupplan.yaml
     } 1>> >(logit) 2>> >(logit)
     ;;
   4)
@@ -2146,6 +2222,9 @@ EOM
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
         helm install mongotest bitnami/mongodb -n $backup_namespace
+	# shellcheck disable=SC2155
+        export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace $backup_namespace mongotest-mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
+        helm upgrade mongotest bitnami/mongodb --set volumePermissions.enabled=true --set auth.rootPassword="$MONGODB_ROOT_PASSWORD" -n $backup_namespace
       } 2>> >(logit)
       echo "Installing App..."
     fi
@@ -2332,6 +2411,9 @@ EOF
       return 1
     else
       echo "Restore is Completed"
+    fi
+    if [[ $backup_way == "Operator_based" ]]; then
+      kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n $restore_namespace
     fi
   fi
 }
