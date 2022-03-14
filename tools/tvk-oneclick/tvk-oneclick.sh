@@ -2222,7 +2222,7 @@ EOM
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
         helm install mongotest bitnami/mongodb -n $backup_namespace
-	# shellcheck disable=SC2155
+        # shellcheck disable=SC2155
         export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace $backup_namespace mongotest-mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
         helm upgrade mongotest bitnami/mongodb --set volumePermissions.enabled=true --set auth.rootPassword="$MONGODB_ROOT_PASSWORD" -n $backup_namespace
       } 2>> >(logit)
