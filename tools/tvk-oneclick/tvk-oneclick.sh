@@ -2040,7 +2040,7 @@ EOM
         kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
       fi
       # shellcheck disable=SC2086
-      cmd=$(kubectl get pods -l app=mysql-i$rand_name -n $backup_namespace 2>&1)
+      cmd=$(kubectl get pods -l app=mysql-$rand_name -n $backup_namespace 2>&1)
       if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
         echo "Error in creating pod, please check security context"
         return 1
@@ -2102,7 +2102,7 @@ EOM
     fi
     echo "Requested application is Up and Running!"
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    rm initcontainer.yaml
+    rm initcontainer.yaml 1>> >(logit) 2>> >(logit)
     ;;
   3)
     if helm list -n $backup_namespace | grep -w -q mysql-operator 2>> >(logit); then
@@ -2139,7 +2139,7 @@ EOM
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
     fi
-    runtime=15
+    runtime=25
     spin='-\|/'
     i=0
     sleep 5
@@ -2172,7 +2172,7 @@ EOM
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
     fi
-    runtime=15
+    runtime=25
     spin='-\|/'
     i=0
     sleep 5
@@ -2208,6 +2208,7 @@ EOM
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].objects[0]="my-cluster"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].operatorResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql-operator"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].applicationResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql"' backupplan.yaml
+      rm initcontainer.yaml
     } 1>> >(logit) 2>> >(logit)
     ;;
   4)
@@ -2232,7 +2233,7 @@ EOM
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
     fi
-    runtime=15
+    runtime=30
     spin='-\|/'
     i=0
     sleep 5
@@ -2265,7 +2266,7 @@ EOM
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
-    echo "Waiting for Backupplan to be in Available state"
+    #echo "Waiting for Backupplan to be in Available state"
   else
     #Applying backupplan manifest
     {
@@ -2314,7 +2315,7 @@ EOF
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
-    echo "Waiting for Backup to be in Available state"
+    #echo "Waiting for Backup to be in Available state"
   else
     echo "Creating Backup..."
     #Applying backup manifest
@@ -2411,6 +2412,10 @@ EOF
       return 1
     else
       echo "Restore is Completed"
+    fi
+    if [ "$open_flag" -eq 1 ]; then
+      kubectl get sa -n $restore_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $restore_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n $restore_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $restore_namespace 1>> >(logit) 2>> >(logit)
     fi
     if [[ $backup_way == "Operator_based" ]]; then
       kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n $restore_namespace
