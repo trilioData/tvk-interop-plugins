@@ -3,7 +3,6 @@
 set -e -o pipefail
 
 echo >&2 "Creating ocp-etcd-backup-restore plugin manifest yaml"
-
 set -x
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
