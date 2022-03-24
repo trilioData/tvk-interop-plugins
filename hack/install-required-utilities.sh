@@ -33,10 +33,10 @@ install_helm_if_needed() {
     echo >&2 "helm not detected in environment, installing..."
 
     local -r HELM_VERSION="v3.5.1"
-    curl -Lo /tmp/helm-linux-amd64.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz
+    curl -Lo /tmp/helm-linux-amd64.tar.gz https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz
     tar -xvf /tmp/helm-linux-amd64.tar.gz -C /tmp/
     chmod +x /tmp/linux-amd64/helm && sudo mv /tmp/linux-amd64/helm /usr/local/bin/
-    helm init --client-only
+    #helm init --client-only
     helm version
     echo >&2 "installed helm"
   fi

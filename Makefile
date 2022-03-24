@@ -41,6 +41,21 @@ test-tvk_oneclick-integration:
 	./tests/tvk-oneclick/install-required-utilities.sh
 	./tests/tvk-oneclick/tvk_oneclick_test.sh
 
+
+build-rke_etcd_backup_restore:
+	./hack/build-rke-etcd-backup-restore-artifacts.sh
+
+test-rke-etcd-backup-restore-locally:
+	./hack/generate-rke-etcd-backup-restore-manifest.sh
+	./hack/test-rke-etcd-backup-restore-plugin-locally.sh
+
+build-ocp_etcd_backup_restore:
+	./hack/build-ocp-etcd-backup-restore-artifacts.sh
+
+test-ocp-etcd-backup-restore-locally:
+	./hack/generate-ocp-etcd-backup-restore-manifest.sh
+	./hack/test-ocp-etcd-backup-restore-plugin-locally.sh
+
 test: test-tvk_oneclick-integration
 
 

@@ -1,0 +1,9 @@
+urllib3
+kubernetes
+setuptools_rust
+cryptography
+paramiko
+Crypto
+boto3
+pandas
+requests
