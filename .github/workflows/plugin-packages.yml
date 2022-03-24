@@ -172,7 +172,7 @@ jobs:
         if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/ocp_etcd_backup_plugin/requirements.txt; fi
     - name: Remove build and dist directory
       run: make clean
-    - name: Run package creation
+    - name: Run package Creation
       run: |
         pip install pyinstaller
     - name: build with pyinstaller
