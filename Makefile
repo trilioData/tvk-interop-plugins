@@ -2,7 +2,6 @@ BUILD_DIR ?= build
 DIST_DIR ?= dist
 
 clean:
-	go clean
 	rm -rf $(DIST_DIR) $(BUILD_DIR)
 
 fmt:

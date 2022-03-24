@@ -35,6 +35,6 @@ if hash sha256sum 2>/dev/null; then
 fi
 
 rke_etcd_backup_restore_sha256_file=rke-etcd-backup-restore-sha256.txt
-"${checksum_cmd[@]}" "${rke_etcd_backup_restore_tar_archive}" > $rke_etcd_backup_restore_sha256_file
+"${checksum_cmd[@]}" "${rke_etcd_backup_restore_tar_archive}" >$rke_etcd_backup_restore_sha256_file
 ls -lrt
 echo >&2 "Successfully written sha256 of ${rke_etcd_backup_restore_tar_archive} into $rke_etcd_backup_restore_sha256_file"
