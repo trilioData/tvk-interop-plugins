@@ -15,6 +15,7 @@ on:
       - 'hack/update-plugin-manifests.sh'
       - 'hack/update-tvk-oneclick-manifests.sh'
       - '.github/workflows/plugin-manifests.yml'
+      - 'hack/**'
 
 env:
   GKE_CLUSTER: tvk-interop-ci
@@ -213,7 +214,7 @@ jobs:
     - name: Run package creation
       run: |
         pip install pyinstaller
-    - name: Build with pyinstaller
+    - name: Build with Pyinstaller
       run: |
         pyinstaller tools/rke_etcd_backup_plugin/rke-etcd-backup-restore.py
     - name: Build rke-etcd-backup-restore Package
@@ -247,10 +248,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-
-      #- name: Determine File Changes for Release
-      #  id: detect_changes
-      #  run: hack/check-git-diff-between-tags.sh
 
   # release job creates and uploads release on github. Also, decides which package to include in release based on conditional constructs
   release:
