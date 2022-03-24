@@ -4,6 +4,9 @@ DIST_DIR ?= dist
 clean:
 	rm -rf $(DIST_DIR) $(BUILD_DIR)
 
+clean-build:
+	rm -rf $(BUILD_DIR)
+
 fmt:
 	go fmt ./...
 
