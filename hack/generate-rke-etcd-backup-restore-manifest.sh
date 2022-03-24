@@ -21,7 +21,6 @@ while IFS= read -r -d $'\0' f; do
 done < <(find $build_dir -print0)
 
 rke_etcd_backup_restore_yaml="rke-etcd-backup-restore.yaml"
-rke_etcd_backup_restore_dir="rke_etcd_backup_plugin"
 cp .krew/$rke_etcd_backup_restore_yaml $build_dir/$rke_etcd_backup_restore_yaml
 
 rke_etcd_backup_restore_yaml=$build_dir/$rke_etcd_backup_restore_yaml

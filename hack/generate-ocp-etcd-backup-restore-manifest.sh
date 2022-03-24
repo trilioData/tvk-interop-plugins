@@ -22,7 +22,6 @@ while IFS= read -r -d $'\0' f; do
 done < <(find $build_dir -print0)
 
 ocp_etcd_backup_restore_yaml="ocp-etcd-backup-restore.yaml"
-ocp_etcd_backup_restore_dir="ocp_etcd_backup_plugin"
 cp .krew/$ocp_etcd_backup_restore_yaml $build_dir/$ocp_etcd_backup_restore_yaml
 
 ocp_etcd_backup_restore_yaml=$build_dir/$ocp_etcd_backup_restore_yaml
