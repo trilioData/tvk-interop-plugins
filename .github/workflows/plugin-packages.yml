@@ -211,7 +211,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
-    - name: Remove build and dist  directory
+    - name: Remove build and dist directory
       run: make clean
     - name: Run package creation
       run: |
