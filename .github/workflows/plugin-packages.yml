@@ -146,6 +146,7 @@ jobs:
 
   build_ocp:
     runs-on: self-hosted
+    needs: pre-build
     steps:
     - name: Force Install GIT latest
       run: |
@@ -168,14 +169,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/ocp_etcd_backup_plugin/requirements.txt; fi
+    - name: Remove build directory
+      run: make clean
     - name: Run package creation
       run: |
         pip install pyinstaller
     - name: build with pyinstaller
       run: |
         pyinstaller tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
-    - name: Remove build directory
-      run: make clean
     - name: Build ocp_etcd_backup_restore Package
       run: make build-ocp_etcd_backup_restore
     #- name: Run Ocp ETCD backup restore Integration Tests
@@ -195,6 +196,7 @@ jobs:
 
   build_rke:
     runs-on: ubuntu-18.04
+    needs: pre-build
     steps:
     - uses: actions/checkout@v2
     - name: Set up python 3.6
@@ -206,14 +208,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
+    - name: Remove build directory
+      run: make clean
     - name: Run package creation
       run: |
         pip install pyinstaller
     - name: Build with pyinstaller
       run: |
         pyinstaller tools/rke_etcd_backup_plugin/rke-etcd-backup-restore.py
-    - name: Remove build directory1
-      run: make clean
     - name: Build rke-etcd-backup-restore Package
       run: make build-rke_etcd_backup_restore
     #- name: Run Tvk-oneclick Integration Tests
