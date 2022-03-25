@@ -1,0 +1,58 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: rke-etcd-backup-restore
+spec:
+  homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/rke-etcd-backup-restore/README.md
+  shortDescription: Plugin to Install/Configure/Test TVK rke-etcd-backup-restore
+  version: v1.0.1-rc1
+  caveats: |
+    Curl and Git neeed to be installed on system for Krew index update to work properly
+  platforms:
+  - selector:
+      matchExpressions:
+      - key: os
+        operator: In
+        values:
+        - darwin
+        - linux
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc1/rke-etcd-backup-restore.tar.gz
+    sha256: 1dd509ee114f56963a655c376e23cc9a452c501ffccf509381e74479cbf291d7
+    bin: rke-etcd-backup-restore
+    files:
+    - from: rke-etcd-backup-restore/*
+      to: .
+
+  description: |
+    rke-etcd-backup-restore plugin is use to take ETCD backup to and perform ETCD restore from TVK target on RKE cluster.
+    > Check available flags for rke-etcd-backup-restore plugin with :-
+    kubectl rke-etcd-backup-restore --help
+    --------------------------------------------------------------
+    usage: ETCD Backup and restore on Rancher cluster. Available flags: -backup -restore.
+       [-h] [-backup] [-restore] [--target-name TARGET_NAME]
+       [--target-namespace TARGET_NAMESPACE] --rancher-url RANCHER_URL
+       --bearer-token BEARER_TOKEN [--cluster-name CLUSTER_NAME]
+       [--log-location LOG_LOC]
+
+    optional arguments:
+        -h, --help            show this help message and exit
+        -backup
+        -restore
+        --target-name TARGET_NAME
+                        The name of a single datastore on which etcd backup
+                        needs to be shared
+        --target-namespace TARGET_NAMESPACE
+                        Namespace name where the target resides.
+        --rancher-url RANCHER_URL
+                        Rancher server URL
+        --bearer-token BEARER_TOKEN
+                        token to access rancher server
+        --cluster-name CLUSTER_NAME
+                        cluster name if it is not set in kube-system
+        --kubeconfig KUBECONFIG
+                        if no context is set, please provide kubeconfig file
+                        location
+        --log-location LOG_LOC
+                        Log file name along with path where the logs should be
+                        save. default - /tmp/etcd-ocp-backup.log
+    -----------------------------------------------------------------------

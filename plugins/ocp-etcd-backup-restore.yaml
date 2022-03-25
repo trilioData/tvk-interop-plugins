@@ -5,7 +5,7 @@ metadata:
 spec:
   homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/ocp-etcd-backup-restore/README.md
   shortDescription: Plugin to Install/Configure/Test TVK ocp-etcd-backup-restore
-  version: OCP_ETCD_BACKUP_RESTORE_VERSION
+  version: v1.0.1-rc1
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -16,8 +16,8 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/OCP_ETCD_BACKUP_RESTORE_VERSION/ocp-etcd-backup-restore.tar.gz
-    sha256: OCP_ETCD_BACKUP_RESTORE_TAR_CHECKSUM
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc1/ocp-etcd-backup-restore.tar.gz
+    sha256: 1f99d85a2e42b22670df3e60a1993564dee7b5bc4f1086796f07020351bdbfe8
     bin: ocp-etcd-backup-restore
     files:
     - from: ocp-etcd-backup-restore/*
