@@ -1203,7 +1203,14 @@ wait_for_containers_to_start "${STATIC_POD_CONTAINERS[@]}"
                     f"{self.etcdns}")
                 self.logger.error(exception)
                 sys.exit(1)
-            self.s3_info[i] = resp.splitlines()[1]
+            try:
+                self.s3_info[i] = resp.splitlines()[1]
+            except IndexError as exception:
+                self.logger.error(
+                    "Error in getting target information "
+                    "where the backup is stored, please check if "
+                    "atleast one backup is performed or there are some changes"
+                    " in etcd")
         trilio_secret = """
 datastore:
 - metaData:
@@ -1920,11 +1927,11 @@ if __name__ == '__main__':
                     " logging credentials and target_name and its namespace")
             sys.exit()
         etcd_bk = ETCDOcpBackup(api_instance, api_batch, custom_api, logger)
-        etcd_bk.create_backup_job()
-        etcd_bk.create_backup_mover(args.target_name, args.target_namespace)
         print("storing target info..")
         etcd_bk.store_target_data_to_etcd(
             args.target_name, args.target_namespace)
+        etcd_bk.create_backup_job()
+        etcd_bk.create_backup_mover(args.target_name, args.target_namespace)
         etcd_bk.delete_jobs(mover="true", backup="true")
     elif args.restore is True:
         etcd_bk = ETCDOcpRestore(api_instance, api_batch, logger)
