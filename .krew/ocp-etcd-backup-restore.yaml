@@ -51,6 +51,3 @@ spec:
         --log-location LOG_LOC
                         Log file name along with path where the logs should be
                         save default - /tmp/etcd-ocp-backup.log
-
-
-

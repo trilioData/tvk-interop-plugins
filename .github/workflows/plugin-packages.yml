@@ -147,6 +147,7 @@ jobs:
 
   build_ocp:
     runs-on: self-hosted
+    needs: pre-build
     steps:
     - name: Force Install GIT Latest
       run: |
