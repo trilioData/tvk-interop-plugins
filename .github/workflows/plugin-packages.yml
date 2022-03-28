@@ -242,7 +242,7 @@ jobs:
     needs: [build_test_tvk_oneclick, build_rke, build_ocp]
     if: startsWith(github.ref, 'refs/tags/')
     outputs:
-      create_release: false
+      create_release: true
       release_tvk_oneclick: ${{ steps.detect_changes.outputs.release_tvk_oneclick }}
     steps:
       - name: Checkout
