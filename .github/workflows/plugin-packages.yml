@@ -264,7 +264,6 @@ jobs:
 
       - name: Download All Plugin Packages from Artifacts
         uses: actions/download-artifact@v2
-        if: needs.pre-release.outputs.release_tvk_oneclick == 'true'
         with:
           path: build
 
