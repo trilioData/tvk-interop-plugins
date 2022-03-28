@@ -1265,6 +1265,9 @@ datastore:
         except BaseException as exception:
             self.logger.error(f"Error in listing CSR certificates")
             self.logger.error(exception)
+            self.logger.info("Please run the plugin with -p option "\
+                    "i.e. try post restore task again")
+            sys.exit(1)
         csrlist = []
         for i in resp.items:
             if i.status.conditions is None:
@@ -1594,7 +1597,9 @@ def patch_and_verify_nodes_pods(
                 status = [i for i in val_dict if i["type"]
                           == 'NodeInstallerProgressing']
                 message = status[0]['message']
-                logger.info(f"After patching {plural}, out of {nodes_len}, "\
+                if old_msg == "" or old_msg != message:
+                    old_msg = message
+                    logger.info(f"After patching {plural}, out of {nodes_len}, "\
                         f"{message}")
                 if message == f"{nodes_len} nodes are at revision {new_rev}":
                     reason = status[0]['reason']

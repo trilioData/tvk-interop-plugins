@@ -1,11 +1,11 @@
 urllib3
-kubernetes
+kubernetes == 23.3.0
 setuptools_rust
 cryptography
 paramiko
 Crypto
 boto3
 wheel
-pycrypto
+pycryptodome >= 3.14.1
 pandas
 requests

@@ -147,9 +147,8 @@ jobs:
 
   build_ocp:
     runs-on: self-hosted
-    needs: pre-build
     steps:
-    - name: Force Install GIT latest
+    - name: Force Install GIT Latest
       run: |
         sudo apt-get install -y software-properties-common \
         && sudo apt-get update \
@@ -165,21 +164,19 @@ jobs:
       uses: redhat-actions/oc-installer@v1
       with:
         oc_version: '4.6'
-    - name: Install dependencies.
+    - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/ocp_etcd_backup_plugin/requirements.txt; fi
-    - name: Remove build and dist directory
-      run: make clean
-    - name: Run package Creation
+    - name: Run package creation
       run: |
-        pip install pyinstaller
-    - name: build with pyinstaller
+        pip install pyinstaller==4.7
+    - name: Build With pyinstaller
       run: |
         pyinstaller tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
-    - name: Clean build directory
-      run: make clean-build
+    - name: Remove build directory
+      run: make clean
     - name: Build ocp_etcd_backup_restore Package
       run: make build-ocp_etcd_backup_restore
     #- name: Run Ocp ETCD backup restore Integration Tests
@@ -271,6 +268,7 @@ jobs:
       - name: Release
         uses: ncipollo/release-action@v1
         with:
+          prerelease: true
           artifacts: "build/tvk-oneclick/tvk-oneclick-sha256.txt,build/tvk-oneclick/tvk-oneclick.tar.gz,build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
 
         env:
