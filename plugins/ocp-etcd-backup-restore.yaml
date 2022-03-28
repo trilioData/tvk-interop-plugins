@@ -17,7 +17,7 @@ spec:
         - darwin
         - linux
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc1/ocp-etcd-backup-restore.tar.gz
-    sha256: 1f99d85a2e42b22670df3e60a1993564dee7b5bc4f1086796f07020351bdbfe8
+    sha256: f447d8fe706f3f4876cd6b7b3bf645f4c7bcf280220232ffd3f93fb2d06507e3
     bin: ocp-etcd-backup-restore
     files:
     - from: ocp-etcd-backup-restore/*
