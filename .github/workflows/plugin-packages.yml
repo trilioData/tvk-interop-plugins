@@ -183,7 +183,7 @@ jobs:
     #- name: Run Ocp ETCD backup restore Integration Tests
     #  run: |
     #    pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
-    - name: Ensure Required Utilities Installed.
+    - name: Ensure Required Utilities Installed
       run: make install-required-utilities
     - name: Test ocp_etcd_backup_restore Plugin Locally
       run: make test-ocp-etcd-backup-restore-locally
