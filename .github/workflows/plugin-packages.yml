@@ -170,7 +170,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/ocp_etcd_backup_plugin/requirements.txt; fi
-    - name: Remove build and dist directory
+    - name: Remove build and dist Directory
       run: make clean
     - name: Run package creation
       run: |
