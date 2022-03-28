@@ -219,7 +219,7 @@ jobs:
     - name: Build with Pyinstaller
       run: |
         pyinstaller tools/rke_etcd_backup_plugin/rke-etcd-backup-restore.py
-    - name: Clean build directory
+    - name: Clean build Directory
       run: make clean-build
     - name: Build rke-etcd-backup-restore Package
       run: make build-rke_etcd_backup_restore
