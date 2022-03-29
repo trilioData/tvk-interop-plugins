@@ -16,22 +16,23 @@ You have deleted something critical in the cluster by mistake.
 You have lost the majority of your control plane hosts, leading to etcd quorum loss.
 You can always recover from a disaster situation by restoring your cluster to its previous state using the saved etcd snapshots.
 
-*IMPORTANT
-Disaster recovery/Restore requires you to have at least one healthy control plane host (also known as the master host).
+* IMPORTANT
+    Disaster recovery/Restore requires you to have at least one healthy control plane host (also known as the master host).
 User should run this plugin on bastion node if user wants to perform restore.[Bastion host is the host which is created using same network as the cluter and can ping the nodes of cluster.]
 More information around bastion node - https://docs.openshift.com/container-platform/4.7/networking/accessing-hosts.html
 
-** Note:
-User has to only create bastion node which should be accessed using ssh. This plugin will itself create ssh connectivity from bastion to cluster nodes.
+* Note:
+    User has to only create bastion node which should be accessed using ssh. This plugin will itself create ssh connectivity from bastion to cluster nodes.
 
 If user has only lost some crucial cluster information then user can restore from the snapshot saved using this plugin
 If user has lost nodes, then user has to run restore using this plugin. Create nodes and add to cluster and then run post restore option from this plugin.
 You can get more information from : 
 Source of information - https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index
+
 ### Pre-reqs:
-1. krew - kubectl-plugin manager. Install from here
-2. kubectl - kubernetes command-line tool. Install from here
-3. Triliovault for kubernetes and TVK target.
+1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
+2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+3. Triliovault for kubernetes and TVK target. [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
 
 ## Installation, Upgrade, Removal of Plugins :
 

@@ -12,9 +12,9 @@ RKE clusters can be configured to take snapshots of etcd. In a disaster scenario
 This snapshots can be shared outside cluster like s3 storage so that in case if we loose server, we will have backups to restore.
 
 ### Pre-reqs:
-1. krew - kubectl-plugin manager. Install from here
-2. kubectl - kubernetes command-line tool. Install from here
-3. Triliovault for kubernetes and TVK target.
+1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
+2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+3. Triliovault for kubernetes and TVK target. [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault)
 
 ## Installation, Upgrade, Removal of Plugins :
 
@@ -46,30 +46,25 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 
 ## Usage
 
-usage: ETCD Backup and restore on Rancher cluster. Available flags: -backup -restore.
+    ETCD Backup and restore on Rancher cluster. Available flags: -backup -restore.
        [-h] [-backup] [-restore] [--target-name TARGET_NAME]
        [--target-namespace TARGET_NAMESPACE] --rancher-url RANCHER_URL
        --bearer-token BEARER_TOKEN --cluster-name CLUSTER_NAME
        [--log-location LOG_LOC]
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -backup
-  -restore
-  --target-name TARGET_NAME
-                        The name of a single datastore on which etcd backup
-                        needs to be shared
-  --target-namespace TARGET_NAMESPACE
-                        Namespace name where the target resides.
-  --rancher-url RANCHER_URL
-                        Rancher server URL
-  --bearer-token BEARER_TOKEN
-                        token to access rancher server
-  --cluster-name CLUSTER_NAME
-                        cluster name if it is not set in kube-system
-  --log-location LOG_LOC
-                        Log file name along with path where the logs should be
-                        save. default - /tmp/etcd-ocp-backup.log
+#### Arguments/Falgs:
+
+| Parameter                     | Description
+| :---------------------------- |:-------------:
+| -backup                       | Flag to notify backup is to be taken.
+| -restore                      | Falg to notify restore is to be performed.
+| --target-name                 | The name of a single datastore on which etcd backup needs to be stored.
+| --target-namespace            | Namespace name where the target resides.
+| --rancher-url                 | Rancher server URL
+| --bearer-token                | Token to access rancher server [here](https://rancher.com/docs/rancher/v1.0/en/configuration/api-keys/)
+| --cluster-name                | Cluster name to perform Backup/Restore on.
+| --log-location                | Log file name along with path where the logs should be save default - /tmp/etcd-ocp-backup.log
+
 
 #### Arguments details:
 
