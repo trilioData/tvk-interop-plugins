@@ -213,7 +213,7 @@ jobs:
         if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
     - name: Remove build and dist directory
       run: make clean
-    - name: Run package creation
+    - name: Run Package Creation
       run: |
         pip install pyinstaller
     - name: Build with Pyinstaller
