@@ -1,12 +1,12 @@
-#OCP ETCD BACKUP RESTORE:
+# OCP ETCD BACKUP RESTORE
 
-##ETCD:
+## ETCD:
 Etcd is the persistent data store for Kubernetes. It is a distributed key-value store that records the state of all resources in a Kubernetes cluster.
 Etcd is a distributed reliable key-value store which is simple, fast and secure. 
 It acts like a backend service discovery and database, runs on different servers in Kubernetes clusters at the 
 same time to monitor changes in clusters and to store state/configuration data that should to be accessed by a Kubernetes master or clusters.
 
-##Backups and Disaster Recovery of OCP cluster:
+## Backups and Disaster Recovery of OCP cluster:
 we must back up etcd data before shutting down a cluster; etcd is the key-value store for OpenShift Container Platform, which persists the state of all resource objects. An etcd backup plays a crucial role in disaster recovery
 
 You might run into several situations where OpenShift Container Platform does not work as expected, such as:
@@ -21,14 +21,14 @@ Disaster recovery/Restore requires you to have at least one healthy control plan
 User should run this plugin on bastion node if user wants to perform restore.[Bastion host is the host which is created using same network as the cluter and can ping the nodes of cluster.]
 More information around bastion node - https://docs.openshift.com/container-platform/4.7/networking/accessing-hosts.html
 
-**Note:
+** Note:
 User has to only create bastion node which should be accessed using ssh. This plugin will itself create ssh connectivity from bastion to cluster nodes.
 
 If user has only lost some crucial cluster information then user can restore from the snapshot saved using this plugin
 If user has lost nodes, then user has to run restore using this plugin. Create nodes and add to cluster and then run post restore option from this plugin.
 You can get more information from : 
 Source of information - https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index
-###Pre-reqs:
+### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from here
 2. kubectl - kubernetes command-line tool. Install from here
 3. Triliovault for kubernetes and TVK target.
@@ -90,7 +90,7 @@ optional arguments:
                         save default - /tmp/etcd-ocp-backup.log
 
 
-####Arguments details:
+#### Arguments details:
 
 - **-backup**:
 		Flag to notify the plugin to perform backup.

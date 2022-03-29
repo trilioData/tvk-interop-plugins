@@ -129,8 +129,8 @@ install_tvk() {
   helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
   if [[ -z ${input_config} ]]; then
-    read -r -p "Please provide the operator version to be installed (default - 2.6.6): " operator_version
-    read -r -p "Please provide the triliovault manager version (default - 2.6.6): " triliovault_manager_version
+    read -r -p "Please provide the operator version to be installed (default - 2.7.2): " operator_version
+    read -r -p "Please provide the triliovault manager version (default - 2.7.2): " triliovault_manager_version
     read -r -p "Namespace name in which TVK should be installed: (default - default): " tvk_ns
     read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
@@ -138,10 +138,10 @@ install_tvk() {
     if_resource_exists_still_proceed='y'
   fi
   if [[ -z "$operator_version" ]]; then
-    operator_version='2.6.6'
+    operator_version='2.7.2'
   fi
   if [[ -z "$triliovault_manager_version" ]]; then
-    triliovault_manager_version='2.6.6'
+    triliovault_manager_version='2.7.2'
   fi
   if [[ -z "$tvk_ns" ]]; then
     tvk_ns="default"

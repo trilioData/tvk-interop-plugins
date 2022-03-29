@@ -1,17 +1,17 @@
-#RKE ETCD BACKUP RESTORE:
+# RKE ETCD BACKUP RESTORE:
 
-##ETCD:
+## ETCD:
 Etcd is the persistent data store for Kubernetes. It is a distributed key-value store that records the state of all resources in a Kubernetes cluster.
 Etcd is a distributed reliable key-value store which is simple, fast and secure. 
 It acts like a backend service discovery and database, runs on different servers in Kubernetes clusters at the 
 same time to monitor changes in clusters and to store state/configuration data that should to be accessed by a Kubernetes master or clusters.
 
-##Backups and Disaster Recovery of RKE cluster:
+## Backups and Disaster Recovery of RKE cluster:
 
 RKE clusters can be configured to take snapshots of etcd. In a disaster scenario, you can restore these snapshots.
 This snapshots can be shared outside cluster like s3 storage so that in case if we loose server, we will have backups to restore.
 
-###Pre-reqs:
+### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from here
 2. kubectl - kubernetes command-line tool. Install from here
 3. Triliovault for kubernetes and TVK target.
@@ -71,7 +71,7 @@ optional arguments:
                         Log file name along with path where the logs should be
                         save. default - /tmp/etcd-ocp-backup.log
 
-####Arguments details:
+#### Arguments details:
 
 - **-backup**:
 		Flag to notify the plugin to perform backup.

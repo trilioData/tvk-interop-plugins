@@ -278,7 +278,12 @@ spec:
             self.logger.error("Exception in getting TVK info")
             self.logger.error(exception)
             sys.exit(1)
-        TVK_ns = response['items'][0]['metadata']['namespace']
+        try:
+            TVK_ns = response['items'][0]['metadata']['namespace']
+        except IndexError as exception:
+            self.logger.error("Error in getting TVM information"
+                    "Please check if Trilio vault is installed and running")
+            sys.exit(1)
         serviceaccount = "k8s-triliovault"
         serviceaccountname = "k8s-triliovault"
         metamoverpod = "etcd-datamover-{0}".format(str(res))
@@ -436,7 +441,7 @@ def wait_for_job_success(
         time.sleep(0.1)
         if int(time.time()) >= wait_timeout:
             api_obj.logger.error('Timed out while waiting for job to launch')
-            break
+            sys.exit(1)
         try:
             jobs = api_obj.api_batch.list_namespaced_job(namespace=namespace)
         except BaseException as exception:
@@ -460,7 +465,7 @@ def wait_for_job_success(
         if int(time.time()) >= wait_timeout:
             api_obj.logger.error(
                 'Timed out while waiting for job to complete')
-            break
+            sys.exit(1)
         try:
             status = api_obj.api_batch.read_namespaced_job_status(
                 job_name, namespace=namespace).status
@@ -1418,7 +1423,7 @@ datastore:
                 time.sleep(10)
                 self.logger.warning(err_msg)
                 self.logger.warning("Lost cluster accessibility, trying to "\
-                                  "trying to login again")
+                                  "login again")
                 ret_val = login_cluster(server, user, passwd, self.logger)
                 if ret_val:
                     self.logger.warning("Error in logging..trying again")
@@ -1589,6 +1594,7 @@ def patch_and_verify_nodes_pods(
     idx = 0
     while retry > 0:
         try:
+            old_msg = ""
             while True:
                 print(spin[idx % len(spin)], end="\r")
                 idx += 1
@@ -1927,12 +1933,12 @@ if __name__ == '__main__':
                     " logging credentials and target_name and its namespace")
             sys.exit()
         etcd_bk = ETCDOcpBackup(api_instance, api_batch, custom_api, logger)
-        print("storing target info..")
-        etcd_bk.store_target_data_to_etcd(
-            args.target_name, args.target_namespace)
         etcd_bk.create_backup_job()
         etcd_bk.create_backup_mover(args.target_name, args.target_namespace)
         etcd_bk.delete_jobs(mover="true", backup="true")
+        print("storing target info..")
+        etcd_bk.store_target_data_to_etcd(
+            args.target_name, args.target_namespace)
     elif args.restore is True:
         etcd_bk = ETCDOcpRestore(api_instance, api_batch, logger)
         if not args.api_server_url or not args.ocp_cluster_user \
