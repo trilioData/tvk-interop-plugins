@@ -63,31 +63,26 @@ Source of information - https://access.redhat.com/documentation/en-us/openshift_
 
 ## Usage
 
-usage: ETCD Backup and restore on OCP. Available flags: -backup -restore.
+    ETCD Backup and restore on OCP. Available flags: -backup -restore.
        [-h] [-backup] [-restore] [--target-name TARGET_NAME]
        [--target-namespace TARGET_NAMESPACE] --api-server-url API_SERVER_URL
        --ocp-cluster-user OCP_CLUSTER_USER --ocp-cluster-pass OCP_CLUSTER_PASS
        [-p] [--log-location LOG_LOC]
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -backup
-  -restore
-  --target-name TARGET_NAME
-                        The name of a single datastore on which etcd backup
-                        needs to be shared
-  --target-namespace TARGET_NAMESPACE
-                        Namespace name where the target resides.
-  --api-server-url API_SERVER_URL
-                        Api server URL to login cluster.
-  --ocp-cluster-user OCP_CLUSTER_USER
-                        username used to login cluster.
-  --ocp-cluster-pass OCP_CLUSTER_PASS
-                        password to login cluster
-  -p                    If users want to run only post restore tasks
-  --log-location LOG_LOC
-                        Log file name along with path where the logs should be
-                        save default - /tmp/etcd-ocp-backup.log
+Flags:
+
+| Parameter                     | Description
+| :---------------------------- |:-------------:
+| -backup                       | Flag to notify backup is to be taken.
+| -restore                      | Falg to notify restore is to be performed.
+| --target-name                 | The name of a single datastore on which etcd backup needs to be stored.
+| --target-namespace            | Namespace name where the target resides.
+| --api-server-url              | Api server URL to login cluster.
+| --ocp-cluster-user            | Username to login cluster.
+| --ocp-cluster-pass            | Password to login cluster
+| -p                            | Denotes or notify plugin to perform post restore tasks.
+| --log-location                | Log file name along with path where the logs should be save default - /tmp/etcd-ocp-backup.log
+
 
 
 #### Arguments details:
