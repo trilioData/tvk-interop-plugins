@@ -1264,7 +1264,7 @@ datastore:
         for host in self.nodes:
             ret_code = get_ssh_connection(host, self.ssh_dict)
             if ret_code != 0:
-                self.etcd_bk.create_ssh_connectivity_between_nodes()
+                self.create_ssh_connectivity_between_nodes()
 
 
     def check_and_approve_csr(self):
