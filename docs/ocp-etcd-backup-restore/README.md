@@ -18,7 +18,7 @@ You can always recover from a disaster situation by restoring your cluster to it
 
 * IMPORTANT
     Disaster recovery/Restore requires you to have at least one healthy control plane host (also known as the master host).
-User should run this plugin on bastion node if user wants to perform restore.[Bastion host is the host which is created using same network as the cluter and can ping the nodes of cluster.]
+User should run this plugin on bastion node if user wants to perform restore.[Bastion host is the host which is created using same network as the cluster and can ping the nodes of cluster.]
 More information around bastion node - https://docs.openshift.com/container-platform/4.7/networking/accessing-hosts.html
 
 * Note:
