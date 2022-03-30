@@ -119,6 +119,6 @@ Flags:
 
 #### Exampe
 
- kubectl ocp-etcd-backup-restore -backup --target-name <target_ns> --target-namespace <target_ns> --api-server-url "https://api.<clustername>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<password>"
+ kubectl ocp-etcd-backup-restore -backup --target-name <target_ns> --target-namespace <target_ns> --api-server-url "https://api.\<clustername\>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<password>"
 
-  kubectl ocp-etcd-backup-restore -restore --api-server-url "https://api.<clustername>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<passwd>"
+  kubectl ocp-etcd-backup-restore -restore --api-server-url "https://api.\<clustername\>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<passwd>"
