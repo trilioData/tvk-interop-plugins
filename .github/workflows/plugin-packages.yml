@@ -183,9 +183,9 @@ jobs:
       run: sudo make clean-build
     - name: Build ocp_etcd_backup_restore Package
       run: sudo make build-ocp_etcd_backup_restore
-    #- name: Run Ocp ETCD backup restore Integration Tests
-    #  run: |
-    #    pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
+    - name: Run Ocp ETCD backup restore Integration Tests
+      run: |
+        pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
     - name: Ensure Required Utilities Installed
       run: sudo make install-required-utilities
     - name: Test ocp_etcd_backup_restore Plugin Locally
@@ -225,9 +225,9 @@ jobs:
       run: make clean-build
     - name: Build rke-etcd-backup-restore Package
       run: make build-rke_etcd_backup_restore
-    # - name: Run rke-etcd-backup-restore Integration Tests
-    #  run: |
-    #    pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
+    - name: Run Tvk-oneclick Integration Tests
+      run: |
+        pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
     - name: Ensure Required Utilities Installed
       run: make install-required-utilities
     - name: Test rke_etcd_backup_restore Plugin Locally
