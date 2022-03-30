@@ -11,6 +11,8 @@ same time to monitor changes in clusters and to store state/configuration data t
 RKE clusters can be configured to take snapshots of etcd. In a disaster scenario, you can restore these snapshots.
 This snapshots can be shared outside cluster like s3 storage so that in case if we loose server, we will have backups to restore.
 
+**Note: Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility**
+
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
