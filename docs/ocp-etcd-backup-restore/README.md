@@ -32,7 +32,7 @@ Source of information - https://access.redhat.com/documentation/en-us/openshift_
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-3. Triliovault for kubernetes and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
+3. Triliovault for kubernetes along with TVM(triliovault manager) and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
 
 ## Installation, Upgrade, Removal of Plugins :
 
@@ -104,11 +104,21 @@ Flags:
  		This argument is the api url for cluster.
 		Its in the below format:  
 		"https://api.<cluster_name>\.\<domain\>:6443"
+                To check if URL is correct - try below command and see if it works.  
+                "os login <api-server-url> -u <username> -p <password>" 
+                This is mandatory option.
+                 
 - **--ocp-cluster-user**:
-		User name to access OCP cluster.
+		User name to access OCP cluster.  
+                This is mandatory option.
 - **--ocp-cluster-pass**:
-		Password for the --ocp-cluster-user to access cluster.
+		Password for the --ocp-cluster-user to access cluster.  
+                This is mandatory option.
 - **--log-location**:
 		specify the log file location. default: /tmp/etcd-ocp-backup.log
 
+#### Exampe
 
+ kubectl ocp-etcd-backup-restore -backup --target-name <target_ns> --target-namespace <target_ns> --api-server-url "https://api.<clustername>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<password>"
+
+  kubectl ocp-etcd-backup-restore -restore --api-server-url "https://api.<clustername>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<passwd>"

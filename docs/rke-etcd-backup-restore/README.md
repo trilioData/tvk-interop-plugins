@@ -14,7 +14,7 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-3. Triliovault for kubernetes and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault)
+3. Triliovault for kubernetes along with TVM(Triliovault Manager) and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault)
 
 ## Installation, Upgrade, Removal of Plugins :
 
@@ -83,7 +83,8 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 - **--rancher-url**:
 		This is the rancher server URL through which rancher can be accessed.
 		should be given in the below form:  
-		"https://\<rancher server ip\>/"
+		"https://\<rancher server ip\>/"  
+                This is the URL to access rancher server.
 		This is mandatory argument.
 - **--bearer-token**:
 		This is the token provided by rancher server to access its cluster/apis without using password.
@@ -95,4 +96,9 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 - **--log-location**:
 		specify the log file location. default: /tmp/etcd-ocp-backup.log
 
+#### Example:
+ 
+ kubectl rke-etcd-backup-restore -backup --target-name <target name> --target-namespace <Target namespace> --rancher-url <https://rancher server ip/> --bearer-token <bearer_token> --cluster-name <cluster_name>
+
+ kubectl rke-etcd-backup-restore -restore --rancher-url <https://rancher server ip/> --bearer-token <bearer_token> --cluster-name <cluster_name>
 
