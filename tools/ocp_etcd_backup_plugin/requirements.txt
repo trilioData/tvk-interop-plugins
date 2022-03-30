@@ -3,7 +3,6 @@ kubernetes == 23.3.0
 setuptools_rust
 cryptography
 paramiko
-json
 Crypto
 boto3
 wheel
