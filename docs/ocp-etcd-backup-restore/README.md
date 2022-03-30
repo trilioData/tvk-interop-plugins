@@ -38,6 +38,7 @@ Source of information - https://access.redhat.com/documentation/en-us/openshift_
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 3. Triliovault for kubernetes and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
+4. oc - Install from [here](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/)
 
 ## Installation, Upgrade, Removal of Plugins :
 

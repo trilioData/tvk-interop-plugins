@@ -12,7 +12,7 @@ This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 4. Python3(version >= 3.9, with requests package installed - pip3 install requests)
 5. S3cmd. Install from [here](https://s3tools.org/s3cmd)
 6. yq(version >= 4). Information can be found @[here](https://github.com/mikefarah/yq) 
-
+7. oc if running for OCP cluster - Install from here [here](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/)
 
 **Supported OS and Architectures**:
 
