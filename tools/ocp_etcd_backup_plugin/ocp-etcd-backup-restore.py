@@ -542,11 +542,11 @@ spec:
 
         try:
             cmd = "kubectl get mc 99-master-ssh"
-            proc = subprocess.Popen(cmd, stderr=sys.stderr,
-                                stdout=sys.stdout, shell=True)
+            proc = subprocess.Popen(cmd, stderr=None, stdout=DEVNULL,
+                                shell=True)
             proc.communicate()
             if proc.returncode:
-                self.logger.error("There is no macine configuration "
+                self.logger.error("There is no machine configuration "
                         "name 99-master-ssh, creating 99-master-ssh")
                 secret = api_instance.read_namespaced_secret(
                     name='master-user-data',
@@ -579,12 +579,13 @@ spec:
                 proc = subprocess.Popen(cmd, stderr=sys.stderr,
                                 stdout=sys.stdout, shell=True)
                 proc.communicate()
-                os.remove(master_ssh.yaml)
+                os.remove("master_ssh.yaml")
                 if proc.returncode:
                     err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
                     self.logger.error(err_msg)
                     self.logger.error("Error in creating machine configuration")
                     sys.exit(1)
+            time.sleep(10)
             resp = client.CustomObjectsApi().get_cluster_custom_object(
                 group="machineconfiguration.openshift.io",
                 version="v1",
