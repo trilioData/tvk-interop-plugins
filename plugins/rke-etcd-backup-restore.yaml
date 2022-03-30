@@ -5,7 +5,7 @@ metadata:
 spec:
   homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/rke-etcd-backup-restore/README.md
   shortDescription: Plugin to Install/Configure/Test TVK rke-etcd-backup-restore
-  version: v1.0.1-rc1
+  version: v1.0.1-rc2
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -16,8 +16,8 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc1/rke-etcd-backup-restore.tar.gz
-    sha256: 4d108bbbfb2684d0cb03ad5f3009b3a3e85c6e8f40f478f8d7d75b672eb145a0
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc2/rke-etcd-backup-restore.tar.gz
+    sha256: 6eab8bc45a3ffcd5fe07e9f1813465d4f8fd3e3a5add6b0816ab3c77afeff0fe
     bin: rke-etcd-backup-restore
     files:
     - from: rke-etcd-backup-restore/*
