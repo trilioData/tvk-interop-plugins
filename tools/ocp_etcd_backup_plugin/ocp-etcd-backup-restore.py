@@ -658,9 +658,13 @@ spec:
                 self.logger.info(
                     f"ssh connectivity for node {self.node_name} is alive")
             else:
-                get_ssh_connection(self.node_name, self.ssh_dict)
+                ret = get_ssh_connection(self.node_name, self.ssh_dict)
         else:
-            get_ssh_connection(self.node_name, self.ssh_dict)
+            ret = get_ssh_connection(self.node_name, self.ssh_dict)
+        if ret != 0:
+            self.error("Error in getting ssh connection "
+                f"with node {self.node_name}")
+            sys.exit(1)
 
 
     def create_metamover_and_display_available_restore(
