@@ -266,24 +266,7 @@ spec:
         # generating random strings
         res = ''.join(random.choices(string.ascii_lowercase, k=str_len))
 
-        try:
-            response = self.custom_api.list_cluster_custom_object(
-                group="triliovault.trilio.io", version="v1",
-                plural="triliovaultmanagers")
-        except ApiException as exception:
-            self.logger.error("Exception in getting TVK info")
-            self.logger.error(exception)
-            sys.exit(1)
-        except BaseException as exception:
-            self.logger.error("Exception in getting TVK info")
-            self.logger.error(exception)
-            sys.exit(1)
-        try:
-            TVK_ns = response['items'][0]['metadata']['namespace']
-        except IndexError as exception:
-            self.logger.error("Error in getting TVM information"
-                    "Please check if Trilio vault is installed and running")
-            sys.exit(1)
+        TVK_ns = target_ns
         serviceaccount = "k8s-triliovault"
         serviceaccountname = "k8s-triliovault"
         metamoverpod = "etcd-datamover-{0}".format(str(res))
@@ -1858,9 +1841,11 @@ def init():
             '--target-name',
             dest="target_name",
             help="The name of a single datastore on which etcd backup needs "
-            "to be shared")
+            "to be shared. Target should be created in same namespace "
+            "in which TVK is installed")
         parser.add_argument('--target-namespace', dest="target_namespace",
-                            help="Namespace name where the target resides.")
+                            help="Namespace name where the target resides "
+                            "or TVK is installed.")
         parser.add_argument('--api-server-url', dest="api_server_url",
                             help="Api server URL to login cluster.",
                             required=True)

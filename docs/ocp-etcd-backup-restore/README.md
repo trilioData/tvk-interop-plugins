@@ -76,8 +76,8 @@ Flags:
 | :---------------------------- |:-------------:
 | -backup                       | Flag to notify backup is to be taken.
 | -restore                      | Falg to notify restore is to be performed.
-| --target-name                 | The name of a single datastore on which etcd backup needs to be stored.
-| --target-namespace            | Namespace name where the target resides.
+| --target-name                 | The name of a single datastore on which etcd backup needs to be stored. Target should be created in same namespace in which TVK resides.
+| --target-namespace            | Namespace name where the target resides or TVK is installed.
 | --api-server-url              | Api server URL to login cluster.
 | --ocp-cluster-user            | Username to login cluster.
 | --ocp-cluster-pass            | Password to login cluster
@@ -96,16 +96,17 @@ Flags:
 		TVK target name.The target should be created and in available state.
 		Currently S3 target type is supported. This target should be the target where the backups
 		should be stored.
+                Target should be created in same namespace in which TVK is installed.
 		This argument is mandatory if -backup flag is provided.
 - **--target-namespace**:
-		Namespace name in which TVK target resides.
+		Namespace name in which TVK target resides or TVK is installed
 		This argument is mandatory if -backup flag is provided.
 - **--api-server-url**:
  		This argument is the api url for cluster.
 		Its in the below format:  
 		"https://api.<cluster_name>\.\<domain\>:6443"
                 To check if URL is correct - try below command and see if it works.  
-                "os login <api-server-url> -u <username> -p <password>" 
+                "oc login \<api-server-url\> -u \<username\> -p \<password\>" 
                 This is mandatory option.
                  
 - **--ocp-cluster-user**:
