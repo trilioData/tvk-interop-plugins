@@ -21,9 +21,9 @@ env:
   GKE_CLUSTER: tvk-interop-ci
   GKE_ZONE: us-east1-b
   GKE_ENDPOINT: "https://storage.googleapis.com"
-  OCP_SERVER: "https://api.etcd-4.kochavara.com:6443"
-  OCP_USER: rke-etcd-backup-restore-test
-  OCP_TARGET: tvk-target-minio
+  OCP_SERVER: "https://api.etcd-bkrest2.kochavara.com:6443"
+  OCP_USER: kubeadmin
+  OCP_TARGET: etcd-testtestclus
   OCP_TARGET_NS: tvk
   RKE_CLUSTER: etcd-test-cluster1
   RANCHER_URL: https://54.147.241.125/
@@ -155,7 +155,8 @@ jobs:
         && sudo apt-get update \
         && sudo add-apt-repository -y ppa:git-core/ppa \
         && sudo apt-get update \
-        && sudo apt-get install -y git
+        && sudo apt-get install -y git \
+        && sudo apt-get install python3-pip
     - uses: actions/checkout@v2
     - name: Set up python 3.6
       uses: actions/setup-python@v2
@@ -167,28 +168,28 @@ jobs:
         oc_version: '4.6'
     - name: Install Dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install coverage pytest
-        if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/ocp_etcd_backup_plugin/requirements.txt; fi
+        sudo python3 -m pip install --upgrade pip
+        sudo pip install coverage pytest
+        if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/ocp_etcd_backup_plugin/requirements.txt --ignore-installed; fi
     - name: Remove build and dist Directory
-      run: make clean
+      run: sudo make clean
     - name: Run package creation
       run: |
-        pip install pyinstaller==4.7
+        sudo pip install pyinstaller==4.7
     - name: Build With pyinstaller
       run: |
-        pyinstaller tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
+        sudo pyinstaller tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
     - name: Clean build directory
-      run: make clean-build
+      run: sudo make clean-build
     - name: Build ocp_etcd_backup_restore Package
-      run: make build-ocp_etcd_backup_restore
-    #- name: Run Ocp ETCD backup restore Integration Tests
-    #  run: |
-    #    pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
+      run: sudo make build-ocp_etcd_backup_restore
+    - name: Run Ocp ETCD backup restore Integration Tests
+      run: |
+        pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
     - name: Ensure Required Utilities Installed
-      run: make install-required-utilities
+      run: sudo make install-required-utilities
     - name: Test ocp_etcd_backup_restore Plugin Locally
-      run: make test-ocp-etcd-backup-restore-locally
+      run: sudo make test-ocp-etcd-backup-restore-locally
     - name: Archive package
       uses: actions/upload-artifact@v2
       with:
@@ -208,9 +209,10 @@ jobs:
         python-version: 3.6
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install coverage pytest
-        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
+        sudo apt-get install python3-pip
+        sudo python3 -m pip install --upgrade pip
+        sudo pip3 install coverage pytest
+        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then sudo pip3 install -r tools/rke_etcd_backup_plugin/requirements.txt --ignore-installed; fi
     - name: Remove build and dist directory
       run: make clean
     - name: Run package Creation
@@ -223,9 +225,9 @@ jobs:
       run: make clean-build
     - name: Build rke-etcd-backup-restore Package
       run: make build-rke_etcd_backup_restore
-    #- name: Run Tvk-oneclick Integration Tests
-    #  run: |
-    #    pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
+    - name: Run Tvk-oneclick Integration Tests
+      run: |
+        pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
     - name: Ensure Required Utilities Installed
       run: make install-required-utilities
     - name: Test rke_etcd_backup_restore Plugin Locally

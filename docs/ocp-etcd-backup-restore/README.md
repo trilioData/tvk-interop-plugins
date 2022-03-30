@@ -32,7 +32,7 @@ Source of information - https://access.redhat.com/documentation/en-us/openshift_
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-3. Triliovault for kubernetes and TVK target. [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
+3. Triliovault for kubernetes and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
 
 ## Installation, Upgrade, Removal of Plugins :
 
@@ -103,7 +103,7 @@ Flags:
 - **--api-server-url**:
  		This argument is the api url for cluster.
 		Its in the below format:
-		https://api.<cluster_name>.<domain>:6443
+		"https://api.<cluster_name>.<domain>:6443"
 - **--ocp-cluster-user**:
 		User name to access OCP cluster.
 - **--ocp-cluster-pass**:

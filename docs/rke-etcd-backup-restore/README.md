@@ -14,7 +14,7 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-3. Triliovault for kubernetes and TVK target. [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault)
+3. Triliovault for kubernetes and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault)
 
 ## Installation, Upgrade, Removal of Plugins :
 
@@ -61,7 +61,7 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 | --target-name                 | The name of a single datastore on which etcd backup needs to be stored.
 | --target-namespace            | Namespace name where the target resides.
 | --rancher-url                 | Rancher server URL
-| --bearer-token                | Token to access rancher server [here](https://rancher.com/docs/rancher/v1.0/en/configuration/api-keys/)
+| --bearer-token                | Token to access rancher server [More info here](https://rancher.com/docs/rancher/v1.0/en/configuration/api-keys/)
 | --cluster-name                | Cluster name to perform Backup/Restore on.
 | --log-location                | Log file name along with path where the logs should be save default - /tmp/etcd-ocp-backup.log
 
