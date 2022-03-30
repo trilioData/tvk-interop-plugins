@@ -82,8 +82,8 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 		This argument is mandatory if -backup flag is provided.
 - **--rancher-url**:
 		This is the rancher server URL through which rancher can be accessed.
-		should be given in the below form:
-		"https://<rancher server ip>/"
+		should be given in the below form:  
+		"https://\<rancher server ip\>/"
 		This is mandatory argument.
 - **--bearer-token**:
 		This is the token provided by rancher server to access its cluster/apis without using password.

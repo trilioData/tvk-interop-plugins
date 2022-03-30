@@ -102,8 +102,8 @@ Flags:
 		This argument is mandatory if -backup flag is provided.
 - **--api-server-url**:
  		This argument is the api url for cluster.
-		Its in the below format:
-		"https://api.<cluster_name>.<domain>:6443"
+		Its in the below format:  
+		"https://api.\<cluster_name\>\.\<domain\>:6443"
 - **--ocp-cluster-user**:
 		User name to access OCP cluster.
 - **--ocp-cluster-pass**:
