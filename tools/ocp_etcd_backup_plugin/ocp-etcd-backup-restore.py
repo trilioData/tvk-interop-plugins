@@ -574,7 +574,7 @@ spec:
                 master_file.write(mach_conf)
                 master_file.close()
 
-                cmd = "kubectl apply -f master_ssh.yaml.yaml "\
+                cmd = "kubectl apply -f master_ssh.yaml "\
                         "1>/dev/null 2>etcd-ocp-backup.log"
                 proc = subprocess.Popen(cmd, stderr=sys.stderr,
                                 stdout=sys.stdout, shell=True)
@@ -593,6 +593,7 @@ spec:
         except BaseException as exception:
             self.logger.error("Error in getting cluster custom object "
                               f"machineconfiguration for master nodes")
+            sys.exit(1)
         old_ver = resp['metadata']['generation']
 
         obj = subprocess.Popen(
