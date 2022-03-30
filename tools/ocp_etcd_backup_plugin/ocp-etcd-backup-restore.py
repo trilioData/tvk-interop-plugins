@@ -540,6 +540,50 @@ spec:
         patchfile.close()
 
         try:
+            cmd = "kubectl get mc 99-master-ssh"
+            proc = subprocess.Popen(cmd, stderr=sys.stderr,
+                                stdout=sys.stdout, shell=True)
+            proc.communicate()
+            if proc.returncode:
+                self.logger.error("There is no macine configuration "
+                        "name 99-master-ssh, creating 99-master-ssh")
+                secret = api_instance.read_namespaced_secret(
+                    name='master-user-data',
+                    namespace='openshift-machine-api').data
+                ignit_ver = json.loads(base64.b64decode(
+                    secret['userData']))['ignition']['version']
+                mach_conf = f"""
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 99-master-ssh
+spec:
+  config:
+    ignition:
+      version: {ignit_ver}
+  extensions: null
+  fips: false
+  kernelArguments: null
+  kernelType: ""
+  osImageURL: ""
+"""
+                master_file = open("master_ssh.yaml", "w")
+                master_file.write(mach_conf)
+                master_file.close()
+
+                cmd = "kubectl apply -f master_ssh.yaml.yaml "\
+                        "1>/dev/null 2>etcd-ocp-backup.log"
+                proc = subprocess.Popen(cmd, stderr=sys.stderr,
+                                stdout=sys.stdout, shell=True)
+                proc.communicate()
+                os.remove(master_ssh.yaml)
+                if proc.returncode:
+                    err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
+                    self.logger.error(err_msg)
+                    self.logger.error("Error in creating machine configuration")
+                    sys.exit(1)
             resp = client.CustomObjectsApi().get_cluster_custom_object(
                 group="machineconfiguration.openshift.io",
                 version="v1",

@@ -26,6 +26,9 @@ More information around bastion node - https://docs.openshift.com/container-plat
 
 If user has only lost some crucial cluster information then user can restore from the snapshot saved using this plugin
 If user has lost nodes, then user has to run restore using this plugin. Create nodes and add to cluster and then run post restore option from this plugin.
+
+**Note: Restore functionality will only work on same cluster from where the backup was taken** 
+
 You can get more information from : 
 Source of information - https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index
 

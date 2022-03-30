@@ -13,6 +13,9 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 
 **Note: Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility**
 
+**Note: Restore functionality will only work on same cluster from where the backup was taken**
+
+
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
