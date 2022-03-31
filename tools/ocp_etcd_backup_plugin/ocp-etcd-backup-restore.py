@@ -1471,6 +1471,21 @@ datastore:
             if nlines >= 1:
                 break
         self.check_and_approve_csr()
+        while True:
+            print(spin[idx % len(spin)], end="\r")
+            idx += 1
+            time.sleep(0.1)
+            stdin, stdout, stderr = self.ssh_dict[self.nodes[0]].exec_command(
+                'sudo crictl ps | grep "etcd " | grep Running')
+            ret_code = stdout.channel.recv_exit_status()
+            if ret_code == 0:
+                break
+            if int(time.time()) >= wait_timeout:
+                self.logger.error(
+                    f'Timed out while waiting for static pod {node} '\
+                    'to be in Running state')
+                self.logger.info("Please run post restore task again")
+                sys.exit(1)
         nodes_len = len(self.nodes)
         patch_and_verify_nodes_pods(
             group="operator.openshift.io",

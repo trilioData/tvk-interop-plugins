@@ -9,6 +9,7 @@ ingressGateway_2_7_0=k8s-triliovault-ingress-nginx-controller
 operatorSA=triliovault-operator-k8s-triliovault-operator-service-account
 tvkmanagerSA=k8s-triliovault
 tvkingressSA=k8s-triliovault-ingress-nginx-admission
+tvkingressSALater=k8s-triliovault-ingress-nginx
 
 #This module is used to perform preflight check which checks if all the pre-requisites are satisfied before installing Triliovault for Kubernetes application in a Kubernetes cluster
 preflight_checks() {
@@ -129,8 +130,8 @@ install_tvk() {
   helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
   if [[ -z ${input_config} ]]; then
-    read -r -p "Please provide the operator version to be installed (default - 2.7.2): " operator_version
-    read -r -p "Please provide the triliovault manager version (default - 2.7.2): " triliovault_manager_version
+    read -r -p "Please provide the operator version to be installed (default - 2.7.0): " operator_version
+    read -r -p "Please provide the triliovault manager version (default - 2.7.0): " triliovault_manager_version
     read -r -p "Namespace name in which TVK should be installed: (default - default): " tvk_ns
     read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
@@ -138,10 +139,10 @@ install_tvk() {
     if_resource_exists_still_proceed='y'
   fi
   if [[ -z "$operator_version" ]]; then
-    operator_version='2.7.2'
+    operator_version='2.7.0'
   fi
   if [[ -z "$triliovault_manager_version" ]]; then
-    triliovault_manager_version='2.7.2'
+    triliovault_manager_version='2.7.0'
   fi
   if [[ -z "$tvk_ns" ]]; then
     tvk_ns="default"
@@ -248,7 +249,7 @@ install_tvk() {
     tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
     tvk_ns="$get_ns"
     #Check if TVM can be upgraded
-    old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+    old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
     # shellcheck disable=SC2001
     new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
     vercomp "$old_tvm_version" "2.7.0"
@@ -274,9 +275,11 @@ install_tvk() {
         return
       fi
     fi
+    vercomp "$old_tvm_version" "$new_triliovault_manager_version"
+    ret_equal=$?
     vercomp "2.6.5" "$new_triliovault_manager_version"
     ret_val1=$?
-    if [[ $upgrade_tvo == 1 ]] && [[ $ret_val1 == 2 ]]; then
+    if [[ $upgrade_tvo == 1 ]] && [[ $ret_val1 == 2 ]] && [[ $ret_equal != 1 ]]; then
       svc_type=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.spec.type}')
       if [[ $svc_type == LoadBalancer ]]; then
         get_host=$(kubectl get ingress "$masterIngName" -n "$tvk_ns" -o 'jsonpath={.spec.rules[0].host}')
@@ -337,16 +340,24 @@ EOF
     elif [[ $ret_val1 == 2 ]] || [[ $ret_val1 == 1 ]]; then
       if [ "$open_flag" -eq 1 ]; then
         if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
-          cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
-          wait_install 10 "$cmd"
-          kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+          cmd="kubectl get sa $tvkingressSALater -n $tvk_ns 2>> >(logit)"
+          wait_install 2 "$cmd"
+          kubectl get sa $tvkingressSALater -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
           retcode=$?
           if [[ $retcode != 0 ]]; then
-            echo "Not able find service account $tvkingressSA"
-            exit 1
+            cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
+            wait_install 10 "$cmd"
+            kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+            retcode=$?
+            if [[ $retcode != 0 ]]; then
+              echo "Not able find service account $tvkingressSA"
+              exit 1
+            fi
+            oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+            oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
           fi
-          oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
-          oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+          oc adm policy add-scc-to-user anyuid -z "$tvkingressSALater" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+          oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSALater" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         fi
         cmd="kubectl get sa $tvkmanagerSA -n $tvk_ns 2>> >(logit)"
         wait_install 10 "$cmd"
@@ -586,24 +597,32 @@ EOF
   else
     if [ "$open_flag" -eq 1 ]; then
       if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
-        cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
-        wait_install 10 "$cmd"
-        kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+        cmd="kubectl get sa $tvkingressSALater -n $tvk_ns 2>> >(logit)"
+        wait_install 2 "$cmd"
+        kubectl get sa $tvkingressSALater -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
         retcode=$?
         if [[ $retcode != 0 ]]; then
-          echo "Not able to find service account $tvkingressSA"
-        else
-          {
-            oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns"
-            oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns"
-          } 1>> >(logit) 2>> >(logit)
+          cmd="kubectl get sa $tvkingressSA -n $tvk_ns 2>> >(logit)"
+          wait_install 10 "$cmd"
+          kubectl get sa $tvkingressSA -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+          retcode=$?
+          if [[ $retcode != 0 ]]; then
+            echo "Not able to find service account $tvkingressSA"
+          else
+            {
+              oc adm policy add-scc-to-user anyuid -z "$tvkingressSA" -n "$tvk_ns"
+              oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSA" -n "$tvk_ns"
+            } 1>> >(logit) 2>> >(logit)
+          fi
         fi
-        kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
-        return_val=$?
-        if [[ $return_val == 0 ]]; then
-          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
-          kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
-        fi
+        oc adm policy add-scc-to-user anyuid -z "$tvkingressSALater" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+        oc adm policy add-cluster-role-to-user cluster-admin -z "$tvkingressSALater" -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+      fi
+      kubectl get sa "$tvkmanagerSA" -n "$tvk_ns" 2>> >(logit) 1>> >(logit)
+      return_val=$?
+      if [[ $return_val == 0 ]]; then
+        kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
       fi
     fi
 
@@ -779,7 +798,7 @@ configure_nodeport_for_tvkui() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
@@ -915,7 +934,7 @@ configure_loadbalancer_for_tvkUI() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
