@@ -1,0 +1,21 @@
+#### Release Notes for OCP Etcd Backup Restore plugin
+
+## Known Issue/ Extra info:
+1. If restoring the backup having different TVK version would fail.Cluter accessibility will be lost.
+Workaround : Delete the current TVK and then Try to restore.
+
+2. As per official document of RED HAT, it says:
+**WARNING**
+Restoring to a previous cluster state is a destructive and destablizing action to take on a running cluster. This should only be used as a last resort.
+
+If you are able to retrieve data using the Kubernetes API server, then etcd is available and you should not restore using an etcd backup.
+
+3. Till now, the plugin is tested on:
+  Ubuntu 18.04.5
+  GLIBC 2.27 and supported GLIBC version =>2.27
+  OCP - 4.8 & 4.9
+
+4. Please refer below URL for more information:
+
+https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index#dr-restoring-cluster-state
+

@@ -1,0 +1,12 @@
+#### Release Notes for RKE Etcd Backup Restore plugin
+
+## Known Issue/ Extra Info:
+1. If restoring the backup having different TVK version would fail.Cluter accessibility will be lost.
+Workaround : Delete the current TVK and then Try to restore.
+
+2. Till now, the plugin is tested on:
+  Ubuntu 18.04.5
+  GLIBC 2.27 and supported GLIBC version =>2.27
+  RKE - with kubernetes version - v1.21.9
+
+
