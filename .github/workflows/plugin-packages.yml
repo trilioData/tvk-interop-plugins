@@ -213,7 +213,7 @@ jobs:
         sudo python3 -m pip install --upgrade pip
         sudo python3 -m pip install pyyaml
         sudo pip3 install coverage pytest
-        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then sudo pip3 install -r tools/rke_etcd_backup_plugin/requirements.txt --ignore-installed; fi
+        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/rke_etcd_backup_plugin/requirements.txt --ignore-installed; fi
     - name: Remove build and dist directory
       run: make clean
     - name: Run package Creation
