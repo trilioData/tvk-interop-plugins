@@ -226,7 +226,7 @@ jobs:
       run: make clean-build
     - name: Build rke-etcd-backup-restore Package
       run: make build-rke_etcd_backup_restore
-    #- name: Run RKE etcd backup restore Integration Tests
+    #- name: Run RKE etcd backup restore Integration Test
     #  run: |
     #    pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
     - name: Ensure Required Utilities Installed
