@@ -1,6 +1,6 @@
 urllib3
 kubernetes
-PyYaml
+pyyaml
 setuptools_rust
 cryptography
 paramiko
