@@ -209,11 +209,9 @@ jobs:
         python-version: 3.6
     - name: Install dependencies
       run: |
-        sudo apt-get install python3-pip
-        sudo python3 -m pip install --upgrade pip
-        sudo python3 -m pip install pyyaml
-        sudo pip3 install coverage pytest
-        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/rke_etcd_backup_plugin/requirements.txt --ignore-installed; fi
+        python -m pip install --upgrade pip
+        pip install coverage pytest
+        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
     - name: Remove build and dist directory
       run: make clean
     - name: Run package Creation
@@ -226,7 +224,7 @@ jobs:
       run: make clean-build
     - name: Build rke-etcd-backup-restore Package
       run: make build-rke_etcd_backup_restore
-    #- name: Run RKE etcd backup restore Integration Test
+    #- name: Run Tvk-oneclick Integration Tests
     #  run: |
     #    pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
     - name: Ensure Required Utilities Installed

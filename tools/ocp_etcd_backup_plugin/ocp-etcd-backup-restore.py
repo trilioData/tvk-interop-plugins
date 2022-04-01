@@ -116,6 +116,7 @@ metadata:
   namespace: ocp-backup-etcd
 spec:
   activeDeadlineSeconds: 43200
+  ttlSecondsAfterFinished: 100
   backoffLimit: 0
   completions: 1
   parallelism: 1
@@ -239,7 +240,7 @@ spec:
         """
         Function to delete jobs created for performing backup and restore.
         """
-
+        #import pdb; pdb.set_trace()
         try:
             if mover == "true":
                 delete = self.api_batch.delete_namespaced_job(
@@ -312,6 +313,7 @@ metadata:
   namespace: {6}
 spec:
   activeDeadlineSeconds: 43200
+  ttlSecondsAfterFinished: 100
   backoffLimit: 0
   completions: 1
   parallelism: 1
@@ -1986,7 +1988,7 @@ if __name__ == '__main__':
         etcd_bk = ETCDOcpBackup(api_instance, api_batch, custom_api, logger)
         etcd_bk.create_backup_job()
         etcd_bk.create_backup_mover(args.target_name, args.target_namespace)
-        etcd_bk.delete_jobs(mover="true", backup="true")
+        #etcd_bk.delete_jobs(mover="true", backup="true")
         print("storing target info..")
         etcd_bk.store_target_data_to_etcd(
             args.target_name, args.target_namespace)
