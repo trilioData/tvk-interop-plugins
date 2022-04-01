@@ -122,16 +122,14 @@ SAMPLE_TEST=True
 #Specify backup plan name
 bk_plan_name='trilio-test-operator'
 
-#Specify namespace where backupplan needs to be created
-bk_plan_namespae='trilio-test-backup'
-
 #Specify backup name
 backup_name='trilio-test-operator'
+
 #Specify backup namespace[Note: currently backup plan and backup should be in same namespace]
 backup_namespace='trilio-test-backup'
 
 #Specify the way in which backup should be taken ['Label_based','Namespace_based','Operator_base','Helm_based']
-backup_way='Operator_based'
+backup_way='Label_based'
 
 #Whether or not restore should be performed [True, False]
 restore=True
