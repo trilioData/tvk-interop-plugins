@@ -22,8 +22,8 @@ OS:
 
 - Preflight check:
 	Performs preflight checks to ensure that all requirements are satisfied.
-- **TVK Installation and Management Console Configuration**:
-	**TVK installation, Management Console configuration and License installation is done from DO Marketplace (https://marketplace.digitalocean.com/apps/triliovault-for-kubernetes)** 
+- **TVK Installation**:
+	**Installs TVK along with TVM and does License installation** 
 - TVK Management Console Configuration:
         Even after above configuation, users has an option to choose from ['Loadbalancer','Nodeport','PortForwarding'] to access the console using TVK-OneClick plugin.
 - Target Creation:
@@ -121,9 +121,7 @@ kubectl tvk-oneclick -c -t -s
 Sample input_config file can be found here:
 https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-oneclick/input_config
 
-This sample_config input file leverages your DO credentials and DO DNS information to create/configure a target within DO Spaces, and to configure the management console leveraging a Kubernetes LoadBalancer.
-
-The user has to provide their DO credentials (Access key and Secret key) as mandatory inputs and DNS information as Optional inputs if using LoadBalancers for setting up the Management Console. 
+This sample_config input file leverages your credentials and DNS information to create/configure a target, and to configure the management console leveraging a Kubernetes LoadBalancer.
 
 ```shell script
 kubectl tvk-oneclick -n
