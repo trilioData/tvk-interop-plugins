@@ -14,13 +14,25 @@ spec:
       - key: os
         operator: In
         values:
-        - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/RKE_ETCD_BACKUP_RESTORE_VERSION/rke-etcd-backup-restore.tar.gz
-    sha256: RKE_ETCD_BACKUP_RESTORE_TAR_CHECKSUM
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/RKE_ETCD_BACKUP_RESTORE_VERSION/rke-etcd-backup-restore-Linux.tar.gz
+    sha256: RKE_ETCD_BACKUP_RESTORE_LINUX_TAR_CHECKSUM
     bin: rke-etcd-backup-restore
     files:
-    - from: rke-etcd-backup-restore/*
+    - from: '*'
+      to: .
+
+  - selector:
+      matchExpressions:
+      - key: os
+        operator: In
+        values:
+        - darwin
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/RKE_ETCD_BACKUP_RESTORE_VERSION/rke-etcd-backup-restore-macOS.tar.gz
+    sha256: RKE_ETCD_BACKUP_RESTORE_MAC_TAR_CHECKSUM
+    bin: rke-etcd-backup-restore
+    files:
+    - from: '*'
       to: .
 
   description: |

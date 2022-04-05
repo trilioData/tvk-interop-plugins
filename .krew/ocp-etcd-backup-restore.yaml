@@ -14,24 +14,34 @@ spec:
       - key: os
         operator: In
         values:
-        - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/OCP_ETCD_BACKUP_RESTORE_VERSION/ocp-etcd-backup-restore.tar.gz
-    sha256: OCP_ETCD_BACKUP_RESTORE_TAR_CHECKSUM
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/OCP_ETCD_BACKUP_RESTORE_VERSION/ocp-etcd-backup-restore-Linux.tar.gz
+    sha256: OCP_ETCD_BACKUP_RESTORE_LINUX_TAR_CHECKSUM
     bin: ocp-etcd-backup-restore
     files:
-    - from: ocp-etcd-backup-restore/*
+    - from: '*'
+      to: .
+
+  - selector:
+      matchExpressions:
+      - key: os
+        operator: In
+        values:
+        - darwin
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/OCP_ETCD_BACKUP_RESTORE_VERSION/ocp-etcd-backup-restore-macOS.tar.gz
+    sha256: OCP_ETCD_BACKUP_RESTORE_MAC_TAR_CHECKSUM
+    bin: ocp-etcd-backup-restore
+    files:
+    - from: '*'
       to: .
 
   description: |
     ## Usage
-
     usage: ETCD Backup and restore on OCP. Available flags: -backup -restore.
        [-h] [-backup] [-restore] [--target-name TARGET_NAME]
        [--target-namespace TARGET_NAMESPACE] --api-server-url API_SERVER_URL
        --ocp-cluster-user OCP_CLUSTER_USER --ocp-cluster-pass OCP_CLUSTER_PASS
        [-p] [--log-location LOG_LOC]
-
     optional arguments:
         -h, --help            show this help message and exit
         -backup
@@ -51,3 +61,5 @@ spec:
         --log-location LOG_LOC
                         Log file name along with path where the logs should be
                         save default - /tmp/etcd-ocp-backup.log
+    
+    -----------------------------------------------------------------------

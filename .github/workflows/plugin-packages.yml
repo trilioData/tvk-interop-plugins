@@ -298,6 +298,7 @@ jobs:
       run: make build-checksum-rke_etcd_backup_restore
     - name: Install dependencies
       run: |
+        sudo apt install python3-testresources
         python -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
