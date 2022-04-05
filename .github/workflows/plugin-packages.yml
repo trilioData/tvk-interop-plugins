@@ -261,7 +261,7 @@ jobs:
         python-version: 3.6
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
+        python3 -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
     - name: Remove build and dist directory
@@ -303,7 +303,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt install python3-testresources
-        python -m pip install --upgrade pip
+        python3 -m pip install --upgrade pip
         pip install coverage pytest
         if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
     - name: Run rke etcd backup restore Integration Tests
