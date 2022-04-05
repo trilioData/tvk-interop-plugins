@@ -28,12 +28,12 @@ cp .krew/$rke_etcd_backup_restore_yaml $build_dir/$rke_etcd_backup_restore_yaml
 rke_etcd_backup_restore_yaml=$build_dir/$rke_etcd_backup_restore_yaml
 
 # shellcheck disable=SC2154
-rke_etcd_backup_restore_tar="rke-etcd-backup-restore-Linux.tar.gz"
+#rke_etcd_backup_restore_tar="rke-etcd-backup-restore-Linux.tar.gz"
 tar_checksum="$(awk '{print $1}' $build_dir/rke-etcd-backup-restore-Linux-sha256.txt)"
 sed -i "s/RKE_ETCD_BACKUP_RESTORE_LINUX_TAR_CHECKSUM/${tar_checksum}/g" $rke_etcd_backup_restore_yaml
 
 # shellcheck disable=SC2154
-rke_etcd_backup_restore_tar="rke-etcd-backup-restore-macOS.tar.gz"
+#rke_etcd_backup_restore_tar="rke-etcd-backup-restore-macOS.tar.gz"
 tar_checksum="$(awk '{print $1}' $build_dir/rke-etcd-backup-restore-macOS-sha256.txt)"
 sed -i "s/RKE_ETCD_BACKUP_RESTORE_MAC_TAR_CHECKSUM/${tar_checksum}/g" $rke_etcd_backup_restore_yaml
 

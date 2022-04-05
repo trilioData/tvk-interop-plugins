@@ -6,10 +6,11 @@ set -x
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
 # create tvk-oneclick tar package
+# shellcheck disable=SC2154
 ocp_etcd_backup_restore_tar_archive="ocp-etcd-backup-restore-${platform}.tar.gz"
 echo >&2 "Creating ${ocp_etcd_backup_restore_tar_archive} archive."
 
-cd "$SRC_ROOT"
+cd "$SRC_ROOT" || exit
 build_dir="build"
 mkdir $build_dir
 cp -r dist/ocp-etcd-backup-restore $build_dir/
@@ -23,6 +24,6 @@ while IFS= read -r -d $'\0' f; do
   TZ=UTC touch -mt "0001010000" "$f"
 done < <(find . -print0)
 
-tar -cvzf ${ocp_etcd_backup_restore_tar_archive} ocp-etcd-backup-restore/
+tar -cvzf "${ocp_etcd_backup_restore_tar_archive}" ocp-etcd-backup-restore/
 echo >&2 "Created ${ocp_etcd_backup_restore_tar_archive} archive successfully"
 cd "$SRC_ROOT"

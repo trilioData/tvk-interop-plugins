@@ -28,12 +28,14 @@ cp .krew/$ocp_etcd_backup_restore_yaml $build_dir/$ocp_etcd_backup_restore_yaml
 ocp_etcd_backup_restore_yaml=$build_dir/$ocp_etcd_backup_restore_yaml
 
 # shellcheck disable=SC2154
-ocp_etcd_backup_restore_tar="ocp-etcd-backup-restore-Linux.tar.gz"
+#ocp_etcd_backup_restore_tar="ocp-etcd-backup-restore-Linux.tar.gz"
+# shellcheck disable=SC2154
 tar_checksum="$(awk '{print $1}' $build_dir/ocp-etcd-backup-restore-Linux-sha256.txt)"
 sed -i "s/OCP_ETCD_BACKUP_RESTORE_LINUX_TAR_CHECKSUM/${tar_checksum}/g" $ocp_etcd_backup_restore_yaml
 
 # shellcheck disable=SC2154
-ocp_etcd_backup_restore_tar="ocp-etcd-backup-restore-macOS.tar.gz"
+#ocp_etcd_backup_restore_tar="ocp-etcd-backup-restore-macOS.tar.gz"
+# shellcheck disable=SC2154
 tar_checksum="$(awk '{print $1}' $build_dir/ocp-etcd-backup-restore-macOS-sha256.txt)"
 sed -i "s/OCP_ETCD_BACKUP_RESTORE_MAC_TAR_CHECKSUM/${tar_checksum}/g" $ocp_etcd_backup_restore_yaml
 

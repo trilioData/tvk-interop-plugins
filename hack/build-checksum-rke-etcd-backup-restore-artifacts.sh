@@ -8,9 +8,9 @@ rke_dir="rke_etcd_backup_restore"
 rke_etcd_backup_restore_tar_linux="rke-etcd-backup-restore-Linux.tar.gz"
 rke_etcd_backup_restore_tar_mac="rke-etcd-backup-restore-macOS.tar.gz"
 
-cd "$SRC_ROOT"
+cd "$SRC_ROOT" || exit
 build_dir="build"
-cd $build_dir
+cd $build_dir || exit
 
 # create rke_etcd_backup_restore tar sha256 file
 echo >&2 "Compute sha256 of ${rke_etcd_backup_restore_tar_linux} archive."
