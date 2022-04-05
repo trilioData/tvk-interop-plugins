@@ -104,14 +104,14 @@ class ETCDbackup():
             print("Provided S3 target is already set")
         else:
             print("Updating cluster to set new s3 etcd target..")
-            print(s3config)
+            #print(s3config)
             resp_json['rancherKubernetesEngineConfig']['services']['etcd']['backupConfig']['s3BackupConfig'] = s3config
             resp_put = requests.put(
                 url_cluster,
                 verify=False,
                 auth=self.auth,
                 data=json.dumps(resp_json))
-            print(resp_put)
+            #print(resp_put)
             if resp_put.status_code == 200 or resp_put.status_code == 201:
                 runtime = 20
                 start = int(time.time())
@@ -308,6 +308,7 @@ class ETCDrestore():
                 "Endpoint",
                 "Bucket",
                 "Availability"])
+        data_frame.set_index('Name', inplace=True)
         print(data_frame)
         try:
             restore_id = input(f"Please provide the name of backup to restore: ({max_creation[0]})")
@@ -591,16 +592,32 @@ def generate_kubeconfig(server_url, token, path, cluster_name):
     get_url = f"{server_url}v3/clusters?name={cluster_name}"
     resp = requests.get(get_url, verify=False, auth=auth)
     json_resp = resp.json()
-    for item in json_resp['data']:
-        cluster_id = item['id']
-
+    try:
+        for item in json_resp['data']:
+            cluster_id = item['id']
+    except KeyError:
+        print("Authentication Error - Unauthorized 401: must authenticate")
+        sys.exit()
+    except BaseException as e:
+        print(e)
+        print("Error in Getting kubeconfig")
+        sys.exit()
+      
 
     url=f"{server_url}v3/clusters/"\
             f"{cluster_id}?action=generateKubeconfig"
     resp = requests.post(url, verify=False, auth=auth)
     #uni_resp=resp.content.decode('unicode_escape')
     out_resp=json.loads(resp.content)
-    yaml_resp=yaml.safe_load(out_resp["config"])
+    try:
+        yaml_resp=yaml.safe_load(out_resp["config"])
+    except KeyError:
+        print("Not able to connect to cluster")
+        sys.exit()
+    except BaseException as e:
+        print(e)
+        print("Error in connecting cluster")
+        sys.exit()
     with open(path, "w") as outfile:
         yaml.dump(yaml_resp, outfile)
 

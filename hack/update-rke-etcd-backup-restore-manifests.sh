@@ -26,7 +26,9 @@ cp "$rke_etcd_backup_restore_template_manifest" $build_dir/$rke_etcd_backup_rest
 rke_etcd_backup_restore_template_manifest=$build_dir/$rke_etcd_backup_restore_yaml
 
 repoURL=$(git config --get remote.origin.url)
-rkeetcdbackuprestoreSha256File="rke-etcd-backup-restore-sha256.txt"
+
+#For Linux
+rkeetcdbackuprestoreSha256File="rke-etcd-backup-restore-Linux-sha256.txt"
 
 rkeetcdbackuprestoreSha256URI="$repoURL/releases/download/${RKE_ETCD_BACKUP_RESTORE_VERSION}/$rkeetcdbackuprestoreSha256File"
 rkeetcdbackuprestoreSha256FilePath=$build_dir/$rkeetcdbackuprestoreSha256File
@@ -43,7 +45,27 @@ fi
 rke_etcd_backup_restore_sha=$(awk '{print $1}' "$rkeetcdbackuprestoreSha256FilePath")
 
 sed -i "s/RKE_ETCD_BACKUP_RESTORE_VERSION/$RKE_ETCD_BACKUP_RESTORE_VERSION/g" "$rke_etcd_backup_restore_template_manifest"
-sed -i "s/RKE_ETCD_BACKUP_RESTORE_TAR_CHECKSUM/$rke_etcd_backup_restore_sha/g" "$rke_etcd_backup_restore_template_manifest"
+sed -i "s/RKE_ETCD_BACKUP_RESTORE_LINUX_TAR_CHECKSUM/$rke_etcd_backup_restore_sha/g" "$rke_etcd_backup_restore_template_manifest"
+
+#For MAC users
+
+rkeetcdbackuprestoreSha256File="rke-etcd-backup-restore-macOS-sha256.txt"
+
+rkeetcdbackuprestoreSha256URI="$repoURL/releases/download/${RKE_ETCD_BACKUP_RESTORE_VERSION}/$rkeetcdbackuprestoreSha256File"
+rkeetcdbackuprestoreSha256FilePath=$build_dir/$rkeetcdbackuprestoreSha256File
+
+curl -fsSL "$rkeetcdbackuprestoreSha256URI" >"${rkeetcdbackuprestoreSha256FilePath}"
+
+if [ -s "${rkeetcdbackuprestoreSha256FilePath}" ]; then
+  echo "File ${rkeetcdbackuprestoreSha256FilePath} successfully downloaded and contains data"
+else
+  echo "File ${rkeetcdbackuprestoreSha256FilePath} does not contain any data. Exiting..."
+  exit 1
+fi
+
+rke_etcd_backup_restore_sha=$(awk '{print $1}' "$rkeetcdbackuprestoreSha256FilePath")
+
+sed -i "s/RKE_ETCD_BACKUP_RESTORE_MAC_TAR_CHECKSUM/$rke_etcd_backup_restore_sha/g" "$rke_etcd_backup_restore_template_manifest"
 
 cp "$build_dir"/$rke_etcd_backup_restore_yaml "$plugins_dir"/$rke_etcd_backup_restore_yaml
 echo >&2 "Updated rke-etcd-backup-restore plugin manifest '$rke_etcd_backup_restore_template_manifest' with 'version=$RKE_ETCD_BACKUP_RESTORE_VERSION' and new sha256sum"

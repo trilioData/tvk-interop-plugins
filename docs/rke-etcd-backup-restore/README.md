@@ -15,6 +15,7 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 
 **Note: Restore functionality will only work on same cluster from where the backup was taken**
 
+**Note: Restore will only work if cluster is accessible and one of the etcd nodes in the cluster should be up and running.
 
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
@@ -63,10 +64,10 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 | :---------------------------- |:-------------:
 | -backup                       | Flag to notify backup is to be taken.
 | -restore                      | Falg to notify restore is to be performed.
-| --target-name                 | The name of a single datastore on which etcd backup needs to be stored.
-| --target-namespace            | Namespace name where the target resides.
+| --target-name                 | The name of a single datastore on which etcd backup needs to be stored i.e. TVK target name.
+| --target-namespace            | Namespace name in which TVK target is created.
 | --rancher-url                 | Rancher server URL
-| --bearer-token                | Token to access rancher server [More info here](https://rancher.com/docs/rancher/v1.0/en/configuration/api-keys/)
+| --bearer-token                | Token to access rancher server [More info here](https://rancher.com/docs/rancher/v2.5/en/user-settings/api-keys/)
 | --cluster-name                | Cluster name to perform Backup/Restore on.
 | --log-location                | Log file name along with path where the logs should be save default - /tmp/etcd-ocp-backup.log
 
@@ -94,6 +95,7 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 - **--bearer-token**:
 		This is the token provided by rancher server to access its cluster/apis without using password.
 		More info about how to get bearer-token can be found at https://rancher.com/docs/rancher/v2.5/en/user-settings/api-keys/
+                The scope of API key should be "No scope" as to access API's, plugin needs access to complete scope of Rancher server
 		This is mandatory argument.
 - **--cluster-name**:
 		Rancher server hosts many RKE cluster, so specify the one cluster name for which ETCD backup is to be taken.

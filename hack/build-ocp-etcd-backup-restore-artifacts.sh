@@ -6,7 +6,7 @@ set -x
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
 # create tvk-oneclick tar package
-ocp_etcd_backup_restore_tar_archive="ocp-etcd-backup-restore.tar.gz"
+ocp_etcd_backup_restore_tar_archive="ocp-etcd-backup-restore-${platform}.tar.gz"
 echo >&2 "Creating ${ocp_etcd_backup_restore_tar_archive} archive."
 
 cd "$SRC_ROOT"
@@ -25,15 +25,4 @@ done < <(find . -print0)
 
 tar -cvzf ${ocp_etcd_backup_restore_tar_archive} ocp-etcd-backup-restore/
 echo >&2 "Created ${ocp_etcd_backup_restore_tar_archive} archive successfully"
-
-# create ocp_etcd_backup_restore tar sha256 file
-echo >&2 "Compute sha256 of ${ocp_etcd_backup_restore_tar_archive} archive."
-
-checksum_cmd="shasum -a 256"
-if hash sha256sum 2>/dev/null; then
-  checksum_cmd="sha256sum"
-fi
-
-ocp_etcd_backup_restore_sha256_file=ocp-etcd-backup-restore-sha256.txt
-"${checksum_cmd[@]}" "${ocp_etcd_backup_restore_tar_archive}" >$ocp_etcd_backup_restore_sha256_file
-echo >&2 "Successfully written sha256 of ${ocp_etcd_backup_restore_tar_archive} into $ocp_etcd_backup_restore_sha256_file"
+cd "$SRC_ROOT"

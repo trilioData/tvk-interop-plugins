@@ -145,8 +145,12 @@ jobs:
             build/tvk-oneclick.tar.gz
             build/tvk-oneclick-sha256.txt
 
-  build_ocp:
-    runs-on: self-hosted
+  build_ocp_binary:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['self-hosted', 'macos-latest']
     needs: pre-build
     steps:
     - name: Force Install GIT Latest
@@ -183,23 +187,49 @@ jobs:
       run: sudo make clean-build
     - name: Build ocp_etcd_backup_restore Package
       run: sudo make build-ocp_etcd_backup_restore
-    - name: Run Ocp ETCD backup restore Integration Test
-      run: |
-        pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
-    - name: Ensure Required Utilities Installed
-      run: sudo make install-required-utilities
-    - name: Test ocp_etcd_backup_restore Plugin Locally
-      run: sudo make test-ocp-etcd-backup-restore-locally
+      env:
+        platform: ${{ runner.os }}
     - name: Archive package
       uses: actions/upload-artifact@v2
       with:
         name: ocp_etcd_backup_restore
         path: |
-          build/ocp-etcd-backup-restore-sha256.txt
-          build/ocp-etcd-backup-restore.tar.gz
+          build/ocp-etcd-backup-restore-${{ runner.os }}.tar.gz
 
-  build_rke:
-    runs-on: ubuntu-18.04
+  build_ocp:
+    runs-on: self-hosted
+    needs: [build_ocp_binary]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Download All Plugin Packages from Artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: build
+    - name: Build checksum ocp-etcd-backup-restore Package
+      run: make build-checksum-ocp_etcd_backup_restore
+
+    - name: Run Ocp ETCD backup restore Integration Test
+      run: |
+        if [ ${{ runner.os }} == "Linux" ]; then
+          pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
+        fi
+    - name: Ensure Required Utilities Installed
+      run: sudo make install-required-utilities
+    - name: Test ocp_etcd_backup_restore Plugin Locally
+      run: sudo make test-ocp-etcd-backup-restore-locally
+    - name: Upload checksum
+      uses: actions/upload-artifact@v2
+      with:
+        name: ocp_etcd_backup_restore
+        path: |
+          build/ocp-etcd-backup-restore-**.txt
+
+  build_rke_binary:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest']      
     needs: pre-build
     steps:
     - uses: actions/checkout@v2
@@ -224,20 +254,41 @@ jobs:
       run: make clean-build
     - name: Build rke-etcd-backup-restore Package
       run: make build-rke_etcd_backup_restore
-    - name: Run rke etcd backup restore Integration Tests
-      run: |
-        pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
-    - name: Ensure Required Utilities Installed
-      run: make install-required-utilities
-    - name: Test rke_etcd_backup_restore Plugin Locally
-      run: make test-rke-etcd-backup-restore-locally
+      env:
+        platform: ${{ runner.os }}
     - name: Archive package
       uses: actions/upload-artifact@v2
       with:
         name: rke_etcd_backup_restore
         path: |
-          build/rke-etcd-backup-restore-sha256.txt
-          build/rke-etcd-backup-restore.tar.gz
+          build/rke-etcd-backup-restore-${{ runner.os }}.tar.gz
+
+  build_rke:
+    runs-on: ubuntu-latest
+    needs: [build_rke_binary]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Download All Plugin Packages from Artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: build
+    - name: Build checksum rke-etcd-backup-restore Package
+      run: make build-checksum-rke_etcd_backup_restore
+    - name: Run rke etcd backup restore Integration Tests
+      run: |
+        if [ ${{ runner.os }} == "Linux" ]; then
+          pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
+        fi
+    - name: Ensure Required Utilities Installed
+      run: make install-required-utilities
+    - name: Test rke_etcd_backup_restore Plugin Locally
+      run: make test-rke-etcd-backup-restore-locally
+    - name: Upload checksum
+      uses: actions/upload-artifact@v2
+      with:
+        name: rke_etcd_backup_restore
+        path: |
+          build/rke-etcd-backup-restore-**.txt
 
   # pre-release job determines whether to create release or not and sets job variables which will be used to decide
   # what packages(tvk-oneclick) should be included in release
@@ -272,7 +323,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           prerelease: true
-          artifacts: "build/tvk-oneclick/tvk-oneclick-sha256.txt, build/tvk-oneclick/tvk-oneclick.tar.gz, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
-
+          #artifacts: "build/tvk-oneclick/tvk-oneclick-sha256.txt, build/tvk-oneclick/tvk-oneclick.tar.gz, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
+          artifacts: "build/tvk-oneclick/*, build/ocp_etcd_backup_restore/*, build/rke_etcd_backup_restore/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

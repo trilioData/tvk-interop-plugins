@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+
 set -x
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
 # create tvk-oneclick tar package
-rke_etcd_backup_restore_tar_archive="rke-etcd-backup-restore.tar.gz"
+rke_etcd_backup_restore_tar_archive="rke-etcd-backup-restore-${platform}.tar.gz"
 echo >&2 "Creating ${rke_etcd_backup_restore_tar_archive} archive."
 
 cd "$SRC_ROOT"
@@ -24,16 +25,4 @@ done < <(find . -print0)
 
 tar -cvzf ${rke_etcd_backup_restore_tar_archive} rke-etcd-backup-restore/
 echo >&2 "Created ${rke_etcd_backup_restore_tar_archive} archive successfully"
-
-# create rke_etcd_backup_restore tar sha256 file
-echo >&2 "Compute sha256 of ${rke_etcd_backup_restore_tar_archive} archive."
-
-checksum_cmd="shasum -a 256"
-if hash sha256sum 2>/dev/null; then
-  checksum_cmd="sha256sum"
-fi
-
-rke_etcd_backup_restore_sha256_file=rke-etcd-backup-restore-sha256.txt
-"${checksum_cmd[@]}" "${rke_etcd_backup_restore_tar_archive}" >$rke_etcd_backup_restore_sha256_file
-ls -lrt
-echo >&2 "Successfully written sha256 of ${rke_etcd_backup_restore_tar_archive} into $rke_etcd_backup_restore_sha256_file"
+cd "$SRC_ROOT"
