@@ -196,7 +196,7 @@ jobs:
     - name: Build ocp_etcd_backup_restore Package
       run: sudo make build-ocp_etcd_backup_restore
       env:
-        platform: ${{ runner.os }}
+        OS_VER: ${{ runner.os }}
     - name: Archive package
       uses: actions/upload-artifact@v2
       with:

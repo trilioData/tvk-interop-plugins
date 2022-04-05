@@ -58,6 +58,12 @@ test-ocp-etcd-backup-restore-locally:
 	./hack/generate-ocp-etcd-backup-restore-manifest.sh
 	./hack/test-ocp-etcd-backup-restore-plugin-locally.sh
 
+build-checksum-rke_etcd_backup_restore:
+	./hack/build-checksum-rke-etcd-backup-restore-artifacts.sh  
+
+build-checksum-ocp_etcd_backup_restore:
+	./hack/build-checksum-ocp-etcd-backup-restore-artifacts.sh
+
 test: test-tvk_oneclick-integration
 
 
