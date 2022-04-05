@@ -155,12 +155,14 @@ jobs:
     steps:
     - name: Force Install GIT Latest
       run: |
-        sudo apt-get install -y software-properties-common \
-        && sudo apt-get update \
-        && sudo add-apt-repository -y ppa:git-core/ppa \
-        && sudo apt-get update \
-        && sudo apt-get install -y git \
-        && sudo apt-get install python3-pip
+        if [ ${{ runner.os }} == "Linux" ]; then
+          sudo apt-get install -y software-properties-common \
+          && sudo apt-get update \
+          && sudo add-apt-repository -y ppa:git-core/ppa \
+          && sudo apt-get update \
+          && sudo apt-get install -y git \
+          && sudo apt-get install python3-pip
+        fi
     - uses: actions/checkout@v2
     - name: Set up python 3.6
       uses: actions/setup-python@v2
@@ -172,9 +174,15 @@ jobs:
         oc_version: '4.6'
     - name: Install Dependencies
       run: |
-        sudo python3 -m pip install --upgrade pip
-        sudo pip install coverage pytest
-        if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/ocp_etcd_backup_plugin/requirements.txt --ignore-installed; fi
+        if [ ${{ runner.os }} == "Linux" ]; then
+          sudo python3 -m pip install --upgrade pip
+          sudo pip install coverage pytest
+          if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/ocp_etcd_backup_plugin/requirements.txt --ignore-installed; fi
+        else
+          python -m pip install --upgrade pip
+          pip install coverage pytest
+          if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/ocp_etcd_backup_plugin/requirements.txt; fi
+        fi
     - name: Remove build and dist Directory
       run: sudo make clean
     - name: Run package creation
