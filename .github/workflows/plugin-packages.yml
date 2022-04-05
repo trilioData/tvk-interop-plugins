@@ -220,16 +220,25 @@ jobs:
         path: build
     - name: Build checksum ocp-etcd-backup-restore Package
       run: make build-checksum-ocp_etcd_backup_restore
-
-    - name: Run Ocp ETCD backup restore Integration Test
+    - name: Install Dependencies
+      run: |
+        sudo python3 -m pip install --upgrade pip
+        sudo pip install coverage pytest
+        if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/ocp_etcd_backup_plugin/requirements.txt --ignore-installed; fi
+    #- name: Run Ocp ETCD backup restore Integration Test
+    #  run: |
+    #    if [ ${{ runner.os }} == "Linux" ]; then
+    #      pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
+    #    fi
+    - name: Change permission
       run: |
         if [ ${{ runner.os }} == "Linux" ]; then
-          pytest tests/ocp_etcd_backup_restore/test.py --server ${{ env.OCP_SERVER }} --user ${{ env.OCP_USER }}  --passwd ${{ secrets.OCP_PASSWORD }} --target-name ${{ env.OCP_TARGET }} --target-namespace ${{ env.OCP_TARGET_NS }}
+          sudo chmod -R 777 /home/trilio/actions-runner-interop
         fi
     - name: Ensure Required Utilities Installed
       run: sudo make install-required-utilities
     - name: Test ocp_etcd_backup_restore Plugin Locally
-      run: sudo make test-ocp-etcd-backup-restore-locally
+      run: make test-ocp-etcd-backup-restore-locally
     - name: Upload checksum
       uses: actions/upload-artifact@v2
       with:
@@ -287,6 +296,11 @@ jobs:
         path: build
     - name: Build checksum rke-etcd-backup-restore Package
       run: make build-checksum-rke_etcd_backup_restore
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install coverage pytest
+        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
     - name: Run rke etcd backup restore Integration Tests
       run: |
         if [ ${{ runner.os }} == "Linux" ]; then
