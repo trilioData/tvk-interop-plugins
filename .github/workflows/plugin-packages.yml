@@ -194,9 +194,14 @@ jobs:
     - name: Clean build directory
       run: sudo make clean-build
     - name: Build ocp_etcd_backup_restore Package
-      run: sudo make build-ocp_etcd_backup_restore
+      run: make build-ocp_etcd_backup_restore
       env:
-        OS_VER: ${{ runner.os }}
+        platform: ${{ runner.os }}
+    - name: Change permission
+      run: |
+        if [ ${{ runner.os }} == "Linux" ]; then
+          sudo chmod -R 777 /home/trilio/actions-runner-interop
+        fi
     - name: Archive package
       uses: actions/upload-artifact@v2
       with:

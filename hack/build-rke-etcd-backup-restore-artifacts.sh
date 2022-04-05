@@ -6,7 +6,7 @@ set -x
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 # shellcheck disable=SC2154
 # create tvk-oneclick tar package
-rke_etcd_backup_restore_tar_archive="rke-etcd-backup-restore-${OS_VER}.tar.gz"
+rke_etcd_backup_restore_tar_archive="rke-etcd-backup-restore-${platform}.tar.gz"
 echo >&2 "Creating ${rke_etcd_backup_restore_tar_archive} archive."
 
 cd "$SRC_ROOT" || exit
