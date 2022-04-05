@@ -303,9 +303,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt install python3-testresources
-        python3 -m pip install --upgrade pip
-        pip install coverage pytest
-        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
+        sudo python3 -m pip install --upgrade pip
+        sudo pip install coverage pytest
+        if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/rke_etcd_backup_plugin/requirements.txt; fi
     - name: Run rke etcd backup restore Integration Tests
       run: |
         if [ ${{ runner.os }} == "Linux" ]; then
