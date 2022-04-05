@@ -296,6 +296,10 @@ jobs:
         path: build
     - name: Build checksum rke-etcd-backup-restore Package
       run: make build-checksum-rke_etcd_backup_restore
+    - name: Set up python 3.6
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.6
     - name: Install dependencies
       run: |
         sudo apt install python3-testresources
