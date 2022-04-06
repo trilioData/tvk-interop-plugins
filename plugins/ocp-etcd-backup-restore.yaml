@@ -5,7 +5,7 @@ metadata:
 spec:
   homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/ocp-etcd-backup-restore/README.md
   shortDescription: Plugin to Install/Configure/Test TVK ocp-etcd-backup-restore
-  version: v1.0.1-rc2
+  version: v1.0.1-rc3
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -14,24 +14,34 @@ spec:
       - key: os
         operator: In
         values:
-        - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc2/ocp-etcd-backup-restore.tar.gz
-    sha256: bc8a24f501a813f0806d8e512669439d3baf8404103dbba8711881b7bb0ea8ff
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc3/ocp-etcd-backup-restore-Linux.tar.gz
+    sha256: 251766d08eed0ca66068c1bf8a6fe6086e97e62ee92cc2510c74d41f32e5499f
     bin: ocp-etcd-backup-restore
     files:
-    - from: ocp-etcd-backup-restore/*
+    - from: '*'
+      to: .
+
+  - selector:
+      matchExpressions:
+      - key: os
+        operator: In
+        values:
+        - darwin
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc3/ocp-etcd-backup-restore-macOS.tar.gz
+    sha256: 2e14149d8bcc67ca8a18c2487b3bbac101eb3e009da0cb92ac851cebdf96a960
+    bin: ocp-etcd-backup-restore
+    files:
+    - from: '*'
       to: .
 
   description: |
     ## Usage
-
     usage: ETCD Backup and restore on OCP. Available flags: -backup -restore.
        [-h] [-backup] [-restore] [--target-name TARGET_NAME]
        [--target-namespace TARGET_NAMESPACE] --api-server-url API_SERVER_URL
        --ocp-cluster-user OCP_CLUSTER_USER --ocp-cluster-pass OCP_CLUSTER_PASS
        [-p] [--log-location LOG_LOC]
-
     optional arguments:
         -h, --help            show this help message and exit
         -backup
@@ -51,3 +61,4 @@ spec:
         --log-location LOG_LOC
                         Log file name along with path where the logs should be
                         save default - /tmp/etcd-ocp-backup.log
+    -----------------------------------------------------------------------

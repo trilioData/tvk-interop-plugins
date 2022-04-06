@@ -5,7 +5,7 @@ metadata:
 spec:
   homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/tvk-oneclick/README.md
   shortDescription: Plugin to Install/Configure/Test TVK
-  version: v1.0.1-rc2
+  version: v1.0.1-rc3
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -16,7 +16,7 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc2/tvk-oneclick.tar.gz
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc3/tvk-oneclick.tar.gz
     sha256: 245044271fd0f4dab518a96191110fef5d244684d1d628c7ae8fc7157eddc6d5
     bin: tvk-oneclick
     files:
