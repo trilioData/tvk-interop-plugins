@@ -251,7 +251,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-latest', 'macos-latest']
+        os: ['ubuntu-18.04', 'macos-latest']
     needs: pre-build
     steps:
     - uses: actions/checkout@v2
@@ -286,7 +286,7 @@ jobs:
           build/rke-etcd-backup-restore-${{ runner.os }}.tar.gz
 
   build_rke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     needs: [build_rke_binary]
     steps:
     - uses: actions/checkout@v2

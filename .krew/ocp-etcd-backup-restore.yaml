@@ -19,7 +19,7 @@ spec:
     sha256: OCP_ETCD_BACKUP_RESTORE_LINUX_TAR_CHECKSUM
     bin: ocp-etcd-backup-restore
     files:
-    - from: '*'
+    - from: ocp-etcd-backup-restore/*
       to: .
 
   - selector:
@@ -32,7 +32,7 @@ spec:
     sha256: OCP_ETCD_BACKUP_RESTORE_MAC_TAR_CHECKSUM
     bin: ocp-etcd-backup-restore
     files:
-    - from: '*'
+    - from: ocp-etcd-backup-restore/*
       to: .
 
   description: |
