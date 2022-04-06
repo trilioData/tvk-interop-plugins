@@ -244,7 +244,7 @@ jobs:
       with:
         name: ocp_etcd_backup_restore
         path: |
-          build/ocp-etcd-backup-restore-*.txt
+          build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-*.txt
 
   build_rke_binary:
     runs-on: ${{ matrix.os }}
@@ -320,7 +320,7 @@ jobs:
       with:
         name: rke_etcd_backup_restore
         path: |
-          build/rke-etcd-backup-restore-*.txt
+          build/rke_etcd_backup_restore/rke-etcd-backup-restore-*.txt
 
   # pre-release job determines whether to create release or not and sets job variables which will be used to decide
   # what packages(tvk-oneclick) should be included in release
