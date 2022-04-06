@@ -306,11 +306,11 @@ jobs:
         sudo python3 -m pip install --upgrade pip
         sudo pip install coverage pytest
         if  [ -f tools/rke_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/rke_etcd_backup_plugin/requirements.txt --ignore-installed; fi
-    - name: Run rke etcd backup restore Integration Tests
-      run: |
-        if [ ${{ runner.os }} == "Linux" ]; then
-          pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
-        fi
+    #- name: Run rke etcd backup restore Integration Tests
+    #  run: |
+    #    if [ ${{ runner.os }} == "Linux" ]; then
+    #      pytest tests/rke_etcd_backup_restore/test.py --rancher-url ${{ env.RANCHER_URL }} --bearer-token ${{ secrets.BEARER_TOKEN }} --target-namespace ${{ env.RKE_TARGET_NS }} --target-name ${{ env.RKE_TARGET }} --cluster-name ${{ env.RKE_CLUSTER }} --target-secretkey ${{ secrets.RKE_TARGET_KEY }}
+    #    fi
     - name: Ensure Required Utilities Installed
       run: make install-required-utilities
     - name: Test rke_etcd_backup_restore Plugin Locally
