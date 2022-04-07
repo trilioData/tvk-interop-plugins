@@ -1,4 +1,4 @@
-# TrilioVault for Kubernetes OneClick plugin
+# TrilioVault for Kubernetes tvk-quickstart plugin
 
 **tvk-quickstart** is a kubectl plugin which installs TrilioVault for Kuberentes (TVK), configures UI, creates target and run some sample backup/reson TrilioVault for Kuberentes (TVK).
 It installs the TVK Operator, the TVM Application, configures the TVK Management Console, creates NFS/s3 target and executes sample backup and restore operations.
