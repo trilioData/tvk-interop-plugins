@@ -33,12 +33,10 @@ tools_dir="tools"
 internal_dir="internal"
 tvk_quickstart_dir="tvk-quickstart"
 ocp_etcd_backup_restore="ocp_etcd_backup_plugin"
-rke_etcd_backup_plugin="rke_etcd_backup_plugin"
+rke_etcd_backup_restore="rke_etcd_backup_plugin"
 
 # shellcheck disable=SC2086
 git diff --name-only $previous_tag $current_tag $tools_dir >files.txt
-# shellcheck disable=SC2086
-git diff --name-only $previous_tag $current_tag $cmd_dir >>files.txt
 # shellcheck disable=SC2086
 git diff --name-only $previous_tag $current_tag $internal_dir >>files.txt
 
@@ -58,7 +56,7 @@ while IFS= read -r file; do
     echo "::set-output name=release_tvk_quickstart::true"
     tvk_quickstart_changed=true
   fi
-  
+
   if [[ ($ocp_etcd_backup_restore_changed == false) && ($file == $internal_dir/* || $file == $tools_dir/$ocp_etcd_backup_restore/*) ]]; then
     echo "ocp-etcd-backup-restore related code changes have been detected"
     echo "::set-output name=release_ocp_etcd_backup_restore::true"
