@@ -2,15 +2,15 @@
 
 set -o pipefail
 
-ONECLICK_TESTS_SUCCESS=true
+TVK_QUICKSTART_SUCCESS=true
 # shellcheck source=/dev/null
-. tests/tvk-oneclick/input_config
+. tests/tvk-quickstart/input_config
 
 # shellcheck disable=SC1091
-export input_config=tests/tvk-oneclick/input_config
+export input_config=tests/tvk-quickstart/input_config
 
 # shellcheck disable=SC1091
-. tools/tvk-oneclick/tvk-oneclick.sh --source-only
+. tools/tvk-quickstart/tvk-quickstart.sh --source-only
 #install yq
 sudo snap install yq
 sudo cp /snap/bin/yq /bin/
@@ -58,7 +58,7 @@ testsample_test() {
   sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-label\'/" "$input_config"
   sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-label\'/" "$input_config"
   # shellcheck disable=SC1091
-  . tests/tvk-oneclick/input_config
+  . tests/tvk-quickstart/input_config
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -75,7 +75,7 @@ testsample_test_helm() {
   sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-helm\'/" "$input_config"
   sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-helm\'/" "$input_config"
   # shellcheck disable=SC1091
-  . tests/tvk-oneclick/input_config
+  . tests/tvk-quickstart/input_config
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -92,7 +92,7 @@ testsample_test_namespace() {
   sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-namespace\'/" "$input_config"
   sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-namespace\'/" "$input_config"
   # shellcheck disable=SC1091
-  . tests/tvk-oneclick/input_config
+  . tests/tvk-quickstart/input_config
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -109,7 +109,7 @@ testsample_test_operator() {
   sed -i "s/^\(backup_name\s*=\s*\).*$/\1\'trilio-test-operator\'/" "$input_config"
   sed -i "s/^\(restore_name\s*=\s*\).*$/\1\'trilio-test-operator\'/" "$input_config"
   # shellcheck disable=SC1091
-  . tests/tvk-oneclick/input_config
+  . tests/tvk-quickstart/input_config
   sample_test
   rc=$?
   # shellcheck disable=SC2181
@@ -173,7 +173,7 @@ trap "cleanup" EXIT
 testinstallTVK
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
+  TVK_QUICKSTART_SUCCESS=false
 else
   TVK_install=true
 fi
@@ -181,43 +181,43 @@ fi
 testconfigure_ui
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
+  TVK_QUICKSTART_SUCCESS=false
 fi
 
 testcreate_target
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
+  TVK_QUICKSTART_SUCCESS=false
 fi
 
 testsample_test_namespace
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
+  TVK_QUICKSTART_SUCCESS=false
 fi
 
 testsample_test
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
+  TVK_QUICKSTART_SUCCESS=false
 fi
 
 testsample_test_helm
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
+  TVK_QUICKSTART_SUCCESS=false
 fi
 
 testsample_test_operator
 retCode=$?
 if [[ $retCode -ne 0 ]]; then
-  ONECLICK_TESTS_SUCCESS=false
+  TVK_QUICKSTART_SUCCESS=false
 fi
 
-# Check status of TVK-oneclick test-cases
-if [ $ONECLICK_TESTS_SUCCESS == "true" ]; then
-  echo -e "All TVK-oneclick tests Passed!"
+# Check status of TVK-quickstart test-cases
+if [ $TVK_QUICKSTART_SUCCESS == "true" ]; then
+  echo -e "All TVK-quickstart tests Passed!"
 else
-  echo -e "Some TVK-oneclick Checks Failed!"
+  echo -e "Some TVK-quickstart Checks Failed!"
   exit 1
 fi

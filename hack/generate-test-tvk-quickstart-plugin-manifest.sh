@@ -3,7 +3,7 @@
 set -e -o pipefail
 
 set -x
-echo >&2 "Creating TVK-Oneclick plugin manifest yaml"
+echo >&2 "Creating TVK_Quickstart plugin manifest yaml"
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 cd "$SRC_ROOT"
@@ -21,14 +21,14 @@ while IFS= read -r -d $'\0' f; do
   TZ=UTC touch -mt "0001010000" "$f"
 done < <(find $build_dir -print0)
 
-tvk_oneclick_yaml="tvk-oneclick.yaml"
-cp .krew/$tvk_oneclick_yaml $build_dir/$tvk_oneclick_yaml
+tvk_quickstart_yaml="tvk-quickstart.yaml"
+cp .krew/$tvk_quickstart_yaml $build_dir/$tvk_quickstart_yaml
 
-tvk_oneclick_yaml=$build_dir/$tvk_oneclick_yaml
+tvk_quickstart_yaml=$build_dir/$tvk_quickstart_yaml
 
-tar_checksum="$(awk '{print $1}' $build_dir/tvk-oneclick-sha256.txt)"
-sed -i "s/TVK_ONECLICK_TAR_CHECKSUM/${tar_checksum}/g" $tvk_oneclick_yaml
+tar_checksum="$(awk '{print $1}' $build_dir/tvk-quickstart-sha256.txt)"
+sed -i "s/TVK_QUICKSTART_TAR_CHECKSUM/${tar_checksum}/g" $tvk_quickstart_yaml
 # shellcheck disable=SC2154
-sed -i "s/TVK_ONECLICK_VERSION/$git_version/g" $tvk_oneclick_yaml
+sed -i "s/TVK_QUICKSTART_VERSION/$git_version/g" $tvk_quickstart_yaml
 
-echo >&2 "Written out $tvk_oneclick_yaml"
+echo >&2 "Written out $tvk_quickstart_yaml"

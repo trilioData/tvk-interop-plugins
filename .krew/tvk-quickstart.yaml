@@ -1,11 +1,11 @@
 apiVersion: krew.googlecontainertools.github.com/v1alpha2
 kind: Plugin
 metadata:
-  name: tvk-oneclick
+  name: tvk-quickstart
 spec:
-  homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/tvk-oneclick/README.md
+  homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/tvk-quickstart/README.md
   shortDescription: Plugin to Install/Configure/Test TVK
-  version: TVK_ONECLICK_VERSION
+  version: TVK_QUICKSTART_VERSION
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -16,21 +16,21 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/TVK_ONECLICK_VERSION/tvk-oneclick.tar.gz
-    sha256: TVK_ONECLICK_TAR_CHECKSUM
-    bin: tvk-oneclick
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/TVK_QUICKSTART_VERSION/tvk-quickstart.tar.gz
+    sha256: TVK_QUICKSTART_TAR_CHECKSUM
+    bin: tvk-quickstart
     files:
-    - from: tvk-oneclick/*
+    - from: tvk-quickstart/*
       to: .
 
   description: |
-    tvk-oneclick plugin is use to install, configure and test available sample application on a kubermetes cluster managed by cloud or upstream
-    > Check available flags for tvk-oneclick plugin with :-
-    kubectl tvk-oneclick --help
+    tvk-quickstart plugin is use to install, configure and test available sample application on a kubermetes cluster managed by cloud or upstream
+    > Check available flags for tvk-quickstart plugin with :-
+    kubectl tvk-quickstart --help
     --------------------------------------------------------------
-    tvk-oneclick - Installs, Configures UI, Create sample backup/restore test
+    tvk-quickstart - Installs, Configures UI, Creates target, Run sample backup/restore test
     Usage:
-    kubectl tvk-oneclick [options]
+    kubectl tvk-quickstart [options]
     Options:
         -h, --help                show brief help
         -n, --noninteractive      run script in non-interactive mode

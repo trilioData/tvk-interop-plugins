@@ -1,4 +1,4 @@
-#This file is used to set parameter value for tck-oneclick plugin. This file used when plugin is executed in non-interactive mode
+#This file is used to set parameter value for tvk-quickstart plugin. This file used when plugin is executed in non-interactive mode
 
 #Specify if plugin should proceed even if same resource exists
 if_resource_exists_still_proceed='y'

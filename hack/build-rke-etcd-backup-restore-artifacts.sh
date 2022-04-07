@@ -5,7 +5,7 @@ set -euo pipefail
 set -x
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 # shellcheck disable=SC2154
-# create tvk-oneclick tar package
+# create rke-etcd-backup-restore tar package
 rke_etcd_backup_restore_tar_archive="rke-etcd-backup-restore-${platform}.tar.gz"
 echo >&2 "Creating ${rke_etcd_backup_restore_tar_archive} archive."
 

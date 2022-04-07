@@ -11,33 +11,36 @@ git describe --exact-match --tags --match "$current_tag"
 
 # shellcheck disable=SC2046
 # shellcheck disable=SC2006
-# add flag '-v -e "v*-rc*"', if need to compute diff from last stable tag instead of RC
-#previous_tag=$(git tag --sort=-creatordate | grep -e "v[0-9].[0-9].[0-9]" | grep -v -e "$current_tag" -e "v*-alpha*" -e "v*-beta*" | head -n 1)
+previous_tag=$(git tag --sort=-creatordate | grep -e "v[0-9].[0-9].[0-9]" | grep -v -e "$current_tag" -e "v*-alpha*" -e "v*-beta*" | head -n 1)
 # use hard coded values if required
-previous_tag="v0.0.0"
 #current_tag=v0.0.6-main
 #previous_tag=v0.0.5-dev
+
+# if current tag is stable one, check its diff with last stable tag
+if echo "$current_tag" | grep -w '^v[0-9].[0-9].[0-9]$'; then
+  previous_tag=$(git tag --sort=-creatordate | grep -e "v[0-9].[0-9].[0-9]" | grep -v -e "$current_tag" -e "v*-alpha*" -e "v*-beta*" -e "v*-rc*" | head -n 1)
+fi
 
 echo "current_tag=$current_tag and previous_tag=$previous_tag"
 
 echo "checking paths of modified files-"
 
-tvk_oneclick_changed=false
+tvk_quickstart_changed=false
+rke_etcd_backup_restore_changed=false
+ocp_etcd_backup_restore_changed=false
 
-# shellcheck disable=SC2034
-cmd_dir="cmd"
-# shellcheck disable=SC2034
 tools_dir="tools"
-
-tvk_oneclick_dir=$tools_dir/tvk-oneclick
+internal_dir="internal"
+tvk_quickstart_dir="tvk-quickstart"
+ocp_etcd_backup_restore="ocp_etcd_backup_plugin"
+rke_etcd_backup_plugin="rke_etcd_backup_plugin"
 
 # shellcheck disable=SC2086
-#git diff --name-only $previous_tag $current_tag $tools_dir >files.txt
+git diff --name-only $previous_tag $current_tag $tools_dir >files.txt
 # shellcheck disable=SC2086
-#git diff --name-only $previous_tag $current_tag $cmd_dir >>files.txt
-
-echo "As this is first release v1.0.0" >files.txt
-echo "Skipping previous and new tags comparison" >>files.txt
+git diff --name-only $previous_tag $current_tag $cmd_dir >>files.txt
+# shellcheck disable=SC2086
+git diff --name-only $previous_tag $current_tag $internal_dir >>files.txt
 
 count=$(wc -l <files.txt)
 if [[ $count -eq 0 ]]; then
@@ -50,25 +53,34 @@ echo "list of modified files-"
 cat files.txt
 
 while IFS= read -r file; do
-  if [[ $tvk_oneclick_changed == false && $file == $tvk_oneclick_dir/* ]]; then
-    echo "tvk-oneclick related code changes have been detected"
-    echo "::set-output name=release_tvk_oneclick::true"
-    tvk_oneclick_changed=true
+  if [[ ($tvk_quickstart_changed == false) && ($file == $tools_dir/$tvk_quickstart_dir/*) ]]; then
+    echo "tvk-quickstart related code changes have been detected"
+    echo "::set-output name=release_tvk_quickstart::true"
+    tvk_quickstart_changed=true
+  fi
+  
+  if [[ ($ocp_etcd_backup_restore_changed == false) && ($file == $internal_dir/* || $file == $tools_dir/$ocp_etcd_backup_restore/*) ]]; then
+    echo "ocp-etcd-backup-restore related code changes have been detected"
+    echo "::set-output name=release_ocp_etcd_backup_restore::true"
+    ocp_etcd_backup_restore_changed=true
+  fi
+
+  if [[ ($rke_etcd_backup_restore_changed == false) && ($file == $internal_dir/* || $file == $tools_dir/$rke_etcd_backup_restore/*) ]]; then
+    echo "rke-etcd-backup-restore related code changes have been detected"
+    echo "::set-output name=release_rke_etcd_backup_restore::true"
+    rke_etcd_backup_restore_changed=true
   fi
 
 done <files.txt
-tvk_oneclick_changed=true # only for first release
 
-if [[ $tvk_oneclick_changed == true ]]; then
-  echo "Creating Release as files related to tvk-oneclick"
+if [[ $rke_etcd_backup_restore_changed == true || $ocp_etcd_backup_restore_changed == true || $tvk_quickstart_changed == true ]]; then
+  echo "Creating Release as files related to tvk-quickstart, ocp-etcd-backup-restore, rke-etcd-backup-restore  have been changed"
   echo "::set-output name=create_release::true"
 fi
 
 # use hard coded values if required for releasing specific plugin package
 #echo "Creating release with user defined values"
 #echo "::set-output name=create_release::true"
-#echo "::set-output name=release_preflight::true"
-#echo "::set-output name=release_log_collector::true"
-#echo "::set-output name=release_target_browser::true"
-echo "::set-output name=release_tvk_oneclick::true"
-#echo "::set-output name=release_cleanup::true"
+#echo "::set-output name=release_tvk_quickstart::true"
+#echo "::set-output name=release_ocp_etcd_backup_restore::true"
+#echo "::set-output name=release_rke_etcd_backup_restore::true"

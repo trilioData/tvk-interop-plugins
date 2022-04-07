@@ -29,19 +29,19 @@ install: install-required-utilities
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.30.0
 	curl -sfL https://install.goreleaser.com/github.com/goreleaser/goreleaser.sh | sh
 
-build-tvk-oneclick:
-	./hack/build-tvk-oneclick-artifacts.sh
+build-tvk-quickstart:
+	./hack/build-tvk-quickstart-artifacts.sh
 
-build: build_test_tvk_oneclick
+build: build_test_tvk_quickstart
 	goreleaser release --snapshot --skip-publish --rm-dist
 
-test-tvk-oneclick-plugin-locally:
-	./hack/generate-test-tvk-oneclick-plugin-manifest.sh
-	./hack/test-tvk-oneclick-plugin-locally.sh
+test-tvk-quickstart-plugin-locally:
+	./hack/generate-test-tvk-quickstart-plugin-manifest.sh
+	./hack/test-tvk-quickstart-plugin-locally.sh
 
-test-tvk_oneclick-integration:
-	./tests/tvk-oneclick/install-required-utilities.sh
-	./tests/tvk-oneclick/tvk_oneclick_test.sh
+test-tvk_quickstart-integration:
+	./tests/tvk-quickstart/install-required-utilities.sh
+	./tests/tvk-quickstart/tvk_quickstart_test.sh
 
 
 build-rke_etcd_backup_restore:
@@ -64,14 +64,14 @@ build-checksum-rke_etcd_backup_restore:
 build-checksum-ocp_etcd_backup_restore:
 	./hack/build-checksum-ocp-etcd-backup-restore-artifacts.sh
 
-test: test-tvk_oneclick-integration
+test: test-tvk_quickstart-integration
 
 
-test-tvk-oneclick: clean build-tvk-oneclick test-tvk_oneclick-integration test-tvk-oneclick-plugin-locally
+test-tvk-quickstart: clean build-tvk-quickstart test-tvk_quickstart-integration test-tvk-quickstart-plugin-locally
 
-test-plugins-locally: test-tvk-oneclick-plugin-locally
+test-plugins-locally: test-tvk-quickstart-plugin-locally
 
-test-plugins-packages: test-tvk-oneclick
+test-plugins-packages: test-tvk-quickstart
 
 validate-plugin-manifests:
 	./hack/validate-plugin-manifests.sh
@@ -79,10 +79,10 @@ validate-plugin-manifests:
 verify-code-patterns:
 	./hack/verify-code-patterns.sh
 
-update-tvk-oneclick-manifests:
-	./hack/update-tvk-oneclick-manifests.sh
+update-tvk-quickstart-manifests:
+	./hack/update-tvk-quickstart-manifests.sh
 
-update-plugin-manifests: update-tvk-oneclick-manifests
+update-plugin-manifests: update-tvk-quickstart-manifests
 
 ready: fmt vet lint verify-code-patterns
 

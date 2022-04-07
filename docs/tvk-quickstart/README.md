@@ -1,6 +1,6 @@
 # TrilioVault for Kubernetes OneClick plugin
 
-**tvk-oneclick** is a kubectl plugin which installs TrilioVault for Kuberentes (TVK), configures UI, creates target and run some sample backup/reson TrilioVault for Kuberentes (TVK).
+**tvk-quickstart** is a kubectl plugin which installs TrilioVault for Kuberentes (TVK), configures UI, creates target and run some sample backup/reson TrilioVault for Kuberentes (TVK).
 It installs the TVK Operator, the TVM Application, configures the TVK Management Console, creates NFS/s3 target and executes sample backup and restore operations.
 This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 
@@ -18,14 +18,14 @@ OS:
 - darwin
 
 
-## TVK-OneClick plugin performs the following tasks:
+## tvk-quickstart plugin performs the following tasks:
 
 - Preflight check:
 	Performs preflight checks to ensure that all requirements are satisfied.
 - **TVK Installation**:
 	**Installs TVK along with TVM and does License installation** 
 - TVK Management Console Configuration:
-        Even after above configuation, users has an option to choose from ['Loadbalancer','Nodeport','PortForwarding'] to access the console using TVK-OneClick plugin.
+        Even after above configuation, users has an option to choose from ['Loadbalancer','Nodeport','PortForwarding'] to access the console using tvk-quickstart plugin.
 - Target Creation:
 	Creates and validate the target where backups are stored. Users can create S3 (DigitalOCean Spaces / AWS S3) or NFS based target.  
 - Run Sample Tests of Backup and Restore:
@@ -45,25 +45,25 @@ OS:
 - Installation:
 
   ```
-  kubectl krew install tvk-interop-plugin/tvk-oneclick
+  kubectl krew install tvk-interop-plugin/tvk-quickstart
   ```  
 
 - Upgrade:
 
   ```
-  kubectl krew upgrade tvk-oneclick
+  kubectl krew upgrade tvk-quickstart
   ```  
 
 - Removal:
 
   ```
-  kubectl krew uninstall tvk-oneclick
+  kubectl krew uninstall tvk-quickstart
   ```
 
 #### 2. Without `krew`:
 
 1. List of available releases: https://github.com/trilioData/tvk-interop-plugins/releases
-2. Choose a version of preflight plugin to install and check if release assets have preflight plugin's package[tvk-oneclick.tar.gz]
+2. Choose a version of preflight plugin to install and check if release assets have preflight plugin's package[tvk-quickstart.tar.gz]
 3. Set env variable `version=v1.x.x` [update with your desired version]. If `version` is not exported, `latest` tagged version
    will be considered.
 
@@ -75,11 +75,11 @@ OS:
   set -ex; cd "$(mktemp -d)" &&
   if [[ -z ${version} ]]; then version=$(curl -s https://api.github.com/repos/trilioData/tvk-interop-plugins/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")'); fi &&
   echo "Installing version=${version}" &&
-  curl -fsSLO "https://github.com/trilioData/tvk-interop-plugins/releases/download/"${version}"/tvk-oneclick.tar.gz" &&
-  tar zxvf tvk-oneclick.tar.gz && sudo mv tvk-oneclick/tvk-oneclick /usr/local/bin/kubectl-tvk_oneclick
+  curl -fsSLO "https://github.com/trilioData/tvk-interop-plugins/releases/download/"${version}"/tvk-quickstart.tar.gz" &&
+  tar zxvf tvk-quickstart.tar.gz && sudo mv tvk-quickstart/tvk-quickstart /usr/local/bin/kubectl-tvk_quickstart
 )
 ```
-Verify installation with `kubectl tvk-oneclick --help`
+Verify installation with `kubectl tvk-quickstart --help`
 
 ##### Windows
 NOT SUPPORTED
@@ -87,7 +87,7 @@ NOT SUPPORTED
 
 ## Usage
 
-There are two way to use the TVK-OneClick plugin:
+There are two way to use the tvk-quickstart plugin:
 1. Interactive
 2. Non-interactive
 
@@ -98,7 +98,7 @@ There are two way to use the TVK-OneClick plugin:
         The plugin asks for various inputs that enable it to perform installation and deployment operations. 
         For interactive installation of TVK operator and manager, configure TVK UI, create a target and run sameple backup restore, run below command:
 
-kubectl tvk-oneclick [options] 
+kubectl tvk-quickstart [options] 
 
 Flags:
 
@@ -112,19 +112,19 @@ Flags:
 | --preflight		        | Checks if all the pre-requisites are satisfied
 
 ```shell script
-kubectl tvk-oneclick -c -t -s
+kubectl tvk-quickstart -c -t -s
 ```
 
 **2. Non-interactive**:
-	TVK-OneClick can be executed in a non-interactive method by leveraging values from an input_config file. To use the plugin in a non-interactive way, create an input_config (https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-oneclick/input_config) file. After creating the input config file, run the following command to execute the plugin in a non-interactive fashion. The non-interative method will perform preflight checks, installation, configuration (Management Console and Target) as well as run sample backup and restore tests similar to the interactive mode but in a single workflow.
+	tvk-quickstart can be executed in a non-interactive method by leveraging values from an input_config file. To use the plugin in a non-interactive way, create an input_config (https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-quickstart/input_config) file. After creating the input config file, run the following command to execute the plugin in a non-interactive fashion. The non-interative method will perform preflight checks, installation, configuration (Management Console and Target) as well as run sample backup and restore tests similar to the interactive mode but in a single workflow.
 
 Sample input_config file can be found here:
-https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-oneclick/input_config
+https://github.com/trilioData/tvk-interop-plugins/blob/main/tests/tvk-quickstart/input_config
 
 This sample_config input file leverages your credentials and DNS information to create/configure a target, and to configure the management console leveraging a Kubernetes LoadBalancer.
 
 ```shell script
-kubectl tvk-oneclick -n
+kubectl tvk-quickstart -n
 ```
 
 ## 'input_config' /input parameter details
