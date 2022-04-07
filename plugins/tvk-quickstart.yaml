@@ -1,0 +1,42 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: tvk-quickstart
+spec:
+  homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/tvk-quickstart/README.md
+  shortDescription: Plugin to Install/Configure/Test TVK
+  version: v1.0.1-rc4
+  caveats: |
+    Curl and Git neeed to be installed on system for Krew index update to work properly
+  platforms:
+  - selector:
+      matchExpressions:
+      - key: os
+        operator: In
+        values:
+        - darwin
+        - linux
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc4/tvk-quickstart.tar.gz
+    sha256: 086de1c8a301307c15c8ba9cc549a22ad70bc9cbc04cc7f781ad1260330557b7
+    bin: tvk-quickstart
+    files:
+    - from: tvk-quickstart/*
+      to: .
+
+  description: |
+    tvk-quickstart plugin is use to install, configure and test available sample application on a kubermetes cluster managed by cloud or upstream
+    > Check available flags for tvk-quickstart plugin with :-
+    kubectl tvk-quickstart --help
+    --------------------------------------------------------------
+    tvk-quickstart - Installs, Configures UI, Creates target, Run sample backup/restore test
+    Usage:
+    kubectl tvk-quickstart [options]
+    Options:
+        -h, --help                show brief help
+        -n, --noninteractive      run script in non-interactive mode
+        -i, --install_tvk         Installs TVK and it's free trial license.
+        -c, --configure_ui        Configures TVK UI
+        -t, --target              Created Target for backup and restore jobs
+        -s, --sample_test         Create sample backup and restore jobs
+        -p, --preflight           Checks if all the pre-requisites are satisfied
+    -----------------------------------------------------------------------
