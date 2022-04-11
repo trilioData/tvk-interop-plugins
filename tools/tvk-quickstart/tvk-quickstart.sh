@@ -54,6 +54,7 @@ preflight_checks() {
       return 1
     fi
   fi
+  # Run pre-flight check
   check=$(kubectl tvk-preflight run --storage-class "$storage_class" | tee /dev/tty)
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
