@@ -17,7 +17,7 @@ spec:
         - darwin
         - linux
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc4/tvk-quickstart.tar.gz
-    sha256: 086de1c8a301307c15c8ba9cc549a22ad70bc9cbc04cc7f781ad1260330557b7
+    sha256: a5b852b823e425742cee4cb86ad1a1491e7f57ff4869d754fb8b41cc0530f76b
     bin: tvk-quickstart
     files:
     - from: tvk-quickstart/*
