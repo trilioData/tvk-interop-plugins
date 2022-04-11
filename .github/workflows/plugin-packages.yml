@@ -359,22 +359,22 @@ jobs:
       - name: Artifact change
         id: artifact_change
         run: |
-          echo "::set-output name=release_list::''"
+          echo '::set-output name=release_list::""'
           if ${{ needs.pre-release.outputs.release_tvk_quickstart == 'true' }}; then
-            echo "::set-output name=release_list::'build/tvk-quickstart/*'"
+            echo '::set-output name=release_list::build/tvk-quickstart/*'
           fi
           if ${{ needs.pre-release.outputs.release_ocp_etcd_backup_restore == 'true' }}; then
             if [[ $release_list == '' ]]; then
-              echo "::set-output name=release_list::'build/ocp_etcd_backup_restore/*'"
+              echo '::set-output name=release_list::build/ocp_etcd_backup_restore/*'
             else
-              echo "::set-output name=release_list::'$release_list,build/ocp_etcd_backup_restore/*'"
+              echo '::set-output name=release_list::"$release_list,build/ocp_etcd_backup_restore/*"'
             fi
           fi
           if ${{ needs.pre-release.outputs.release_rke_etcd_backup_restore == 'true' }}; then
             if [[ $release_list == '' ]]; then
-              echo "::set-output name=release_list::'build/rke_etcd_backup_restore/*'"
+              echo '::set-output name=release_list::build/rke_etcd_backup_restore/*'
             else
-              echo "::set-output name=release_list::'$release_list,build/rke_etcd_backup_restore/*'"
+              echo '::set-output name=release_list::"$release_list,build/rke_etcd_backup_restore/*"'
             fi
           fi
 
