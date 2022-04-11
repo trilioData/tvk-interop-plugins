@@ -4,7 +4,7 @@
 [![LICENSE](https://img.shields.io/github/license/trilioData/tvk-interop-plugins.svg)](https://github.com/trilioData/tvk-interop-plugins/blob/main/LICENSE.md)
 [![Releases](https://img.shields.io/github/v/release/trilioData/tvk-interop-plugins.svg?include_prereleases)](https://github.com/trilioData/tvk-interop-plugins/releases)
 
-kubectl-plugins for tvk-oneclick CLI.
+kubectl-plugins.
 
 ## Pre-requisites:
 
@@ -30,7 +30,7 @@ unlink /usr/local/bin/kubectl
 Refer [`docs`](docs) for the documentation of all available plugins.
 Also, steps to install, uninstall, upgrade and uninstall respective plugin are mentioned in docs.
 
-`Quick Links`: [`tvk-oneclick`](docs/tvk-oneclick/README.md) 
+`Quick Links`: [`tvk-quickstart`](docs/tvk-quickstart/README.md) 
 
 
 #### Plugin Installation with Network Proxy:
