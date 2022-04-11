@@ -19,7 +19,7 @@ on:
 
 env:
   GKE_CLUSTER: tvk-interop-ci
-  GKE_ZONE: us-east1-b
+  GKE_ZONE: us-central1-c
   GKE_ENDPOINT: "https://storage.googleapis.com"
   OCP_SERVER: "https://api.etcd-bkrest2.kochavara.com:6443"
   OCP_USER: kubeadmin
@@ -331,11 +331,16 @@ jobs:
     outputs:
       create_release: true
       release_tvk_quickstart: ${{ steps.detect_changes.outputs.release_tvk_quickstart }}
+      release_ocp_etcd_backup_restore: ${{ steps.detect_changes.outputs.release_ocp_etcd_backup_restore }}
+      release_rke_etcd_backup_restore: ${{ steps.detect_changes.outputs.release_rke_etcd_backup_restore }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Determine File Changes for Release
+        id: detect_changes
+        run: hack/check-git-diff-between-tags.sh
 
   # release job creates and uploads release on github. Also, decides which package to include in release based on conditional constructs
   release:
@@ -351,11 +356,31 @@ jobs:
         with:
           path: build
 
+      - name: Artifact change
+        id : artifact_change
+        run: |
+          if [ ${{ needs.pre-release.outputs.release_tvk_quickstart == 'true' }} ]; then
+            echo "::set-output name=tvk_quickstart::'build/tvk-quickstart/*'"
+          else
+            echo "::set-output name=tvk_quickstart::''"
+          fi
+          if [ ${{ needs.pre-release.outputs.release_ocp_etcd_backup_restore == 'true' }} ]; then
+            echo "::set-output name=tvk_ocp::'build/ocp_etcd_backup_restore/*'"
+          else
+            echo "::set-output name=tvk_ocp::''"
+          fi
+          if [ ${{ needs.pre-release.outputs.release_rke_etcd_backup_restore == 'true' }} ]; then
+            echo "::set-output name=tvk_rke::'build/rke_etcd_backup_restore/*'"
+          else
+            echo "::set-output name=tvk_rke::''"
+          fi
+
+
       - name: Release
         uses: ncipollo/release-action@v1
         with:
           prerelease: true
           #artifacts: "build/tvk-quickstart/tvk-quickstart-sha256.txt, build/tvk-quickstart/tvk-quickstart.tar.gz, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
-          artifacts: "build/tvk-quickstart/*, build/ocp_etcd_backup_restore/*, build/rke_etcd_backup_restore/*"
+          artifacts: [$tvk_quickstart, $tvk_ocp, $tvk_rke]
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
