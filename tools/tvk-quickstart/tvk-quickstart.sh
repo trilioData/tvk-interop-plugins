@@ -54,7 +54,7 @@ preflight_checks() {
       return 1
     fi
   fi
-  check=$(kubectl tvk-preflight --storageclass "$storage_class" | tee /dev/tty)
+  check=$(kubectl tvk-preflight run --storage-class "$storage_class" | tee /dev/tty)
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
     echo "Failed to run 'kubectl tvk-preflight',please check if PATH variable for krew is set properly and then try"
