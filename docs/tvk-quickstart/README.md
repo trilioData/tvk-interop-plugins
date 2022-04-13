@@ -112,7 +112,7 @@ Flags:
 | --preflight		        | Checks if all the pre-requisites are satisfied
 
 ```shell script
-kubectl tvk-quickstart -c -t -s
+kubectl tvk-quickstart -i -c -t -s
 ```
 
 **2. Non-interactive**:
