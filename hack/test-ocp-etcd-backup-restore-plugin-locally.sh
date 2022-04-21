@@ -6,6 +6,7 @@
 
 set -euo pipefail
 
+set -x
 [[ -n "${DEBUG:-}" ]] && set -x
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
@@ -26,6 +27,8 @@ if [[ ! -f "${ocp_etcd_backup_restore_archive}" ]]; then
   echo >&2 "Could not find archive ${ocp_etcd_backup_restore_archive}."
   exit 1
 fi
+
+export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
 # test for linux OS
 kubectl krew install --manifest=$ocp_etcd_backup_restore_manifest --archive=$ocp_etcd_backup_restore_archive
