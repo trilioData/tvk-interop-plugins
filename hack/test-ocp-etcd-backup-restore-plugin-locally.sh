@@ -31,8 +31,8 @@ fi
 export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
 # test for linux OS
-kubectl krew install --manifest=$ocp_etcd_backup_restore_manifest --archive=$ocp_etcd_backup_restore_archive
-kubectl krew uninstall ocp-etcd-backup-restore
+sudo kubectl krew install --manifest=$ocp_etcd_backup_restore_manifest --archive=$ocp_etcd_backup_restore_archive
+sudo kubectl krew uninstall ocp-etcd-backup-restore
 
 ocp_etcd_backup_restore_tar="ocp-etcd-backup-restore-macOS.tar.gz"
 ocp_etcd_backup_restore_archive="${build_dir}/${ocp_etcd_backup_restore_tar}"
@@ -42,7 +42,7 @@ if [[ ! -f "${ocp_etcd_backup_restore_archive}" ]]; then
 fi
 
 # test for darwin OS
-KREW_OS=darwin KREW_ARCH=amd64 kubectl krew install --manifest=$ocp_etcd_backup_restore_manifest --archive="$ocp_etcd_backup_restore_archive"
-KREW_OS=darwin KREW_ARCH=amd64 kubectl krew uninstall ocp-etcd-backup-restore
+KREW_OS=darwin KREW_ARCH=amd64 sudo kubectl krew install --manifest=$ocp_etcd_backup_restore_manifest --archive="$ocp_etcd_backup_restore_archive"
+KREW_OS=darwin KREW_ARCH=amd64 sudo kubectl krew uninstall ocp-etcd-backup-restore
 
 echo >&2 "Successfully tested ocp-etcd-backup-restore plugin locally"
