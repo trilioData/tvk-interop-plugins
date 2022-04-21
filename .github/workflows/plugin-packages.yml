@@ -19,7 +19,7 @@ on:
 
 env:
   GKE_CLUSTER: tvk-interop-ci
-  GKE_ZONE: us-east1-b
+  GKE_ZONE: us-central1-c
   GKE_ENDPOINT: "https://storage.googleapis.com"
   OCP_SERVER: "https://api.etcd-bkrest2.kochavara.com:6443"
   OCP_USER: kubeadmin
