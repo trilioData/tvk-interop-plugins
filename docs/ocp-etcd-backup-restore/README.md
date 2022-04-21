@@ -1,32 +1,26 @@
 # OCP ETCD BACKUP RESTORE
 
-## ETCD:
-Etcd is the persistent data store for Kubernetes. It is a distributed key-value store that records the state of all resources in a Kubernetes cluster.
-Etcd is a distributed reliable key-value store which is simple, fast and secure. 
-It acts like a backend service discovery and database, runs on different servers in Kubernetes clusters at the 
-same time to monitor changes in clusters and to store state/configuration data that should to be accessed by a Kubernetes master or clusters.
+## Introduction to ETCD
+ETCD is the persistent data store for Kubernetes. It is a distributed key-value store that records the state of all resources in a Kubernetes cluster and it is simple, fast and secure. It acts like a backend service discovery and database. It runs on different servers in Kubernetes clusters at the 
+same time, which enables it to monitor changes in clusters and store state/configuration data that are to be accessed by a Kubernetes master or clusters.
 
-## Backups and Disaster Recovery of OCP cluster:
-we must back up etcd data before shutting down a cluster; etcd is the key-value store for OpenShift Container Platform, which persists the state of all resource objects. An etcd backup plays a crucial role in disaster recovery
+## Backups and Disaster Recovery (DR) of OCP clusters
+ETCD data must be backed up before shutting down a cluster. ETCD is the key-value store for OpenShift Container Platform, which persists the state of all resource objects. Subsequently, ETCD backup plays a crucial role in disaster recovery. There are several situations where OpenShift Container Platform does not work as expected, such as:
 
-You might run into several situations where OpenShift Container Platform does not work as expected, such as:
+* You have a cluster that is not functional following a restart because of unexpected conditions, such as node failure, or network connectivity issues.
+* You have deleted something critical in the cluster by mistake.
+* You have lost the majority of your control plane hosts, leading to ETCD quorum loss.
 
-You have a cluster that is not functional after the restart because of unexpected conditions, such as node failure, or network connectivity issues.
-You have deleted something critical in the cluster by mistake.
-You have lost the majority of your control plane hosts, leading to etcd quorum loss.
-You can always recover from a disaster situation by restoring your cluster to its previous state using the saved etcd snapshots.
+In disaster situations like above, you can always recover by restoring your cluster to its previous state using the saved ETCD snapshots. 
 
-* IMPORTANT
-    Disaster recovery/Restore requires you to have at least one healthy control plane host (also known as the master host).
-User should run this plugin on bastion node if user wants to perform restore.[Bastion host is the host which is created using same network as the cluster and can ping the nodes of cluster.]
-More information around bastion node - https://docs.openshift.com/container-platform/4.7/networking/accessing-hosts.html
+### Important Considerations about OCP Cluster Backups and DR
 
-* Note:
-    User has to only create bastion node which should be accessed using ssh. This plugin will itself create ssh connectivity from bastion to cluster nodes.
+* Disaster recovery/Restore requires you to have at least one healthy control plane host (also known as the master host).
+User should run this plugin on bastion node if user wants to perform restore.[Bastion host is the host which is created using same network as the cluster and can ping the nodes of cluster.] More information around bastion node - https://docs.openshift.com/container-platform/4.7/networking/accessing-hosts.html
+* User has to only create bastion node which should be accessed using ssh. This plugin will itself create ssh connectivity from bastion to cluster nodes.
 
 If user has only lost some crucial cluster information then user can restore from the snapshot saved using this plugin
 If user has lost nodes, then user has to run restore using this plugin. Create nodes and add to cluster and then run post restore option from this plugin.
-
 **Note: Restore functionality will only work on same cluster from where the backup was taken** 
 
 You can get more information from : 
@@ -124,7 +118,7 @@ Flags:
 - **--log-location**:
 		specify the log file location. default: /tmp/etcd-ocp-backup.log
 
-#### Exampe
+#### Example
 
  kubectl ocp-etcd-backup-restore -backup --target-name <target_ns> --target-namespace <target_ns> --api-server-url "https://api.<clustername\>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<password>"
 
