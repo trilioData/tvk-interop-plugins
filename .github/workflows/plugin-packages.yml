@@ -138,7 +138,7 @@ jobs:
           name: tvk-quickstart
           path: |
             build/tvk-quickstart.tar.gz
-            build/tvk-quickstart-sha256.txt  
+            build/tvk-quickstart-sha256.txt
   build_ocp_binary:
     runs-on: ${{ matrix.os }}
     strategy:
