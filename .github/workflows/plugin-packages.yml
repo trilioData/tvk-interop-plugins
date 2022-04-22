@@ -191,11 +191,11 @@ jobs:
       run: make build-ocp_etcd_backup_restore
       env:
         platform: ${{ runner.os }}
-    - name: Change permission
-      run: |
-        if [ ${{ runner.os }} == "Linux" ]; then
-          sudo chmod -R 777 /home/trilio/actions-runner
-        fi
+    #- name: Change permission
+    #  run: |
+    #    if [ ${{ runner.os }} == "Linux" ]; then
+    #      sudo chmod -R 777 /home/trilio/actions-runner
+    #    fi
     - name: Archive package
       uses: actions/upload-artifact@v2
       with:
