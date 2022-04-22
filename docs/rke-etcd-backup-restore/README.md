@@ -11,11 +11,14 @@ same time to monitor changes in clusters and to store state/configuration data t
 RKE clusters can be configured to take snapshots of etcd. In a disaster scenario, you can restore these snapshots.
 This snapshots can be shared outside cluster like s3 storage so that in case if we loose server, we will have backups to restore.
 
-**Note: Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility**
+## ETCD backup and restore using rke-etcd-backup-restore
 
-**Note: Restore functionality will only work on same cluster from where the backup was taken**
+The plugin helps user to perform ETCD backup and restore of RKE clusters. This plugin allows user to store the snapshot on s3 storage created using TVK target.
 
-**Note: Restore will only work if cluster is accessible and one of the etcd nodes in the cluster should be up and running.
+### Important Notes for the plugin:
+1. Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility**
+2. Restore functionality will only work on same cluster from where the backup was taken**
+3. Restore will only work if cluster is accessible and one of the etcd nodes in the cluster should be up and running.
 
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
@@ -49,6 +52,28 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
   ```
   kubectl krew uninstall rke-etcd-backup-restore
   ```
+#### 2. Without `krew`:
+1. List of available releases: https://github.com/trilioData/tvk-interop-plugins/releases
+2. Choose a version of preflight plugin to install and check if release assets have preflight plugin's package[rke-etcd-backup-restore-${OS}.tar.gz]
+  - To check OS & Architecture, execute command uname -a on linux/macOS
+3. Set env variable `TVK_RKE_ETCD_BACKUP_RESTORE_VERSION=v1.x.x` [update with your desired version]. If `TVK_RKE_ETCD_BACKUP_RESTORE_VERSION` is not exported, `latest` tagged version
+   will be considered.
+
+###### Linux/macOS
+
+- Bash or ZSH shells
+```bash
+(
+  set -ex; cd "$(mktemp -d)" &&
+  OS="$(uname)" &&
+  if [[ -z ${TVK_RKE_ETCD_BACKUP_RESTORE_VERSION} ]]; then version=$(curl -s https://api.github.com/repos/trilioData/tvk-interop-plugins/releases/ | grep -oP '"tag_name": "\K(.*)(?=")'); fi &&
+  echo "Installing version=${TVK_RKE_ETCD_BACKUP_RESTORE_VERSION}" &&
+  package_name="rke-etcd-backup-restore-${OS}.tar.gz" &&
+  curl -fsSLO "https://github.com/trilioData/tvk-interop-plugins/releases/download/"${TVK_RKE_ETCD_BACKUP_RESTORE_VERSION}"/${package_name}" &&
+  tar zxvf ${package_name} && sudo mv rke-etcd-backup-restore /usr/local/bin/kubectl-rke_etcd_backup_restore
+)
+```
+Verify installation with `kubectl rke-etcd-backup-restore --help`
 
 ## Usage
 
