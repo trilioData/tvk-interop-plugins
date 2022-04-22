@@ -184,7 +184,7 @@ jobs:
         sudo pip install pyinstaller==4.7
     - name: Build With pyinstaller
       run: |
-        sudo pyinstaller tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
+        sudo pyinstaller --onefile tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
     - name: Clean build directory
       run: sudo make clean-build
     - name: Build ocp_etcd_backup_restore Package
@@ -263,7 +263,7 @@ jobs:
         pip install pyinstaller
     - name: Build with Pyinstaller
       run: |
-        pyinstaller tools/rke_etcd_backup_plugin/rke-etcd-backup-restore.py
+        pyinstaller --onefile tools/rke_etcd_backup_plugin/rke-etcd-backup-restore.py
     - name: Clean build Directory
       run: make clean-build
     - name: Build rke-etcd-backup-restore Package
