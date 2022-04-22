@@ -4,7 +4,6 @@ set -x
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 # create rke-etcd-backup-restore tar package
-rke_dir="rke_etcd_backup_restore"
 rke_etcd_backup_restore_tar_linux="rke-etcd-backup-restore-Linux.tar.gz"
 rke_etcd_backup_restore_tar_mac="rke-etcd-backup-restore-macOS.tar.gz"
 

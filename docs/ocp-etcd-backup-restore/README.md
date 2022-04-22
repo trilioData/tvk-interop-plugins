@@ -21,7 +21,7 @@ User should run this plugin on bastion node if user wants to perform restore.[Ba
 
 ***Source of information - https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index***
 
-### ETCD backup abd restore using ocp-etcd-backup-restore plugin
+### ETCD backup and restore using ocp-etcd-backup-restore plugin
 The plugin helps user to perform ETCD backup and restore of OCP cluster. If user has only lost some crucial cluster information then user can restore from the snapshot saved using this plugin.If user has lost nodes, then user can run restore using this plugin,creates node and add to cluster and then, user can run post restore option from this plugin.
 
 #### Important Notes for the plugin:

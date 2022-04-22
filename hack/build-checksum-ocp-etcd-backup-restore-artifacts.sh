@@ -4,7 +4,6 @@ set -x
 
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 # create ocp-etcd-backup-restore tar package
-ocp_dir="ocp_etcd_backup_restore"
 ocp_etcd_backup_restore_tar_linux="ocp-etcd-backup-restore-Linux.tar.gz"
 ocp_etcd_backup_restore_tar_mac="ocp-etcd-backup-restore-macOS.tar.gz"
 
