@@ -237,7 +237,7 @@ jobs:
       with:
         name: ocp_etcd_backup_restore
         path: |
-          build/ocp-etcd-backup-restore-*.txt
+          build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-*.txt
   build_rke_binary:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -311,7 +311,7 @@ jobs:
       with:
         name: rke_etcd_backup_restore
         path: |
-          build/rke-etcd-backup-restore-*.txt
+          build/rke_etcd_backup_restore/rke-etcd-backup-restore-*.txt
   # pre-release job determines whether to create release or not and sets job variables which will be used to decide
   # what packages(tvk-quickstart) should be included in release
   pre-release:
@@ -346,6 +346,6 @@ jobs:
         with:
           prerelease: true
           #artifacts: "build/tvk-/tvk-oneclick-sha256.txt, build/tvk-oneclick/tvk-oneclick.tar.gz, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
-          artifacts: "build/tvk-quickstart/*, build/ocp_etcd_backup_restore*, build/rke_etcd_backup_restore*"
+          artifacts: "build/tvk-quickstart/*, build/ocp_etcd_backup_restore/*, build/rke_etcd_backup_restore/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
