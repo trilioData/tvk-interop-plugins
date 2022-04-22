@@ -23,8 +23,8 @@ fi
 
 rke_etcd_backup_restore_sha256_file_linux="rke-etcd-backup-restore-Linux-sha256.txt"
 rke_etcd_backup_restore_sha256_file_mac="rke-etcd-backup-restore-macOS-sha256.txt"
-"${checksum_cmd[@]}" $rke_dir/"${rke_etcd_backup_restore_tar_linux}" >$rke_dir/$rke_etcd_backup_restore_sha256_file_linux
-"${checksum_cmd[@]}" $rke_dir/"${rke_etcd_backup_restore_tar_mac}" >$rke_dir/$rke_etcd_backup_restore_sha256_file_mac
+"${checksum_cmd[@]}" "${rke_etcd_backup_restore_tar_linux}" >$rke_etcd_backup_restore_sha256_file_linux
+"${checksum_cmd[@]}" "${rke_etcd_backup_restore_tar_mac}" >$rke_etcd_backup_restore_sha256_file_mac
 
-echo >&2 "Successfully written sha256 of ${rke_etcd_backup_restore_tar_linux} into $rke_dir/$rke_etcd_backup_restore_sha256_file_linux"
-echo >&2 "Successfully written sha256 of ${rke_etcd_backup_restore_tar_mac} into $rke_dir/$rke_etcd_backup_restore_sha256_file_mac"
+echo >&2 "Successfully written sha256 of ${rke_etcd_backup_restore_tar_linux} into $rke_etcd_backup_restore_sha256_file_linux"
+echo >&2 "Successfully written sha256 of ${rke_etcd_backup_restore_tar_mac} into $rke_etcd_backup_restore_sha256_file_mac"

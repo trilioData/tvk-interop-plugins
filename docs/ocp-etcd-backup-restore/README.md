@@ -19,20 +19,27 @@ In disaster situations like above, you can always recover by restoring your clus
 User should run this plugin on bastion node if user wants to perform restore.[Bastion host is the host which is created using same network as the cluster and can ping the nodes of cluster.] More information around bastion node - https://docs.openshift.com/container-platform/4.7/networking/accessing-hosts.html
 * User has to only create bastion node which should be accessed using ssh. This plugin will itself create ssh connectivity from bastion to cluster nodes.
 
-If user has only lost some crucial cluster information then user can restore from the snapshot saved using this plugin
-If user has lost nodes, then user has to run restore using this plugin. Create nodes and add to cluster and then run post restore option from this plugin.
-**Note: Restore functionality will only work on same cluster from where the backup was taken** 
+***Source of information - https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index***
 
-You can get more information from : 
-Source of information - https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index
+### ETCD backup abd restore using ocp-etcd-backup-restore plugin
+The plugin helps user to perform ETCD backup and restore of OCP cluster. If user has only lost some crucial cluster information then user can restore from the snapshot saved using this plugin.If user has lost nodes, then user can run restore using this plugin,creates node and add to cluster and then, user can run post restore option from this plugin.
 
-**Note: Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility**
+#### Important Notes for the plugin:
+* Restore functionality will only work on same cluster from where the backup was taken
+* Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility
+
 
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 2. kubectl - kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 3. Triliovault for kubernetes and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
 4. oc - Install from [here](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/)
+
+## Supported OS
+OS:
+
+ * Linux
+ * darwin
 
 ## Installation, Upgrade, Removal of Plugins :
 
@@ -61,6 +68,30 @@ Source of information - https://access.redhat.com/documentation/en-us/openshift_
   ```
   kubectl krew uninstall ocp-etcd-backup-restore
   ```
+
+#### 2. Without `krew`:
+1. List of available releases: https://github.com/trilioData/tvk-interop-plugins/releases
+2. Choose a version of preflight plugin to install and check if release assets have preflight plugin's package[ocp-etcd-backup-restore-${OS}.tar.gz]
+  - To check OS & Architecture, execute command uname -a on linux/macOS
+3. Set env variable `TVK_OCP_ETCD_BACKUP_RESTORE_VERSION=v1.x.x` [update with your desired version]. If `TVK_OCP_ETCD_BACKUP_RESTORE_VERSION` is not exported, `latest` tagged version
+   will be considered.
+
+###### Linux/macOS
+
+- Bash or ZSH shells
+```bash
+(
+  set -ex; cd "$(mktemp -d)" &&
+  OS="$(uname)" &&
+  if [[ -z ${TVK_OCP_ETCD_BACKUP_RESTORE_VERSION} ]]; then version=$(curl -s https://api.github.com/repos/trilioData/tvk-interop-plugins/releases/ | grep -oP '"tag_name": "\K(.*)(?=")'); fi &&
+  echo "Installing version=${TVK_OCP_ETCD_BACKUP_RESTORE_VERSION}" &&
+  package_name="ocp-etcd-backup-restore-${OS}.tar.gz" &&
+  curl -fsSLO "https://github.com/trilioData/tvk-interop-plugins/releases/download/"${TVK_OCP_ETCD_BACKUP_RESTORE_VERSION}"/${package_name}" &&
+  tar zxvf ${package_name} && sudo mv ocp-etcd-backup-restore /usr/local/bin/kubectl-ocp_etcd_backup_restore
+)
+```
+Verify installation with `kubectl ocp-etcd-backup-restore --help`
+
 
 ## Usage
 

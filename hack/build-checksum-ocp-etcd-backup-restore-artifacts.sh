@@ -23,8 +23,8 @@ fi
 
 ocp_etcd_backup_restore_sha256_file_linux="ocp-etcd-backup-restore-Linux-sha256.txt"
 ocp_etcd_backup_restore_sha256_file_mac="ocp-etcd-backup-restore-macOS-sha256.txt"
-"${checksum_cmd[@]}" $ocp_dir/"${ocp_etcd_backup_restore_tar_linux}" >$ocp_dir/$ocp_etcd_backup_restore_sha256_file_linux
-"${checksum_cmd[@]}" $ocp_dir/"${ocp_etcd_backup_restore_tar_mac}" >$ocp_dir/$ocp_etcd_backup_restore_sha256_file_mac
+"${checksum_cmd[@]}" "${ocp_etcd_backup_restore_tar_linux}" >$ocp_etcd_backup_restore_sha256_file_linux
+"${checksum_cmd[@]}" "${ocp_etcd_backup_restore_tar_mac}" >$ocp_etcd_backup_restore_sha256_file_mac
 
-echo >&2 "Successfully written sha256 of ${ocp_etcd_backup_restore_tar_linux} into $ocp_dir/$ocp_etcd_backup_restore_sha256_file_linux"
-echo >&2 "Successfully written sha256 of ${ocp_etcd_backup_restore_tar_mac} into $ocp_dir/$ocp_etcd_backup_restore_sha256_file_mac"
+echo >&2 "Successfully written sha256 of ${ocp_etcd_backup_restore_tar_linux} into $ocp_etcd_backup_restore_sha256_file_linux"
+echo >&2 "Successfully written sha256 of ${ocp_etcd_backup_restore_tar_mac} into $ocp_etcd_backup_restore_sha256_file_mac"
