@@ -16,7 +16,7 @@ spec:
         values:
         - linux
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc3/ocp-etcd-backup-restore-Linux.tar.gz
-    sha256: a85ea8de0a7863af8e1638baae645c8a7e2b630327153aa931e32c32158b1a24
+    sha256: 4582c79c1e7155388a2bf710dcff367c132ab9d10d4a80f5c27161ed1b995dcb
     bin: ocp-etcd-backup-restore
     files:
     - from: ocp-etcd-backup-restore/*
@@ -29,7 +29,7 @@ spec:
         values:
         - darwin
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc3/ocp-etcd-backup-restore-macOS.tar.gz
-    sha256: c223262fb47471e751c1a23002142371ab95a706497fd7bc69d4c2926e3bf27c
+    sha256: 6cce95fd8813f73db9eac35a960bb25c8ebdad0ee62e9c5dbcea25acc50e1821
     bin: ocp-etcd-backup-restore
     files:
     - from: ocp-etcd-backup-restore/*
