@@ -144,7 +144,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['self-hosted', 'macos-latest']
+        os: ['ubuntu-18.04', 'macos-latest']
     needs: pre-build
     steps:
     - name: Force Install GIT Latest
