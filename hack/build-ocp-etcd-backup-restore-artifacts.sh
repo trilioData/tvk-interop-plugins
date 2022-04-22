@@ -24,6 +24,7 @@ while IFS= read -r -d $'\0' f; do
   TZ=UTC touch -mt "0001010000" "$f"
 done < <(find . -print0)
 
-tar -cvzf "${ocp_etcd_backup_restore_tar_archive}" .
+touch "${ocp_etcd_backup_restore_tar_archive}"
+tar --exclude="${ocp_etcd_backup_restore_tar_archive}" -cvzf "${ocp_etcd_backup_restore_tar_archive}" .
 echo >&2 "Created ${ocp_etcd_backup_restore_tar_archive} archive successfully"
 cd "$SRC_ROOT"
