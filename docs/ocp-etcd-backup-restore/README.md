@@ -84,7 +84,7 @@ Flags:
 | -restore                      | Flag to notify the plugin to perform a restore.
 | --target-name                 | The name of a single datastore on which ETCD backup is to be stored. The target should be created in same namespace in which TVK resides and it should be available. This argument is mandatory if -backup flag is provided.
 | --target-namespace            | Namespace name where the target resides or TVK is installed. This argument is mandatory if -backup flag is provided.
-| --api-server-url              | Api server URL to login cluster. It follows this format:  `https://api.<cluster_name>\.\<domain\>:6443"` To check if URL is correct, use this command to check if it works: `"oc login \<api-server-url\> -u \<username\> -p \<password\>"` This is a mandatory argument.
+| --api-server-url              | Api server URL to login cluster. It follows this format:  `https://api.<cluster_name>.<domain>:6443"` To check if URL is correct, use this command to check if it works: `"oc login <api-server-url> -u <username> -p <password>"` This is a mandatory argument.
 | --ocp-cluster-user            | Username to access/login the OCP cluster. This is mandatory.
 | --ocp-cluster-pass            | Password for the --ocp-cluster-user to access/login the OCP cluster. This is mandatory.
 | -p                            | Denotes or notify plugin to perform post restore tasks.
