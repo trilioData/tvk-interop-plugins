@@ -20,7 +20,7 @@ User should run this plugin on bastion node if user wants to perform restore.[Ba
 ***Source of information - https://access.redhat.com/documentation/en-us/openshift_container_platform/4.6/html-single/backup_and_restore/index***
 
 ## ETCD backup and restore using ocp-etcd-backup-restore plugin
-The plugin helps the user to perform ETCD backup and restore of OCP clusters. If a user has only lost some crucial cluster information, then they can restore from the snapshot saved using this plugin. If the user has lost nodes, they must recreate all the non-recovery control plane machines and then run '-p' option from this plugin to redeploy ETCD. Some important considerations to keep in mind about the plugin:
+The plugin helps the user to perform ETCD backup and restore of OCP clusters. If a user has lost some crucial cluster information, then they can restore from the snapshot saved using this plugin. If the user has lost nodes, they must recreate all the non-recovery control plane machines and then run '-p' option from this plugin to redeploy ETCD. Some important considerations to keep in mind about the plugin:
 
 * Restore functionality will only work on same cluster from where the backup was taken
 * Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility
@@ -94,7 +94,7 @@ Flags:
 **Examples:**
 A user may specify more than one option with each command execution. For example, to create a backup with a configured target name and associated namespace, and to set the cluster API URL with the associated username and password, execute the following single command:
 
-`kubectl ocp-etcd-backup-restore -backup --target-name <target_ns> --target-namespace <target_ns> --api-server-url "https://api.<clustername\>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<password>"`
+`kubectl ocp-etcd-backup-restore -backup --target-name <target_ns> --target-namespace <target_ns> --api-server-url "https://api.<clustername>.<domain>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<password>"`
 
 Then, to restore from the same cluster API URL with the associated username and password, execute the following single command:
-`kubectl ocp-etcd-backup-restore -restore --api-server-url "https://api.<clustername\>\.\<domain\>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<passwd>"`
+`kubectl ocp-etcd-backup-restore -restore --api-server-url "https://api.<clustername>.<domain>:6443" --ocp-cluster-user <user> --ocp-cluster-pass "<passwd>"`
