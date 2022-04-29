@@ -28,12 +28,15 @@ echo "checking paths of modified files-"
 tvk_quickstart_changed=false
 rke_etcd_backup_restore_changed=false
 ocp_etcd_backup_restore_changed=false
+cleanup_changed=false
 
 tools_dir="tools"
 internal_dir="internal"
 tvk_quickstart_dir="tvk-quickstart"
 ocp_etcd_backup_restore="ocp_etcd_backup_plugin"
 rke_etcd_backup_restore="rke_etcd_backup_plugin"
+
+cleanup_dir=$tools_dir/cleanup
 
 # shellcheck disable=SC2086
 git diff --name-only $previous_tag $current_tag $tools_dir >files.txt
@@ -69,10 +72,16 @@ while IFS= read -r file; do
     rke_etcd_backup_restore_changed=true
   fi
 
+  if [[ $cleanup_changed == false && $file == $cleanup_dir/* ]]; then
+    echo "cleanup related code changes have been detected"
+    echo "::set-output name=release_cleanup::true"
+    cleanup_changed=true
+  fi
+
 done <files.txt
 
-if [[ $rke_etcd_backup_restore_changed == true || $ocp_etcd_backup_restore_changed == true || $tvk_quickstart_changed == true ]]; then
-  echo "Creating Release as files related to tvk-quickstart, ocp-etcd-backup-restore, rke-etcd-backup-restore  have been changed"
+if [[ $rke_etcd_backup_restore_changed == true || $ocp_etcd_backup_restore_changed == true || $tvk_quickstart_changed == true || $cleanup_changed ]]; then
+  echo "Creating Release as files related to tvk-quickstart, ocp-etcd-backup-restore, rke-etcd-backup-restore or tvk-cleanup have been changed"
   echo "::set-output name=create_release::true"
 fi
 
@@ -82,3 +91,4 @@ fi
 #echo "::set-output name=release_tvk_quickstart::true"
 #echo "::set-output name=release_ocp_etcd_backup_restore::true"
 #echo "::set-output name=release_rke_etcd_backup_restore::true"
+#echo "::set-output name=release_cleanup::true"
