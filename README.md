@@ -30,7 +30,7 @@ unlink /usr/local/bin/kubectl
 Refer [`docs`](docs) for the documentation of all available plugins.
 Also, steps to install, uninstall, upgrade and uninstall respective plugin are mentioned in docs.
 
-`Quick Links`: [`tvk-quickstart`](docs/tvk-quickstart/README.md) 
+`Quick Links`: [`tvk-quickstart`](docs/tvk-quickstart/README.md) [`tvk-cleanup`](docs/cleanup/README.md) 
 
 
 #### Plugin Installation with Network Proxy:
