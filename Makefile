@@ -32,17 +32,26 @@ install: install-required-utilities
 build-tvk-quickstart:
 	./hack/build-tvk-quickstart-artifacts.sh
 
-build: build_test_tvk_quickstart
+build-cleanup:
+	./hack/build-cleanup-artifacts.sh
+
+build: build_test_tvk_quickstart build-cleanup
 	goreleaser release --snapshot --skip-publish --rm-dist
 
 test-tvk-quickstart-plugin-locally:
 	./hack/generate-test-tvk-quickstart-plugin-manifest.sh
 	./hack/test-tvk-quickstart-plugin-locally.sh
 
+test-cleanup-plugin-locally:
+	./hack/generate-test-cleanup-plugin-manifest.sh
+	./hack/test-cleanup-plugin-locally.sh
+
 test-tvk_quickstart-integration:
 	./tests/tvk-quickstart/install-required-utilities.sh
 	./tests/tvk-quickstart/tvk_quickstart_test.sh
 
+test-cleanup-integration:
+	./tests/cleanup/cleanup_test.sh
 
 build-rke_etcd_backup_restore:
 	./hack/build-rke-etcd-backup-restore-artifacts.sh
@@ -64,14 +73,15 @@ build-checksum-rke_etcd_backup_restore:
 build-checksum-ocp_etcd_backup_restore:
 	./hack/build-checksum-ocp-etcd-backup-restore-artifacts.sh
 
-test: test-tvk_quickstart-integration
-
+test: test-tvk_quickstart-integration test-cleanup-integration
 
 test-tvk-quickstart: clean build-tvk-quickstart test-tvk_quickstart-integration test-tvk-quickstart-plugin-locally
 
-test-plugins-locally: test-tvk-quickstart-plugin-locally
+test-cleanup: clean build-cleanup test-cleanup-integration test-cleanup-plugin-locally
 
-test-plugins-packages: test-tvk-quickstart
+test-plugins-locally: test-tvk-quickstart-plugin-locally test-cleanup-plugin-locally
+
+test-plugins-packages: test-tvk-quickstart test-cleanup
 
 validate-plugin-manifests:
 	./hack/validate-plugin-manifests.sh
@@ -82,7 +92,10 @@ verify-code-patterns:
 update-tvk-quickstart-manifests:
 	./hack/update-tvk-quickstart-manifests.sh
 
-update-plugin-manifests: update-tvk-quickstart-manifests
+update-cleanup-manifest:
+	./hack/update-cleanup-manifest.sh
+
+update-plugin-manifests: update-tvk-quickstart-manifests update-cleanup-manifest
 
 ready: fmt vet lint verify-code-patterns
 
