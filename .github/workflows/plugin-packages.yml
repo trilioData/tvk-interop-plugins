@@ -14,6 +14,7 @@ on:
       - 'hack/validate-plugin-manifests.sh'
       - 'hack/update-plugin-manifests.sh'
       - 'hack/update-tvk-quickstart-manifests.sh'
+      - 'hack/update-cleanup-manifest.sh'
       - '.github/workflows/plugin-manifests.yml'
       - 'hack/**'
 
@@ -37,6 +38,9 @@ jobs:
     outputs:
       quickstart: ${{ steps.filter.outputs.quickstart }}
       testquickstart: ${{ steps.filter.outputs.testquickstart }}
+      cleanup: ${{ steps.filter.outputs.cleanup }}
+      testCleanup: ${{ steps.filter.outputs.testCleanup }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -86,6 +90,15 @@ jobs:
               - '.krew/tvk-quickstart.yaml'
             testquickstart:
               - *sharedQuickstart
+            sharedCleanup: &sharedCleanup
+              - *shared
+              - 'tools/cleanup/**'
+              - 'tests/cleanup/**'
+            cleanup:
+              - *sharedCleanup
+              - '.krew/tvk-cleanup.yaml'
+            testCleanup:
+              - *sharedCleanup
 
   # upload tvkquickstart packages to github artifacts if tags('/ref/tags') are pushed
   build_test_tvk_quickstart:
@@ -312,15 +325,68 @@ jobs:
         name: rke_etcd_backup_restore
         path: |
           build/rke_etcd_backup_restore/rke-etcd-backup-restore-*.txt
+
+  # build_test_cleanup job build cleanup packages, runs integration tests and tests packages for plugin creation(install, uninstall)
+  # upload cleanup packages to github artifacts if tags('/ref/tags') are pushed
+  build_test_cleanup:
+    runs-on: ubuntu-latest
+    needs: pre-build
+    # for tags('ref/tags/'), 'needs.pre-build.outputs.cleanup' will be 'false' so to run 'build_test_cleanup' job on tags as well,
+    # added condition 'startsWith(github.ref, 'refs/tags/')'
+    if: (needs.pre-build.outputs.cleanup == 'true') || startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Build Cleanup Package
+      run: make build-cleanup
+
+      #- name: Set up Cloud SDK
+      #if: (needs.pre-build.outputs.testCleanup == 'true') || startsWith(github.ref, 'refs/tags/')
+      #uses: google-github-actions/setup-gcloud@master
+      #with:
+      #  project_id: ${{ secrets.GCS_PROJECT_ID }}
+      #  service_account_key: ${{ secrets.GKE_SA_KEY }}
+      #  export_default_credentials: true
+
+      #- name: Authenticate and Connect to GKE cluster
+      #if: (needs.pre-build.outputs.testCleanup == 'true') || startsWith(github.ref, 'refs/tags/')
+      #uses: google-github-actions/get-gke-credentials@main
+      #with:
+      #  cluster_name: ${{ env.GKE_CLUSTER }}
+      #  location: ${{ env.GKE_ZONE }}
+      #  use_auth_provider: true
+      #  credentials: ${{ secrets.GKE_SA_KEY }}
+
+      #- name: Run Cleanup Integration Tests
+      #if: (needs.pre-build.outputs.testCleanup == 'true') || startsWith(github.ref, 'refs/tags/')
+      #run: make test-cleanup-integration
+
+    - name: Ensure Required Utilities Installed
+      run: make install-required-utilities
+
+    - name: Test Cleanup Plugin Locally
+      run: make test-cleanup-plugin-locally
+
+    - name: Upload Cleanup Plugin Packges to github artifact
+      uses: actions/upload-artifact@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: cleanup
+        path: |
+          build/cleanup.tar.gz
+          build/cleanup-sha256.txt
+
   # pre-release job determines whether to create release or not and sets job variables which will be used to decide
-  # what packages(tvk-quickstart) should be included in release
+  # what packages(tvk-quickstart, tvk-cleanup) should be included in release
   pre-release:
     runs-on: ubuntu-latest
-    needs: [build_test_tvk_quickstart, build_rke, build_ocp]
+    needs: [build_test_tvk_quickstart, build_rke, build_ocp, build_test_cleanup]
     if: startsWith(github.ref, 'refs/tags/')
     outputs:
       create_release: true
       release_tvk_quickstart: ${{ steps.detect_changes.outputs.release_tvk_quickstart }}
+      release_cleanup: ${{ steps.detect_changes.outputs.release_cleanup }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -346,6 +412,6 @@ jobs:
         with:
           prerelease: true
           #artifacts: "build/tvk-/tvk-oneclick-sha256.txt, build/tvk-oneclick/tvk-oneclick.tar.gz, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
-          artifacts: "build/tvk-quickstart/*, build/ocp_etcd_backup_restore/*, build/rke_etcd_backup_restore/*"
+          artifacts: "build/tvk-quickstart/*, build/ocp_etcd_backup_restore/*, build/rke_etcd_backup_restore/*, build/cleanup*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
