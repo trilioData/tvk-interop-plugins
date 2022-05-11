@@ -13,7 +13,7 @@ This snapshots can be shared outside cluster like s3 storage so that in case if 
 
 ## ETCD backup and restore using rke-etcd-backup-restore
 
-The plugin helps user to perform ETCD backup and restore of RKE clusters. This plugin allows user to store the snapshot on s3 storage created using TVK target.
+The plugin helps user to perform ETCD backup and restore of RKE1 clusters. This plugin allows user to store the snapshot on s3 storage created using TVK target.
 
 ### Important Notes for the plugin:
 1. Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility**
