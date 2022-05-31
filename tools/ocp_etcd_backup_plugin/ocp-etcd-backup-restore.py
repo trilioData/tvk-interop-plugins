@@ -196,6 +196,7 @@ spec:
         # get pod list
 
         try:
+            #import pdb; pdb.set_trace()
             pod_list = self.api_instance.list_namespaced_pod(
                 namespace=f'{self.etcdns}',
                 label_selector='app=etcd,etcd=true')
@@ -235,6 +236,7 @@ spec:
                 except BaseException as exception:
                     self.logger.error("Error in adding target info in ETCD")
                     sys.exit(1)
+        return obj_dict['certs'], obj_dict['secret_name']
 
     def delete_jobs(self, mover="true", backup="true"):
         """
@@ -259,7 +261,7 @@ spec:
 
         return delete
 
-    def create_backup_mover(self, target_name, target_ns="default"):
+    def create_backup_mover(self, target_name, target_ns="default", certs="", secret=""):
         """
         Function to create Backup mover pod and run it which will move
         backup to provided s3 target
@@ -305,7 +307,85 @@ spec:
         self.mover_job_name = metamoverpod
         self.mover_ns = TVK_ns
         # Copy code from storage to control plane
-        metamover_pod = """
+        if certs != "":
+          metamover_pod = """
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {0}
+  namespace: {6}
+spec:
+  activeDeadlineSeconds: 43200
+  ttlSecondsAfterFinished: 100
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      containers:
+      - command:
+        - /bin/sh
+        - -c
+        - ' /usr/bin/python3 /opt/tvk/datastore-attacher/mount_utility/mount_by_target_crd/mount_datastores.py --target-namespace={1} --target-name={2};cp -r /tmp/{3} /triliodata/'
+        image: eu.gcr.io/amazing-chalice-243510/metamover:2.9.2
+        imagePullPolicy: IfNotPresent
+        name: backup
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        securityContext:
+          allowPrivilegeEscalation: true
+          capabilities:
+            add:
+            - SYS_ADMIN
+            drop:
+            - ALL
+          privileged: true
+          readOnlyRootFilesystem: true
+          runAsNonRoot: false
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /tmp
+          name: etcd-backup-dir
+        - mountPath: /triliodata-temp
+          name: trilio-temp
+        - mountPath: /tvk/target-secret/
+          name: target-secret-volume
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      nodeName: {7}
+      volumes:
+      - hostPath:
+          path: /etc/kubernetes/static-pod-resources/etcd-member
+          type: ""
+        name: etcd-backup-dir
+      - emptyDir: {{}}
+        name: trilio-temp
+      - secret:
+          defaultMode: 420
+          items:
+            - key: ca-bundle.pem
+              path: ca-bundle.pem
+          secretName: {8}
+        name: target-secret-volume
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+      serviceAccount: {4}
+      serviceAccountName: {5}
+      terminationGracePeriodSeconds: 30
+""".format(metamoverpod, target_ns, target_name, self.etcd_dir,
+           serviceaccount, serviceaccountname, TVK_ns, node_name, secret)
+
+        else:
+          metamover_pod = """
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -332,8 +412,8 @@ spec:
             cpu: 500m
             memory: 512Mi
           requests:
-            cpu: 10m
-            memory: 10Mi
+            cpu: 100m
+            memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: true
           capabilities:
@@ -1772,6 +1852,7 @@ def get_target_secret_credentials(
     """
     access_key = ""
     secret_key = ""
+    certs = ""
     try:
         if secret_name != "":
             secret = api_instance.read_namespaced_secret(
@@ -1780,6 +1861,11 @@ def get_target_secret_credentials(
                 secret.data['accessKey']).decode('utf-8')
             secret_key = base64.b64decode(
                 secret.data['secretKey']).decode('utf-8')
+            #import pdb; pdb.set_trace()
+            certs_en = secret.data.get('ca-bundle.pem')
+            if certs_en is not None:
+              certs = base64.b64decode(certs_en).decode('utf-8')
+
             if access_key == "":
                 logging.error(
                     'Unable to get access key for ObjectStore from secret')
@@ -1791,7 +1877,7 @@ def get_target_secret_credentials(
     except BaseException as e:
         logging.error(e)
     finally:
-        return access_key.strip(), secret_key.strip()
+        return access_key.strip(), secret_key.strip(), certs.strip()
 
 
 def login_cluster(server, user, password, logger):
@@ -1871,12 +1957,13 @@ def get_dict_object(
             "credentialSecret"]["name"]
         secret_namespace = response["spec"]["objectStoreCredentials"][
             "credentialSecret"]["namespace"]
-        access_key_id, access_key = get_target_secret_credentials(
+        access_key_id, access_key, certs = get_target_secret_credentials(
             api_instance, secret_name, secret_namespace, logger)
 
     else:
         access_key_id = response["spec"]["objectStoreCredentials"]["accessKey"]
         access_key = response["spec"]["objectStoreCredentials"]["secretKey"]
+        certs = response["spec"]["objectStoreCredentials"].get('ca-bundle.pem')
 
     obj_dict = {
         'id': response["metadata"]["uid"],
@@ -1889,7 +1976,9 @@ def get_dict_object(
         'regionName': response["spec"]["objectStoreCredentials"]["region"],
         'storageNFSSupport': "TrilioVault",
         's3EndpointUrl': s3_endpoint_url,
-        'vendor': response["spec"]["vendor"]
+        'vendor': response["spec"]["vendor"],
+        'certs': certs,
+        'secret_name': secret_name
     }
     return obj_dict
 
@@ -1986,12 +2075,12 @@ if __name__ == '__main__':
                     " logging credentials and target_name and its namespace")
             sys.exit()
         etcd_bk = ETCDOcpBackup(api_instance, api_batch, custom_api, logger)
-        etcd_bk.create_backup_job()
-        etcd_bk.create_backup_mover(args.target_name, args.target_namespace)
-        #etcd_bk.delete_jobs(mover="true", backup="true")
         print("storing target info..")
-        etcd_bk.store_target_data_to_etcd(
+        certs,secret = etcd_bk.store_target_data_to_etcd(
             args.target_name, args.target_namespace)
+        etcd_bk.create_backup_job()
+        etcd_bk.create_backup_mover(args.target_name, args.target_namespace, certs, secret)
+        #etcd_bk.delete_jobs(mover="true", backup="true")
     elif args.restore is True:
         etcd_bk = ETCDOcpRestore(api_instance, api_batch, logger)
         if not args.api_server_url or not args.ocp_cluster_user \
