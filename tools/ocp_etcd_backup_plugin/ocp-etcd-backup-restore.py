@@ -27,10 +27,14 @@ DEFAULT_JOB_POD_COUNT = 1  # expect job:pod to be 1:1 by default
 
 
 class ETCDOcpBackup:
-    def __init__(self, api_instance, api_batch, custom_api, logger):
+    def __init__(self, api_instance, api_batch, custom_api, logger,
+            api_server_url, user, passwd):
         self.api_instance = api_instance
         self.custom_api = custom_api
         self.api_batch = api_batch
+        self.api_server_url = api_server_url
+        self.user = user
+        self.passwd = passwd
         self.logger = logger
         self.nodes = dict()
         self.etcdns = "openshift-etcd"
@@ -190,7 +194,8 @@ spec:
             self,
             self.bk_job_name,
             "ocp-backup-etcd",
-            "Waiting for backup job to complete..")
+            "Waiting for backup job to complete..", 0,
+            self.api_server_url, self.user, self.passwd)
 
     def store_target_data_to_etcd(self, target_name, target_namespace):
         # get pod list
@@ -332,8 +337,8 @@ spec:
         name: backup
         resources:
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 800m
+            memory: 1Gi
           requests:
             cpu: 100m
             memory: 100Mi
@@ -409,8 +414,8 @@ spec:
         name: backup
         resources:
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 800m
+            memory: 1Gi
           requests:
             cpu: 100m
             memory: 100Mi
@@ -469,7 +474,8 @@ spec:
             self,
             self.mover_job_name,
             TVK_ns,
-            "Waiting for moving backup to target..")
+            "Waiting for moving backup to target..", 0,
+            self.api_server_url, self.user, self.passwd)
         self.logger.info("ETCD backup is completed")
         self.logger.info("ETCD backup is completed and is stored"
                          f"with name: {self.etcd_dir}")
@@ -480,6 +486,9 @@ def wait_for_job_success(
     namespace,
     wait_msg,
     keep_pod_active=0,
+    server_url="",
+    user="",
+    passwd="",
     wait_timeout=DEFAULT_WAIT_TIMEOUT,
     wait_time_between_attempts=DEFAULT_WAIT_BETWEEN_ATTEMPTS,
     num_pods_to_wait_for=DEFAULT_JOB_POD_COUNT,
@@ -494,13 +503,14 @@ def wait_for_job_success(
            to DEFAULT_WAIT_BETWEEN_ATTEMPTS.
     '''
     job = None
-    runtime = 10
+    runtime = 20
     start = int(time.time())
     wait_timeout = start + 60 * runtime
     spin = '-\\|/'
     idx = 0
     # Ensure we found the job that we launched
     print(wait_msg)
+    retry = 3
     while not job:
         print(spin[idx % len(spin)], end="\r")
         idx += 1
@@ -513,6 +523,14 @@ def wait_for_job_success(
         except BaseException as exception:
             api_obj.logger.error(f"Error in getting job information in "
                                   "namespace {namespace}")
+            api_obj.logger.info("Seems lost connection to cluster,trying to login again sometime")
+            time.sleep(2)
+            login_cluster(server_url, user, passwd, api_obj.logger)
+            if retry <= 0:
+              api_obj.logger.error("Error in connecting cluster after trials..Exiting")
+              sys.exit()
+            retry = retry - 1
+            continue
         job = next(
             (j for j in jobs.items if j.metadata.name == job_name), None)
         if not job:
@@ -524,6 +542,7 @@ def wait_for_job_success(
     wait_timeout = start + 60 * runtime
     spin = '-\\|/'
     idx = 0
+    retry = 3
     while True:
         print(spin[idx % len(spin)], end="\r")
         idx += 1
@@ -537,7 +556,14 @@ def wait_for_job_success(
                 job_name, namespace=namespace).status
         except BaseException as exception:
             api_obj.logger.error(f"Error in reading job {job_name} status")
-            sys.exit()
+            api_obj.logger.info("Seems lost connection to cluster, trying to login again sometime")
+            time.sleep(2)
+            login_cluster(server_url, user, passwd, api_obj.logger)
+            if retry <= 0:
+              api_obj.logger.error("Error in connecting cluster after trials..Exiting")
+              sys.exit()
+            retry = retry - 1
+            continue
         if status.failed and status.failed > 0:
             api_obj.logger.error(
                 f'Encountered failed job pods with status: {status}')
@@ -549,7 +575,8 @@ def wait_for_job_success(
 
 
 class ETCDOcpRestore:
-    def __init__(self, api_instance, api_batch, logger):
+    def __init__(self, api_instance, api_batch, logger,
+            api_server_url, user, passwd):
         self.api_instance = api_instance
         self.api_batch = api_batch
         self.logger = logger
@@ -560,6 +587,9 @@ class ETCDOcpRestore:
                               "'kube-system' namespace")
         self.kube_uid = kube_ns.metadata.uid
         self.ssh_dict = dict()
+        self.api_server_url = api_server_url
+        self.user = user
+        self.passwd = passwd
         self.s3_info = dict()
         self.node_name = None
         self.nodes = []
@@ -961,7 +991,8 @@ spec:
             return 1
 
         wait_for_job_success(self, etcd_metamover_restore, restore_ns,
-                                  "Mounting target..", 1)
+                                  "Mounting target..", 1, self.api_server_url,
+                                  self.user, self.passwd)
         #self.logger.info("Mounted target successfully")
 
         time.sleep(10)
@@ -2074,7 +2105,8 @@ if __name__ == '__main__':
             print("For backup, user would need to provide "\
                     " logging credentials and target_name and its namespace")
             sys.exit()
-        etcd_bk = ETCDOcpBackup(api_instance, api_batch, custom_api, logger)
+        etcd_bk = ETCDOcpBackup(api_instance, api_batch, custom_api, logger,
+                args.api_server_url, args.ocp_cluster_user, args.ocp_cluster_pass)
         print("storing target info..")
         certs,secret = etcd_bk.store_target_data_to_etcd(
             args.target_name, args.target_namespace)
@@ -2082,7 +2114,8 @@ if __name__ == '__main__':
         etcd_bk.create_backup_mover(args.target_name, args.target_namespace, certs, secret)
         #etcd_bk.delete_jobs(mover="true", backup="true")
     elif args.restore is True:
-        etcd_bk = ETCDOcpRestore(api_instance, api_batch, logger)
+        etcd_bk = ETCDOcpRestore(api_instance, api_batch, logger,
+                args.api_server_url, args.ocp_cluster_user, args.ocp_cluster_pass)
         if not args.api_server_url or not args.ocp_cluster_user \
                 or not args.ocp_cluster_pass:
             print("Please provide server, user and password to login cluster")
