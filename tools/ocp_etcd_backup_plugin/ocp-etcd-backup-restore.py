@@ -1,3 +1,6 @@
+"""
+Program to take ETCD backup and perform restore on OCP cluster
+"""
 import os
 import random
 import base64
@@ -27,8 +30,12 @@ DEFAULT_JOB_POD_COUNT = 1  # expect job:pod to be 1:1 by default
 
 
 class ETCDOcpBackup:
+    """
+    class has method and attributes related to ETCD backup
+    """
+
     def __init__(self, api_instance, api_batch, custom_api, logger,
-            api_server_url, user, passwd):
+                 api_server_url, user, passwd):
         self.api_instance = api_instance
         self.custom_api = custom_api
         self.api_batch = api_batch
@@ -50,6 +57,25 @@ class ETCDOcpBackup:
         self.etcd_dir = f"tvk_etcd_bk_{self.kube_uid}_{datime}"
         self.etcd_backup_dir = os.path.join(
             "/etc/kubernetes/static-pod-resources/etcd-member/", self.etcd_dir)
+        # get all working nodes
+        ret = self.api_instance.list_node(
+            label_selector="node-role.kubernetes.io/master")
+        for node in ret.items:
+            try:
+                api_batch = self.api_instance.read_node_status(
+                    node.metadata.name)
+                my_list = api_batch.status.conditions
+
+            except BaseException as exception:
+                self.logger.error("Error in reading node's status")
+                sys.exit(1)
+
+                flag = 0
+        for i in my_list:
+            if i.type == "Ready" and i.status == "True":
+                self.nodes[node.metadata.name] = next(
+                    (addr.address for addr in node.status.addresses
+                        if addr.type == "InternalIP"), None)
 
     def create_backup_job(self):
 
@@ -187,7 +213,7 @@ spec:
         proc = subprocess.Popen(cmd, stderr=None, stdout=DEVNULL, shell=True)
         proc.communicate()
         if proc.returncode:
-            err_msg = "command :{}, exitcode :{}".format(cmd, proc.returncode)
+            err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
             self.logger.error(err_msg)
             return 1
         wait_for_job_success(
@@ -201,7 +227,6 @@ spec:
         # get pod list
 
         try:
-            #import pdb; pdb.set_trace()
             pod_list = self.api_instance.list_namespaced_pod(
                 namespace=f'{self.etcdns}',
                 label_selector='app=etcd,etcd=true')
@@ -223,10 +248,17 @@ spec:
             self.logger)
         for key1, val1 in obj_dict.items():
             for key, val in node_list.items():
-                command = [
-                    '/bin/sh',
-                    '-c',
-                    f'ETCDCTL_ENDPOINTS=https://{val}:2379 etcdctl put /{key1} {val1}']
+                if key1 is 'certs':
+                    val1 = ""
+                    command = [
+                        '/bin/sh',
+                        '-c',
+                        f'ETCDCTL_ENDPOINTS=https://{val}:2379 etcdctl put /{key1} ""']
+                else:
+                    command = [
+                        '/bin/sh',
+                        '-c',
+                        f'ETCDCTL_ENDPOINTS=https://{val}:2379 etcdctl put /{key1} {val1}']
                 try:
                     stream(
                         self.api_instance.connect_get_namespaced_pod_exec,
@@ -266,7 +298,12 @@ spec:
 
         return delete
 
-    def create_backup_mover(self, target_name, target_ns="default", certs="", secret=""):
+    def create_backup_mover(
+            self,
+            target_name,
+            target_ns="default",
+            certs="",
+            secret=""):
         """
         Function to create Backup mover pod and run it which will move
         backup to provided s3 target
@@ -275,10 +312,10 @@ spec:
         # generating random strings
         res = ''.join(random.choices(string.ascii_lowercase, k=str_len))
 
-        TVK_ns = target_ns
+        tvk_ns = target_ns
         serviceaccount = "k8s-triliovault"
         serviceaccountname = "k8s-triliovault"
-        metamoverpod = "etcd-datamover-{0}".format(str(res))
+        metamoverpod = f"etcd-datamover-{str(res)}"
 
         node_name = None
         ret = self.api_instance.list_node(
@@ -310,10 +347,10 @@ spec:
             return 1
 
         self.mover_job_name = metamoverpod
-        self.mover_ns = TVK_ns
+        self.mover_ns = tvk_ns
         # Copy code from storage to control plane
         if certs != "":
-          metamover_pod = """
+            metamover_pod = """
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -387,10 +424,10 @@ spec:
       serviceAccountName: {5}
       terminationGracePeriodSeconds: 30
 """.format(metamoverpod, target_ns, target_name, self.etcd_dir,
-           serviceaccount, serviceaccountname, TVK_ns, node_name, secret)
+                serviceaccount, serviceaccountname, tvk_ns, node_name, secret)
 
         else:
-          metamover_pod = """
+            metamover_pod = """
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -455,11 +492,11 @@ spec:
       serviceAccountName: {5}
       terminationGracePeriodSeconds: 30
 """.format(metamoverpod, target_ns, target_name, self.etcd_dir,
-           serviceaccount, serviceaccountname, TVK_ns, node_name)
+                serviceaccount, serviceaccountname, tvk_ns, node_name)
 
-        myFile = open("metamover_pod.yaml", "w")
-        myFile.write(metamover_pod)
-        myFile.close()
+        metafile = open("metamover_pod.yaml", "w")
+        metafile.write(metamover_pod)
+        metafile.close()
 
         cmd = "kubectl apply -f metamover_pod.yaml 1>/dev/null" \
             "2>etcd-ocp-backup.log"
@@ -467,18 +504,19 @@ spec:
                                 stdout=sys.stdout, shell=True)
         proc.communicate()
         if proc.returncode:
-            err_msg = "command :{}, exitcode :{}".format(cmd, proc.returncode)
+            err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
             self.logger.error(err_msg)
             return 1
         wait_for_job_success(
             self,
             self.mover_job_name,
-            TVK_ns,
+            tvk_ns,
             "Waiting for moving backup to target..", 0,
             self.api_server_url, self.user, self.passwd)
         self.logger.info("ETCD backup is completed")
         self.logger.info("ETCD backup is completed and is stored"
-                         f"with name: {self.etcd_dir}")
+                         f" with name: {self.etcd_dir}")
+
 
 def wait_for_job_success(
     api_obj,
@@ -492,7 +530,7 @@ def wait_for_job_success(
     wait_timeout=DEFAULT_WAIT_TIMEOUT,
     wait_time_between_attempts=DEFAULT_WAIT_BETWEEN_ATTEMPTS,
     num_pods_to_wait_for=DEFAULT_JOB_POD_COUNT,
-    ):
+):
     '''Poll a job for successful completion.
     Args:
     job_name (str): Name of the job to wait for.
@@ -522,13 +560,15 @@ def wait_for_job_success(
             jobs = api_obj.api_batch.list_namespaced_job(namespace=namespace)
         except BaseException as exception:
             api_obj.logger.error(f"Error in getting job information in "
-                                  "namespace {namespace}")
-            api_obj.logger.info("Seems lost connection to cluster,trying to login again sometime")
+                                 "namespace {namespace}")
+            api_obj.logger.info(
+                "Seems lost connection to cluster,trying to login again sometime")
             time.sleep(2)
             login_cluster(server_url, user, passwd, api_obj.logger)
             if retry <= 0:
-              api_obj.logger.error("Error in connecting cluster after trials..Exiting")
-              sys.exit()
+                api_obj.logger.error(
+                    "Error in connecting cluster after trials..Exiting")
+                sys.exit()
             retry = retry - 1
             continue
         job = next(
@@ -556,12 +596,14 @@ def wait_for_job_success(
                 job_name, namespace=namespace).status
         except BaseException as exception:
             api_obj.logger.error(f"Error in reading job {job_name} status")
-            api_obj.logger.info("Seems lost connection to cluster, trying to login again sometime")
+            api_obj.logger.info(
+                "Seems lost connection to cluster, trying to login again sometime")
             time.sleep(2)
             login_cluster(server_url, user, passwd, api_obj.logger)
             if retry <= 0:
-              api_obj.logger.error("Error in connecting cluster after trials..Exiting")
-              sys.exit()
+                api_obj.logger.error(
+                    "Error in connecting cluster after trials..Exiting")
+                sys.exit()
             retry = retry - 1
             continue
         if status.failed and status.failed > 0:
@@ -576,7 +618,7 @@ def wait_for_job_success(
 
 class ETCDOcpRestore:
     def __init__(self, api_instance, api_batch, logger,
-            api_server_url, user, passwd):
+                 api_server_url, user, passwd):
         self.api_instance = api_instance
         self.api_batch = api_batch
         self.logger = logger
@@ -655,11 +697,11 @@ spec:
         try:
             cmd = "kubectl get mc 99-master-ssh"
             proc = subprocess.Popen(cmd, stderr=None, stdout=DEVNULL,
-                                shell=True)
+                                    shell=True)
             proc.communicate()
             if proc.returncode:
                 self.logger.error("There is no machine configuration "
-                        "name 99-master-ssh, creating 99-master-ssh")
+                                  "name 99-master-ssh, creating 99-master-ssh")
                 secret = api_instance.read_namespaced_secret(
                     name='master-user-data',
                     namespace='openshift-machine-api').data
@@ -687,15 +729,16 @@ spec:
                 master_file.close()
 
                 cmd = "kubectl apply -f master_ssh.yaml "\
-                        "1>/dev/null 2>etcd-ocp-backup.log"
+                    "1>/dev/null 2>etcd-ocp-backup.log"
                 proc = subprocess.Popen(cmd, stderr=sys.stderr,
-                                stdout=sys.stdout, shell=True)
+                                        stdout=sys.stdout, shell=True)
                 proc.communicate()
                 os.remove("master_ssh.yaml")
                 if proc.returncode:
                     err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
                     self.logger.error(err_msg)
-                    self.logger.error("Error in creating machine configuration")
+                    self.logger.error(
+                        "Error in creating machine configuration")
                     sys.exit(1)
             time.sleep(10)
             resp = client.CustomObjectsApi().get_cluster_custom_object(
@@ -751,8 +794,10 @@ spec:
         self.logger.info("SSH connections between nodes are established")
 
     def create_restore_job(self, restore_path, server, user, passwd):
-
-        # create ranndo job name
+        """
+        Function to create restore job
+        """
+        # create random job name
         str_len = 3
         # generating random strings
         res = ''.join(random.choices(string.ascii_lowercase +
@@ -785,9 +830,6 @@ spec:
                 'sudo -E /tmp/cluster-restore-reversed.sh')
             main(self.nodes[1:], self.ssh_dict, "/tmp/start_pod.sh", "False")
             self.post_restore_task(server, user, passwd)
-        #for line in stdout:
-        # # Process each line in the remote output
-        #    self.logger.info(line)
 
     def check_ssh_connectivity(self):
         """
@@ -804,18 +846,22 @@ spec:
         else:
             ret = get_ssh_connection(self.node_name, self.ssh_dict)
         if ret != 0:
-            self.error("Error in getting ssh connection "
-                f"with node {self.node_name}")
+            self.logger.error("Error in getting ssh connection "
+                              f"with node {self.node_name}")
             sys.exit(1)
 
-
     def create_metamover_and_display_available_restore(
-            self, target_name, file_path):
-
+            self, target_name, secret, target_path, secret_path):
+        """
+        Function to create backup mover job to perform restore
+        """
         self.check_ssh_connectivity()
 
         stdin, stdout, stderr = self.ssh_dict[self.node_name].exec_command(
             'sudo mkdir /home/secret_file/;sudo chmod -R 777 /home/secret_file/')
+        if secret_path != "":
+            stdin, stdout, stderr = self.ssh_dict[self.node_name].exec_command(
+                'sudo mkdir /home/target-secret;sudo chmod -R 777 /home/target-secret')
         ret_code = stdout.channel.recv_exit_status()
         if ret_code != 0:
             self.logger(
@@ -823,7 +869,14 @@ spec:
             sys.exit(1)
         # copying file containing crednetials on host
         sftp = self.ssh_dict[self.node_name].open_sftp()
-        sftp.put(file_path, '/home/secret_file/trilio-secret')
+        sftp.put(target_path, '/home/secret_file/trilio-secret')
+        if secret_path != "":
+            sftp.put(secret_path, '/home/target-secret/ca-bundle.pem')
+        else:
+            try:
+                sftp.remove('/home/target-secret/ca-bundle.pem')
+            except BaseException as exception:
+                pass
         sftp.close()
 
         str_len = 3
@@ -904,7 +957,7 @@ spec:
         - /bin/sh
         - -c
         - ' /usr/bin/python3 /opt/tvk/datastore-attacher/mount_utility/mount_by_secret/mount_datastores.py --target-name={target_name} && while true; do sleep 30; done'
-        image: eu.gcr.io/amazing-chalice-243510/metamover:2.6.1
+        image: eu.gcr.io/amazing-chalice-243510/metamover:2.9.2
         imagePullPolicy: IfNotPresent
         name: backup
         resources:
@@ -932,6 +985,8 @@ spec:
           name: trilio-temp
         - mountPath: /etc/secret
           name: target-secret
+        - mountPath: /tvk/target-secret
+          name: secret-path
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
       nodeName: {node_name}
@@ -946,6 +1001,10 @@ spec:
           path: /home/secret_file
           type: ""
         name: target-secret
+      - hostPath:
+          path: /home/target-secret
+          type: ""
+        name: secret-path
       dnsPolicy: ClusterFirst
       restartPolicy: Never
       schedulerName: default-scheduler
@@ -961,7 +1020,8 @@ spec:
             target_name=target_name,
             node_name=self.node_name,
             service_account=serviceaccount,
-            service_account_name=serviceaccountname)
+            service_account_name=serviceaccountname,
+            secret=secret)
 
         meta_file = open("metamover_pod.yaml", "w")
         meta_file.write(etcd_metamover_job)
@@ -991,9 +1051,8 @@ spec:
             return 1
 
         wait_for_job_success(self, etcd_metamover_restore, restore_ns,
-                                  "Mounting target..", 1, self.api_server_url,
-                                  self.user, self.passwd)
-        #self.logger.info("Mounted target successfully")
+                             "Mounting target..", 1, self.api_server_url,
+                             self.user, self.passwd)
 
         time.sleep(10)
         ls_cmd = f"ls -d /triliodata/tvk_etcd_bk_{self.kube_uid}_*"
@@ -1008,7 +1067,6 @@ spec:
         for pod in response.items:
             pod_name = pod.metadata.name
 
-        # print(pod_name)
 
         try:
             response = self.api_instance.read_namespaced_pod_status(
@@ -1072,6 +1130,11 @@ spec:
         rest_list = []
         rest_list_new = []
         rest_list = resp.splitlines()
+        err = "No such file or directory"
+        if rest_list[0].find(err) != -1:
+            self.logger.error(
+                "Error in mounting target, please check pod logs in 'ocp-restore-etcd' namespace")
+            sys.exit(1)
         rest_list.sort(reverse=True)
         base_directory = rest_list[0].rsplit("/", 1)[0]
         i = 0
@@ -1083,19 +1146,18 @@ spec:
         default_bk = rest_list[0].rsplit("/", 1)[1]
         try:
             selected = input(
-            f"Please select the backup to be restored: ({default_bk})")
+                f"Please select the backup to be restored: ({default_bk})")
         except EOFError:
-            selected=""
+            selected = ""
         if selected == "":
             selected = rest_list[0].rsplit("/", 1)[1]
-    
-        #import pdb; pdb.set_trace()
-        #check if backup files are present in selected directory
+
+        # check if backup files are present in selected directory
         resp = check_objects(self, default_bk)
 
         if resp == 1:
-            self.logger.error("No backup files are present in selected "\
-                    "directory, please check the backup once..")
+            self.logger.error("No backup files are present in selected "
+                              "directory, please check the backup once..")
             sys.exit(1)
 
         # copy selected folder in the host
@@ -1125,7 +1187,6 @@ spec:
         selected_loc = "/etc/kubernetes/static-pod-resources/"\
             f"etcd-member/{selected}"
         return selected_loc
-        #logger.info("ETCD backup is completed")
 
     def stop_static_pods(self):
         """
@@ -1315,7 +1376,7 @@ wait_for_containers_to_start "${STATIC_POD_CONTAINERS[@]}"
             namespace=f'{self.etcdns}', label_selector='app=etcd,etcd=true')
         for pod in pod_list.items:
             pod_tuple = next(((pod.spec.node_name, pod.metadata.name)
-                             for st in pod.status.conditions if st.type == \
+                             for st in pod.status.conditions if st.type ==
                               "ContainersReady" and st.status == "True"),
                              None)
             self.etcd_pods[pod_tuple[0]] = pod_tuple[1]
@@ -1326,7 +1387,9 @@ wait_for_containers_to_start "${STATIC_POD_CONTAINERS[@]}"
             'regionName',
             's3Bucket',
             's3EndpointUrl',
+            'secret_name',
             'storageNFSSupport',
+            'certs',
                 'name']:
             command = [
                 '/bin/sh',
@@ -1356,6 +1419,7 @@ wait_for_containers_to_start "${STATIC_POD_CONTAINERS[@]}"
                 self.logger.error(exception)
                 sys.exit(1)
             try:
+                #import pdb; pdb.set_trace()
                 self.s3_info[i] = resp.splitlines()[1]
             except IndexError as exception:
                 self.logger.error(
@@ -1386,8 +1450,16 @@ datastore:
         secret_file = open("trilio-secret", "w")
         secret_file.write(trilio_secret)
         secret_file.close()
-    
-        return self.s3_info['name']
+
+        cert_fd_nm = ""
+        if self.s3_info['certs'] != "":
+            certs = base64.b64decode(self.s3_info['certs']).decode('utf-8')
+            cert_fd_nm = "ca-bundle.pem"
+            certs_fd = open(cert_fd_nm, "w")
+            certs_fd.write(certs)
+            certs_fd.close()
+
+        return self.s3_info['name'], self.s3_info['secret_name'], cert_fd_nm
 
     def get_nodes(self):
         """
@@ -1413,7 +1485,6 @@ datastore:
             if ret_code != 0:
                 self.create_ssh_connectivity_between_nodes()
 
-
     def check_and_approve_csr(self):
         """
         Function to get and approve pending CSRs
@@ -1424,8 +1495,8 @@ datastore:
         except BaseException as exception:
             self.logger.error(f"Error in listing CSR certificates")
             self.logger.error(exception)
-            self.logger.info("Please run the plugin with -p option "\
-                    "i.e. try post restore task again")
+            self.logger.info("Please run the plugin with -p option "
+                             "i.e. try post restore task again")
             sys.exit(1)
         csrlist = []
         for i in resp.items:
@@ -1448,6 +1519,9 @@ datastore:
                 print(output)
 
     def post_restore_task(self, server, user, passwd):
+        """
+        Function to perform post restore tasks
+        """
         # restart kubelet on all nodes
         # for host in self.nodes:
         #  get_ssh_connection(host, self.ssh_dict)
@@ -1535,7 +1609,7 @@ datastore:
                 break
             if int(time.time()) >= wait_timeout:
                 self.logger.error(
-                    f'Timed out while waiting for static pod {node} '\
+                    f'Timed out while waiting for static pod {node} '
                     'to be in Running state')
                 self.logger.info("Please run post restore task again")
                 sys.exit(1)
@@ -1550,7 +1624,7 @@ datastore:
             time.sleep(0.1)
             if int(time.time()) >= wait_timeout:
                 self.logger.error(
-                    'Timed out while waiting for all etcd pods to be '\
+                    'Timed out while waiting for all etcd pods to be '
                     'in Running state')
                 self.logger.info("Please run post restore task again")
                 sys.exit(1)
@@ -1565,12 +1639,12 @@ datastore:
             output, err = proc.communicate()
             if proc.returncode:
                 err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
-                self.logger.warning("Error in getting etcd pod status, "\
-                                  "check if user is logged in")
+                self.logger.warning("Error in getting etcd pod status, "
+                                    "check if user is logged in")
                 time.sleep(10)
                 self.logger.warning(err_msg)
-                self.logger.warning("Lost cluster accessibility, trying to "\
-                                  "login again")
+                self.logger.warning("Lost cluster accessibility, trying to "
+                                    "login again")
                 ret_val = login_cluster(server, user, passwd, self.logger)
                 if ret_val:
                     self.logger.warning("Error in logging..trying again")
@@ -1595,7 +1669,7 @@ datastore:
                 break
             if int(time.time()) >= wait_timeout:
                 self.logger.error(
-                    f'Timed out while waiting for static pod {node} '\
+                    f'Timed out while waiting for static pod {node} '
                     'to be in Running state')
                 self.logger.info("Please run post restore task again")
                 sys.exit(1)
@@ -1660,10 +1734,10 @@ datastore:
                 err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
                 self.logger.error(err_msg)
                 self.logger.warning("Error in getting etcd pod status, "
-                                  "check if user is logged in")
+                                    "check if user is logged in")
                 time.sleep(5)
                 self.logger.warning("Lost cluster accessibility, trying "
-                                  "to login again")
+                                    "to login again")
                 login_cmd = input(
                     'Please access console and provide the token command: ')
                 log_proc = subprocess.Popen(
@@ -1774,7 +1848,8 @@ def patch_and_verify_nodes_pods(
                 message = status[0]['message']
                 if old_msg == "" or old_msg != message:
                     old_msg = message
-                    logger.info(f"After patching {plural}, out of {nodes_len}, "\
+                    logger.info(
+                        f"After patching {plural}, out of {nodes_len}, "
                         f"{message}")
                 if message == f"{nodes_len} nodes are at revision {new_rev}":
                     reason = status[0]['reason']
@@ -1811,6 +1886,9 @@ def patch_and_verify_nodes_pods(
 
 
 def get_ssh_connection(host, ssh_dict):
+    """
+    Function to get ssh connection between nodes
+    """
     try:
         ssh_client = paramiko.SSHClient()
         ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -1818,14 +1896,19 @@ def get_ssh_connection(host, ssh_dict):
         ssh_dict[host] = ssh_client
     except paramiko.SSHException as sshexception:
         print(f"Unable to establish SSH connection: {sshexception}")
+        print(sshexception)
         return 1
     except BaseException as exception:
+        print(exception)
         print(f"Unable to establish SSH connection: {exception}")
         return 1
     return 0
 
+
 def workon(host, ssh_dict, file_path, get_ssh="True"):
-    # Connect to remote host
+    """
+    Connect to remote host
+    """
     if get_ssh == "True":
         try:
             ssh_client = paramiko.SSHClient()
@@ -1892,10 +1975,9 @@ def get_target_secret_credentials(
                 secret.data['accessKey']).decode('utf-8')
             secret_key = base64.b64decode(
                 secret.data['secretKey']).decode('utf-8')
-            #import pdb; pdb.set_trace()
             certs_en = secret.data.get('ca-bundle.pem')
             if certs_en is not None:
-              certs = base64.b64decode(certs_en).decode('utf-8')
+                certs = base64.b64decode(certs_en).decode('utf-8')
 
             if access_key == "":
                 logging.error(
@@ -1903,17 +1985,22 @@ def get_target_secret_credentials(
             if secret_key == "":
                 logging.error(
                     'Unable to get secret key for ObjectStore from secret')
-    except ApiException as e:
-        logging.error('Error while getting Secret :', e.reason)
-    except BaseException as e:
-        logging.error(e)
+    except ApiException as exception:
+        logging.error('Error while getting Secret :', exception.reason)
+    except BaseException as exception:
+        logging.error(exception)
     finally:
-        return access_key.strip(), secret_key.strip(), certs.strip()
+        if certs_en is not None:
+            return access_key.strip(), secret_key.strip(), certs_en.strip()
+        else:
+            return access_key.strip(), secret_key.strip(), ""
 
 
 def login_cluster(server, user, password, logger):
+    """
+    Connect kuberenets cluster
+    """
     args = init()
-    #Connect kuberenets cluster
     cmd = f"oc login {server} --username={user} --password={password} --insecure-skip-tls-verify"
     proc = subprocess.Popen(cmd, stderr=sys.stderr,
                             stdout=sys.stdout, shell=True)
@@ -1922,37 +2009,38 @@ def login_cluster(server, user, password, logger):
         err_msg = f"command :{cmd}, exitcode :{proc.returncode}"
         logger.error("Error while logging cluster")
         logger.error(err_msg)
-        return(1)
-    return(0)
+        return 1
+    return 0
 
 
 def check_objects(obj, filename):
     """
     function to check if backup files are present in provided filename
     """
-    #checking if backup files are available in target
+    # checking if backup files are available in target
     session = boto3.session.Session()
-    s3 = session.resource(service_name='s3',
-                      aws_access_key_id=obj.s3_info['accessKeyID'],
-                      aws_secret_access_key=obj.s3_info['accessKey'],
-                      endpoint_url=obj.s3_info['s3EndpointUrl'])
+    stor_obj = session.resource(service_name='s3',
+                                aws_access_key_id=obj.s3_info['accessKeyID'],
+                                aws_secret_access_key=obj.s3_info['accessKey'],
+                                endpoint_url=obj.s3_info['s3EndpointUrl'])
 
-    if s3:
-        bucket = s3.Bucket(obj.s3_info['s3Bucket'])
+    if stor_obj:
+        bucket = stor_obj.Bucket(obj.s3_info['s3Bucket'])
         if bucket:
             objs = list(bucket.objects.filter(Prefix=f"{filename}/"))
             if len(objs) >= 2:
                 obj.logger.info("Backup fils are present in target")
             else:
-                obj.logger.error("No backup files found, please check if "\
-                        "files are present and retry..")
+                obj.logger.error("No backup files found, please check if "
+                                 "files are present and retry..")
                 return 1
         else:
-            obj.logger.error("No bucket is present in specified "\
-                    "target..exiting..")
+            obj.logger.error("No bucket is present in specified "
+                             "target..exiting..")
             return 1
     else:
-        obj.logger.error("Error in getting s3 object, please check credentials..")
+        obj.logger.error(
+            "Error in getting s3 object, please check credentials..")
         return 1
 
 
@@ -2015,6 +2103,9 @@ def get_dict_object(
 
 
 def init():
+    """
+    Function to parse arguments
+    """
     try:
         parser = argparse.ArgumentParser(
             "ETCD Backup and restore on OCP. Available flags: "
@@ -2039,8 +2130,10 @@ def init():
         parser.add_argument('--ocp-cluster-pass', dest="ocp_cluster_pass",
                             help="password to login cluster",
                             required=True)
-        parser.add_argument('-p', action='store_true',
-                       help="If users want to run only post restore tasks")
+        parser.add_argument(
+            '-p',
+            action='store_true',
+            help="If users want to run only post restore tasks")
         parser.add_argument(
             '--log-location',
             dest="log_loc",
@@ -2059,17 +2152,19 @@ if __name__ == '__main__':
 
     args = init()
 
-
     # Gets or creates a logger
     logger = logging.getLogger(__name__)
 
     # set log level
     logger.setLevel(logging.DEBUG)
 
-    #Connect kuberenets cluster
-    ret_val = login_cluster(args.api_server_url, 
-            args.ocp_cluster_user, args.ocp_cluster_pass, logger)
-    if ret_val:
+    # Connect kuberenets cluster
+    RET_VAL = login_cluster(
+        args.api_server_url,
+        args.ocp_cluster_user,
+        args.ocp_cluster_pass,
+        logger)
+    if RET_VAL:
         sys.exit()
 
     # Create kubernetes client object
@@ -2078,7 +2173,6 @@ if __name__ == '__main__':
     api_batch = client.BatchV1Api()
     custom_api = client.CustomObjectsApi()
     configuration.assert_hostname = False
-
 
     # define file handler and set formatter
     if not args.log_loc:
@@ -2097,45 +2191,70 @@ if __name__ == '__main__':
     consoleHandler = logging.StreamHandler()
     consoleHandler.setFormatter(formatter)
     logger.addHandler(consoleHandler)
-   
+
     if args.backup is True:
         if not args.target_name or not args.target_namespace \
                 or not args.api_server_url or not args.ocp_cluster_user \
                 or not args.ocp_cluster_pass:
-            print("For backup, user would need to provide "\
-                    " logging credentials and target_name and its namespace")
+            print("For backup, user would need to provide "
+                  " logging credentials and target_name and its namespace")
             sys.exit()
-        etcd_bk = ETCDOcpBackup(api_instance, api_batch, custom_api, logger,
-                args.api_server_url, args.ocp_cluster_user, args.ocp_cluster_pass)
+        etcd_bk = ETCDOcpBackup(
+            api_instance,
+            api_batch,
+            custom_api,
+            logger,
+            args.api_server_url,
+            args.ocp_cluster_user,
+            args.ocp_cluster_pass)
         print("storing target info..")
-        certs,secret = etcd_bk.store_target_data_to_etcd(
+        certs, secret = etcd_bk.store_target_data_to_etcd(
             args.target_name, args.target_namespace)
         etcd_bk.create_backup_job()
-        etcd_bk.create_backup_mover(args.target_name, args.target_namespace, certs, secret)
-        #etcd_bk.delete_jobs(mover="true", backup="true")
+        etcd_bk.create_backup_mover(
+            args.target_name,
+            args.target_namespace,
+            certs,
+            secret)
+        etcd_bk.delete_jobs(mover="true", backup="true")
     elif args.restore is True:
-        etcd_bk = ETCDOcpRestore(api_instance, api_batch, logger,
-                args.api_server_url, args.ocp_cluster_user, args.ocp_cluster_pass)
+        etcd_bk = ETCDOcpRestore(
+            api_instance,
+            api_batch,
+            logger,
+            args.api_server_url,
+            args.ocp_cluster_user,
+            args.ocp_cluster_pass)
         if not args.api_server_url or not args.ocp_cluster_user \
                 or not args.ocp_cluster_pass:
             print("Please provide server, user and password to login cluster")
             sys.exit()
         if args.p is False:
-            target_name = etcd_bk.create_triliosecret()
-            #import pdb; pdb.set_trace()
+            target_name, secret_name, cert = etcd_bk.create_triliosecret()
             etcd_bk.create_ssh_connectivity_between_nodes()
             restore_path = etcd_bk.create_metamover_and_display_available_restore(
-                target_name, "trilio-secret")
+                target_name, secret_name, "trilio-secret", cert)
+            try:
+                os.remove('trilio-secret')
+                os.remove('ca-bundle.pem')
+            except OSError:
+                pass
             nodes = etcd_bk.stop_static_pods()
 
-            etcd_bk.create_restore_job(restore_path, args.api_server_url,
-                    args.ocp_cluster_user, args.ocp_cluster_pass)
-            etcd_bk.post_restore_task(args.api_server_url,
-                    args.ocp_cluster_user, args.ocp_cluster_pass)
+            etcd_bk.create_restore_job(
+                restore_path,
+                args.api_server_url,
+                args.ocp_cluster_user,
+                args.ocp_cluster_pass)
+            etcd_bk.post_restore_task(
+                args.api_server_url,
+                args.ocp_cluster_user,
+                args.ocp_cluster_pass)
         else:
-            #import pdb; pdb.set_trace()
             nodes = etcd_bk.get_nodes()
-            etcd_bk.post_restore_task(args.api_server_url, 
-                    args.ocp_cluster_user, args.ocp_cluster_pass)
+            etcd_bk.post_restore_task(
+                args.api_server_url,
+                args.ocp_cluster_user,
+                args.ocp_cluster_pass)
     else:
         print("Please select at least one flag from backup and restore")
