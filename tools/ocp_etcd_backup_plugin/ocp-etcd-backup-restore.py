@@ -962,11 +962,11 @@ spec:
         name: backup
         resources:
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 800m
+            memory: 1Gi
           requests:
-            cpu: 10m
-            memory: 10Mi
+            cpu: 100m
+            memory: 100Mi
         securityContext:
           allowPrivilegeEscalation: true
           capabilities:
