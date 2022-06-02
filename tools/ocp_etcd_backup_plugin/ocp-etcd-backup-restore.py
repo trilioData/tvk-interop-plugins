@@ -248,7 +248,7 @@ spec:
             self.logger)
         for key1, val1 in obj_dict.items():
             for key, val in node_list.items():
-                if key1 is 'certs':
+                if key1 is 'certs' and val1 == "":
                     val1 = ""
                     command = [
                         '/bin/sh',
@@ -1066,7 +1066,6 @@ spec:
             sys.exit(1)
         for pod in response.items:
             pod_name = pod.metadata.name
-
 
         try:
             response = self.api_instance.read_namespaced_pod_status(
