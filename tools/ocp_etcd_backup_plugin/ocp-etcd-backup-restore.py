@@ -1067,6 +1067,7 @@ spec:
         for pod in response.items:
             pod_name = pod.metadata.name
 
+
         try:
             response = self.api_instance.read_namespaced_pod_status(
                 pod_name, restore_ns)
@@ -1152,13 +1153,17 @@ spec:
             selected = rest_list[0].rsplit("/", 1)[1]
 
         # check if backup files are present in selected directory
-        resp = check_objects(self, default_bk)
+        #import pdb; pdb.set_trace()
+        if secret_path != "":
+          resp = check_objects(self, default_bk, 'ca-bundle.pem')
+
+        else:
+          resp = check_objects(self, default_bk)
 
         if resp == 1:
             self.logger.error("No backup files are present in selected "
                               "directory, please check the backup once..")
             sys.exit(1)
-
         # copy selected folder in the host
 
         cpy_cmd = f"cp -r {base_directory}/{selected} /tmp/"
@@ -1450,6 +1455,7 @@ datastore:
         secret_file.write(trilio_secret)
         secret_file.close()
 
+        #print(self.s3_info)
         cert_fd_nm = ""
         if self.s3_info['certs'] != "":
             certs = base64.b64decode(self.s3_info['certs']).decode('utf-8')
@@ -2012,17 +2018,23 @@ def login_cluster(server, user, password, logger):
     return 0
 
 
-def check_objects(obj, filename):
+def check_objects(obj, filename, cert_fl=""):
     """
     function to check if backup files are present in provided filename
     """
     # checking if backup files are available in target
     session = boto3.session.Session()
-    stor_obj = session.resource(service_name='s3',
+    if cert_fl != "":
+      stor_obj = session.resource(service_name='s3',
+                                aws_access_key_id=obj.s3_info['accessKeyID'],
+                                aws_secret_access_key=obj.s3_info['accessKey'],
+                                endpoint_url=obj.s3_info['s3EndpointUrl'],
+                                verify=cert_fl)
+    else:
+      stor_obj = session.resource(service_name='s3',
                                 aws_access_key_id=obj.s3_info['accessKeyID'],
                                 aws_secret_access_key=obj.s3_info['accessKey'],
                                 endpoint_url=obj.s3_info['s3EndpointUrl'])
-
     if stor_obj:
         bucket = stor_obj.Bucket(obj.s3_info['s3Bucket'])
         if bucket:
@@ -2215,7 +2227,7 @@ if __name__ == '__main__':
             args.target_namespace,
             certs,
             secret)
-        etcd_bk.delete_jobs(mover="true", backup="true")
+        #etcd_bk.delete_jobs(mover="true", backup="true")
     elif args.restore is True:
         etcd_bk = ETCDOcpRestore(
             api_instance,
@@ -2233,11 +2245,6 @@ if __name__ == '__main__':
             etcd_bk.create_ssh_connectivity_between_nodes()
             restore_path = etcd_bk.create_metamover_and_display_available_restore(
                 target_name, secret_name, "trilio-secret", cert)
-            try:
-                os.remove('trilio-secret')
-                os.remove('ca-bundle.pem')
-            except OSError:
-                pass
             nodes = etcd_bk.stop_static_pods()
 
             etcd_bk.create_restore_job(
@@ -2255,5 +2262,15 @@ if __name__ == '__main__':
                 args.api_server_url,
                 args.ocp_cluster_user,
                 args.ocp_cluster_pass)
+        try:
+            os.remove('trilio-secret')
+            os.remove('ca-bundle.pem')
+            os.remove('merge_patch.yaml')
+            os.remove('public.pem')
+            os.remove('metamover_pod.yaml')
+            os.remove('private.pem')
+        except OSError:
+            pass
     else:
         print("Please select at least one flag from backup and restore")
+
