@@ -142,7 +142,8 @@ jobs:
       run: sudo make clean
     - name: Run package creation
       run: |
-        sudo pip install pyinstaller==4.7
+        python3 -V
+        sudo pip3.9 install pyinstaller==4.7
     - name: Build With pyinstaller
       run: |
         sudo pyinstaller --onefile tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
