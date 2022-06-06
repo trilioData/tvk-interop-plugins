@@ -145,6 +145,7 @@ jobs:
         sudo pip3 install pyinstaller==4.7
     - name: Build With pyinstaller
       run: |
+        python3 -V
         sudo pyinstaller --onefile tools/ocp_etcd_backup_plugin/ocp-etcd-backup-restore.py
     - name: Clean build directory
       run: sudo make clean-build
