@@ -142,7 +142,8 @@ jobs:
       run: sudo make clean
     - name: Run package creation
       run: |
-        sudo python3.9 -m pip install pyinstaller==4.7
+        sudo ls /usr/bin/python*
+        sudo python -m pip install pyinstaller==4.7
     - name: Build With pyinstaller
       run: |
         python3 -V
