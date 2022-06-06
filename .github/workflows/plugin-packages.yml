@@ -119,10 +119,10 @@ jobs:
           && sudo apt-get install python3-pip
         fi
     - uses: actions/checkout@v2
-    - name: Set up python 3.6
+    - name: Set up python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: 3.6
+        python-version: 3.9
     - name: Install oc
       uses: redhat-actions/oc-installer@v1
       with:
@@ -208,10 +208,10 @@ jobs:
     needs: pre-build
     steps:
     - uses: actions/checkout@v2
-    - name: Set up python 3.6
+    - name: Set up python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: 3.6
+        python-version: 3.9
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
@@ -248,10 +248,10 @@ jobs:
         path: build
     - name: Build checksum rke-etcd-backup-restore Package
       run: make build-checksum-rke_etcd_backup_restore
-    - name: Set up python 3.6
+    - name: Set up python 3.9
       uses: actions/setup-python@v2
       with:
-        python-version: 3.6
+        python-version: 3.9
     - name: Install dependencies
       run: |
         sudo apt install python3-testresources
