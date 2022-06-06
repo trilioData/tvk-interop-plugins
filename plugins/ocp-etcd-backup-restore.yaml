@@ -5,7 +5,7 @@ metadata:
 spec:
   homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/ocp-etcd-backup-restore/README.md
   shortDescription: Plugin to Install/Configure/Test TVK ocp-etcd-backup-restore
-  version: v1.0.1-rc3
+  version: v1.0.1-rc4
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -15,8 +15,8 @@ spec:
         operator: In
         values:
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc3/ocp-etcd-backup-restore-Linux.tar.gz
-    sha256: 870ff8bbfc998c76de3be1a54059ac21e38608d016a120a178a5cc3e14f82276
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc4/ocp-etcd-backup-restore-Linux.tar.gz
+    sha256: cf5143b17d1b45fd4abd83f6b8f0c0e4e609fe83a199c1d7012ac8ea229a50df
     bin: ocp-etcd-backup-restore
     files:
     - from: '*'
@@ -28,8 +28,8 @@ spec:
         operator: In
         values:
         - darwin
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc3/ocp-etcd-backup-restore-macOS.tar.gz
-    sha256: e18a7239ff5063a6096e97d88230b509c3c70435eb46e3138ba157173a0bd72d
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.0.1-rc4/ocp-etcd-backup-restore-macOS.tar.gz
+    sha256: 9fc7d1d3cd08cc3c1662cf16337642b509c28211ba03634e2fa647b2f9659187
     bin: ocp-etcd-backup-restore
     files:
     - from: '*'

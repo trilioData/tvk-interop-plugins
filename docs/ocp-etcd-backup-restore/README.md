@@ -22,6 +22,7 @@ User should run this plugin on bastion node if user wants to perform restore.[Ba
 ## ETCD backup and restore using ocp-etcd-backup-restore plugin
 The plugin helps the user to perform ETCD backup and restore of OCP clusters. If a user has lost some crucial cluster information, then they can restore from the snapshot saved using this plugin. If the user has lost nodes, they must recreate all the non-recovery control plane machines and then run '-p' option from this plugin to redeploy ETCD. Some important considerations to keep in mind about the plugin:
 
+* The plugin supports s3 as backup target
 * Restore functionality will only work on same cluster from where the backup was taken
 * Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility
 
