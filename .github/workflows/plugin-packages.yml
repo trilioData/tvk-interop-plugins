@@ -130,7 +130,7 @@ jobs:
     - name: Install Dependencies
       run: |
         if [ ${{ runner.os }} == "Linux" ]; then
-          sudo python3 -m pip install --upgrade pip
+          sudo python -m pip install --upgrade pip
           sudo pip install coverage pytest
           if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/ocp_etcd_backup_plugin/requirements.txt --ignore-installed; fi
         else
@@ -142,7 +142,7 @@ jobs:
       run: sudo make clean
     - name: Run package creation
       run: |
-        sudo pip3 install pyinstaller==4.7
+        sudo python3.9 -m pip install pyinstaller==4.7
     - name: Build With pyinstaller
       run: |
         python3 -V
