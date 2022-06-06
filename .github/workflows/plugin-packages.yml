@@ -130,7 +130,7 @@ jobs:
     - name: Install Dependencies
       run: |
         if [ ${{ runner.os }} == "Linux" ]; then
-          sudo python -m pip install --upgrade pip
+          sudo python3 -m pip install --upgrade pip
           sudo pip install coverage pytest
           if  [ -f tools/ocp_etcd_backup_plugin/requirements.txt ]; then sudo pip install -r tools/ocp_etcd_backup_plugin/requirements.txt --ignore-installed; fi
         else
