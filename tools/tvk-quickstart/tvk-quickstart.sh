@@ -2192,6 +2192,7 @@ EOF
   if [[ $? -eq 0 ]]; then
     #check if the storageclass with default label has valid provisioner
     def_store=$(kubectl get storageclass | grep -q default | awk '{printf $3}' 2>> >(logit))
+    # shellcheck disable=SC2206
     def_store=($def_store)
     # shellcheck disable=SC2116
     num_of_store=$(echo ${#def_store[@]})
