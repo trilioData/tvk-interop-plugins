@@ -65,7 +65,7 @@ preflight_checks() {
       return 1
     else
       #check if selected storageclass is annoteted with "default" Label
-      kubectl get storageclass "$storage_class" | grep -w '(default)'  2>> >(logit)
+      kubectl get storageclass "$storage_class" | grep -w '(default)' 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
         echo "The selected storageclass is not annoteted as default, patching it to act as default and used by TVK"
@@ -141,7 +141,6 @@ tvk_uninstall() {
   fi
 }
 
-
 #This function is use to compare 2 versions
 vercomp() {
   if [[ $1 == "$2" ]]; then
@@ -172,7 +171,7 @@ wait_install() {
   val1=$(eval "$2")
   flag=0
   while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && [[ "" == "$val1" ]] || [[ "$val1" == '{}' ]] || [[ "$val1" == 'map[]' ]]; do
-    if [[ $flag -eq 0 ]];then
+    if [[ $flag -eq 0 ]]; then
       flag=1
       searchstring1="-o"
       searchstring2="2>"
@@ -361,7 +360,7 @@ install_tvk() {
       svc_type=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.spec.type}')
       if [[ $svc_type == LoadBalancer ]]; then
         get_host=$(kubectl get ingress "$masterIngName" -n "$tvk_ns" -o 'jsonpath={.spec.rules[0].host}')
-        cat <<EOF | kubectl apply -f - 1>> >(logit) 
+        cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: TrilioVaultManager
 metadata:
@@ -553,7 +552,7 @@ EOF
         svc_type=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.spec.type}')
         if [[ $svc_type == LoadBalancer ]]; then
           get_host=$(kubectl get ingress "$masterIngName" -n "$get_ns" -o 'jsonpath={.spec.rules[0].host}')
-          cat <<EOF | kubectl apply -f - 1>> >(logit) 
+          cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: TrilioVaultManager
 metadata:
@@ -792,47 +791,47 @@ EOF
 
 #This module is used to check if TVK is installed and up and running
 check_tvk_install() {
- #checking for pod status
+  #checking for pod status
   #{
-    kubectl get svc -A | grep k8s-triliovault-operator 1>> >(logit) 2>> >(logit)
-    ret_code=$?
-    if [ "$ret_code" -ne 0 ]; then
-      echo "Triliovault-operator is not installed..Exiting"
-      exit 1
-    fi
-    tvk_control_name=$(kubectl get pods -l app=k8s-triliovault-control-plane -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit)) 
-    tvk_control_namespace=$(kubectl get pods -l app=k8s-triliovault-control-plane -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit) ) 
-    tvk_webhook_name=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit)) 
-    tvk_webhook_namespace=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit))
-    webhook_state=$(kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
-    if [[ "$webhook_state" != "Running" ]]; then
-      echo "TVK webhook pod is not in Running state"
-      return 1
-    else
-      kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
-      ret_code_web=$?
-    fi
-    control_plane_state=$(kubectl get pod "$tvk_control_name" -n "$tvk_control_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
-    if [[ "$control_plane_state" != "Running" ]]; then
-      echo "TVK control plane pod is not in Running state"
-      return 1
-    else
-      kubectl get pod "$tvk_control_name" -n "$tvk_control_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
-      ret_code_control=$?
-    fi
+  kubectl get svc -A | grep k8s-triliovault-operator 1>> >(logit) 2>> >(logit)
+  ret_code=$?
+  if [ "$ret_code" -ne 0 ]; then
+    echo "Triliovault-operator is not installed..Exiting"
+    exit 1
+  fi
+  tvk_control_name=$(kubectl get pods -l app=k8s-triliovault-control-plane -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit))
+  tvk_control_namespace=$(kubectl get pods -l app=k8s-triliovault-control-plane -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit))
+  tvk_webhook_name=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit))
+  tvk_webhook_namespace=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit))
+  webhook_state=$(kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
+  if [[ "$webhook_state" != "Running" ]]; then
+    echo "TVK webhook pod is not in Running state"
+    return 1
+  else
+    kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
+    ret_code_web=$?
+  fi
+  control_plane_state=$(kubectl get pod "$tvk_control_name" -n "$tvk_control_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
+  if [[ "$control_plane_state" != "Running" ]]; then
+    echo "TVK control plane pod is not in Running state"
+    return 1
+  else
+    kubectl get pod "$tvk_control_name" -n "$tvk_control_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
+    ret_code_control=$?
+  fi
   #}2>> >(logit)
   if [[ $ret_code_web != 0 ]] || [[ $ret_code_control != 0 ]]; then
     return 1
   fi
   return 0
-     
+
 }
 
 #This module is used to configure TVK UI
 configure_ui() {
   check_tvk_install
   ret_code=$?
-  if [[ $ret_code != 0 ]];then
+  if [[ $ret_code != 0 ]]; then
     echo "TVK is not in healthy state, UI configuration may fail or UI will not work as expected."
   fi
   if [[ -z ${input_config} ]]; then
@@ -984,8 +983,8 @@ EOF
   kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.spec.type}' | grep -q 'NodePort'
   ret_code=$?
   if [[ "$retCode" -ne 0 ]]; then
-      echo "Changing type of service for $ingressGateway taking long time than usual"
-      return 1
+    echo "Changing type of service for $ingressGateway taking long time than usual"
+    return 1
   fi
   if [[ $do -eq "True" ]]; then
     doctl kubernetes cluster kubeconfig show "${cluster_name}" >config_"${cluster_name}" 2>> >(logit)
@@ -1137,8 +1136,8 @@ EOF
   kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.spec.type}' | grep -q 'LoadBalancer'
   ret_code=$?
   if [[ "$retCode" -ne 0 ]]; then
-      echo "Changing type of service for $ingressGateway taking long time than usual"
-      return 1
+    echo "Changing type of service for $ingressGateway taking long time than usual"
+    return 1
   fi
   if [[ $do -eq "True" ]]; then
     doctl compute domain records create "${domain}" --record-type A --record-name "${tvkhost_name}" --record-data "${external_ip}" 1>> >(logit) 2>> >(logit)
@@ -1914,7 +1913,7 @@ EOF
 #This module is used to create target to be used for TVK backup and restore
 create_target() {
   check_tvk_install
-  if [[ $ret_code != 0 ]];then
+  if [[ $ret_code != 0 ]]; then
     echo "TVK is not in healthy state, Target creation may fail or may not work as expected."
   fi
   if [[ -z ${input_config} ]]; then
@@ -2071,14 +2070,13 @@ EOF
   fi
 }
 
-
 #module to check valid csi and if not there install it
 check_csi() {
   num_nodes=$(kubectl get nodes | wc -l 2>> >(logit))
-  num_nodes=$((num_nodes-1))
+  num_nodes=$((num_nodes - 1))
   csi=$(kubectl get csidriver 2>> >(logit))
   num_csi=$(kubectl get csidriver 2>> >(logit) | wc -l 2>> >(logit))
-  num_csi=$((num_csi-1))
+  num_csi=$((num_csi - 1))
   flag=0
   kubectl get csidriver 2>> >(logit) | grep -q "hostpath.csi.k8s.io"
   ret_code=$?
@@ -2104,17 +2102,17 @@ check_csi() {
     echo "Longhorn CSI also requires target to store volumesnapshot"
 
     snap_ver="release-6.0"
-    #check if volumesnapshot CRDS are present 
-    if kubectl get volumesnapshotclasses.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit) && kubectl get volumesnapshots.snapshot.storage.k8s.io  1>> >(logit) 2>> >(logit) && kubectl get volumesnapshotcontents.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit);then
+    #check if volumesnapshot CRDS are present
+    if kubectl get volumesnapshotclasses.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit) && kubectl get volumesnapshots.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit) && kubectl get volumesnapshotcontents.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit); then
       echo "Volumesnapshot CRDS are present.."
       echo "Checking for snapshot controller"
       snap_ver="release-6.0"
       #check if snapshoter is present
-      if kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\n"}{range .spec.containers[*]}{.image}{", "}{end}{end}' | grep snapshot-controller 1>> >(logit) 2>> >(logit);then
+      if kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\n"}{range .spec.containers[*]}{.image}{", "}{end}{end}' | grep snapshot-controller 1>> >(logit) 2>> >(logit); then
         echo "Snapshot controller is installed.."
       else
-	kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
-	 kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
       fi
     else
       kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
@@ -2122,7 +2120,7 @@ check_csi() {
       kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
       kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
       kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
-     
+
     fi
     helm repo add longhorn https://charts.longhorn.io
     helm repo update 1>> >(logit) 2>> >(logit)
@@ -2191,23 +2189,23 @@ EOF
   prov=$(kubectl get storageclass | grep default | awk '{printf $3}')
   kubectl get storageclass | grep -q default
   # shellcheck disable=SC2181
-  if [[ $? -eq 0 ]];then
+  if [[ $? -eq 0 ]]; then
     #check if the storageclass with default label has valid provisioner
     def_store=$(kubectl get storageclass | grep -q default | awk '{printf $3}' 2>> >(logit))
     def_store=($def_store)
     # shellcheck disable=SC2116
     num_of_store=$(echo ${#def_store[@]})
-    if [[ $num_of_store -gt 1 ]];then
+    if [[ $num_of_store -gt 1 ]]; then
       echo "Multiple storageclass are marked with 'default label', please mark only one storageclass as default"
       return 1
-    elif [[ $num_of_store -eq 1 ]];then
+    elif [[ $num_of_store -eq 1 ]]; then
       if [[ $prov == "hostpath.csi.k8s.io" ]] && [[ $num_nodes -gt 1 ]]; then
         echo "Hostpath works only for single node..Please select other storage class as default"
-	return 1
+        return 1
       fi
       kubectl get csidriver | grep "$prov" 1>> >(logit) 2>> >(logit)
       # shellcheck disable=SC2181
-      if [[ $? -ne 0 ]];then
+      if [[ $? -ne 0 ]]; then
         echo "Storageclass labeled as 'default' does not have valid provisioner...Exiting"
         exit 1
       fi
@@ -2220,13 +2218,13 @@ EOF
   #check if volumesnapshot class is present
   kubectl get volumesnapshotclass -o jsonpath='{.items[*].driver}' 1>> >(logit) 2>> >(logit)
   # shellcheck disable=SC2181
-  if [[ $? -ne 0 ]];then
+  if [[ $? -ne 0 ]]; then
     echo "Please create a volumesnapshotclass for $prov"
     return 1
   fi
   kubectl get volumesnapshotclass -o jsonpath='{.items[*].driver}' | grep -q "$prov"
   # shellcheck disable=SC2181
-  if [[ $? -ne 0 ]];then
+  if [[ $? -ne 0 ]]; then
     echo "Please make sure that volumesnapshotclass created is consistent with default storageclass"
     return 1
   fi
@@ -2251,7 +2249,6 @@ wait_install_app() {
   done
 }
 
-
 #This module is used to test TVK backup and restore for user.
 sample_test() {
   #Add stable helm repo
@@ -2265,7 +2262,7 @@ sample_test() {
   helm repo update 1>> >(logit) 2>> >(logit)
   app=""
   if [[ -z ${input_config} ]]; then
-	  echo -e "Select an example\n1.Label based(MySQL)\n2.Namespace based(WordPress)\n3.Operator based(MySQL Operator)\n4.Helm based(MongoDB)\n5.Transformation(PostgreSQL)"
+    echo -e "Select an example\n1.Label based(MySQL)\n2.Namespace based(WordPress)\n3.Operator based(MySQL Operator)\n4.Helm based(MongoDB)\n5.Transformation(PostgreSQL)"
     read -r -p "Select option: " backup_way
   else
     if [[ $backup_way == "Label_based" ]]; then
@@ -2289,15 +2286,20 @@ sample_test() {
   fi
   case $backup_way in
   1)
-    app="label-mysql";;
+    app="label-mysql"
+    ;;
   2)
-    app="namespace-wordpress";;
+    app="namespace-wordpress"
+    ;;
   3)
-    app="operator-mysql";;
+    app="operator-mysql"
+    ;;
   4)
-    app="helm-mongodb";;
-  5) 
-    app="transformation-postgresql";;
+    app="helm-mongodb"
+    ;;
+  5)
+    app="transformation-postgresql"
+    ;;
   esac
   if [[ -z ${input_config} ]]; then
     echo "Please provide input for test demo"
@@ -2328,7 +2330,7 @@ sample_test() {
   if [[ -z "$storage_class" ]]; then
     echo "No default storage class found, need one to proceed"
     return 1
-  fi 
+  fi
   #Check if cluster is OCP
   kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
   ret_val=$?
@@ -2682,8 +2684,8 @@ EOM
       {
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
-        helm install postgresql bitnami/postgresql --set securityContext.enabled=True --set securityContext.runAsUser=0 --set volumePermissions.enabled=true -n  $backup_namespace 1>> >(logit)
-	sleep 2
+        helm install postgresql bitnami/postgresql --set securityContext.enabled=True --set securityContext.runAsUser=0 --set volumePermissions.enabled=true -n $backup_namespace 1>> >(logit)
+        sleep 2
       } 2>> >(logit)
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
@@ -2840,18 +2842,18 @@ EOF
       echo "Creating restore..."
       #Applying restore manifest
       if [[ "$app" == "transformation-postgresql" ]]; then
-	default_storage=$(kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
-        kubectl get storageclass "$default_storage" -o yaml > storageclass_trans.yaml
-	yq eval -i '.metadata.name="trans-storageclass"' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
-	echo "Creating new storageclass 'trans-storageclass' for this example.."
-	kubectl apply -f storageclass_trans.yaml
-	retcode=$?
+        default_storage=$(kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
+        kubectl get storageclass "$default_storage" -o yaml >storageclass_trans.yaml
+        yq eval -i '.metadata.name="trans-storageclass"' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+        echo "Creating new storageclass 'trans-storageclass' for this example.."
+        kubectl apply -f storageclass_trans.yaml
+        retcode=$?
         if [ "$retcode" -ne 0 ]; then
           echo "Error while creating clone of default storageclass"
           return 1
         fi
-	#echo "Removing 'default' label from $default_storage storageclass"
-	#kubectl patch storageclass $default_storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' 2>> >(logit)
+        #echo "Removing 'default' label from $default_storage storageclass"
+        #kubectl patch storageclass $default_storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' 2>> >(logit)
         cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: Restore
@@ -2960,9 +2962,9 @@ main() {
     -n | --noninteractive)
       export Non_interact=True
       if [[ -z $2 ]]; then
-	echo "filename argument required"
-	print_usage
-	exit 1
+        echo "filename argument required"
+        print_usage
+        exit 1
       fi
       export input_config=$2
       echo "tvk-quickstart will run in non-inetractive way"
