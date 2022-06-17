@@ -248,7 +248,7 @@ spec:
             self.logger)
         for key1, val1 in obj_dict.items():
             for key, val in node_list.items():
-                if key1 is 'certs' and val1 == "":
+                if val1 == "":
                     val1 = ""
                     command = [
                         '/bin/sh',
@@ -1067,7 +1067,6 @@ spec:
         for pod in response.items:
             pod_name = pod.metadata.name
 
-
         try:
             response = self.api_instance.read_namespaced_pod_status(
                 pod_name, restore_ns)
@@ -1155,10 +1154,10 @@ spec:
         # check if backup files are present in selected directory
         #import pdb; pdb.set_trace()
         if secret_path != "":
-          resp = check_objects(self, default_bk, 'ca-bundle.pem')
+            resp = check_objects(self, default_bk, 'ca-bundle.pem')
 
         else:
-          resp = check_objects(self, default_bk)
+            resp = check_objects(self, default_bk)
 
         if resp == 1:
             self.logger.error("No backup files are present in selected "
@@ -1455,7 +1454,7 @@ datastore:
         secret_file.write(trilio_secret)
         secret_file.close()
 
-        #print(self.s3_info)
+        # print(self.s3_info)
         cert_fd_nm = ""
         if self.s3_info['certs'] != "":
             certs = base64.b64decode(self.s3_info['certs']).decode('utf-8')
@@ -2025,16 +2024,16 @@ def check_objects(obj, filename, cert_fl=""):
     # checking if backup files are available in target
     session = boto3.session.Session()
     if cert_fl != "":
-      stor_obj = session.resource(service_name='s3',
-                                aws_access_key_id=obj.s3_info['accessKeyID'],
-                                aws_secret_access_key=obj.s3_info['accessKey'],
-                                endpoint_url=obj.s3_info['s3EndpointUrl'],
-                                verify=cert_fl)
+        stor_obj = session.resource(service_name='s3',
+                                    aws_access_key_id=obj.s3_info['accessKeyID'],
+                                    aws_secret_access_key=obj.s3_info['accessKey'],
+                                    endpoint_url=obj.s3_info['s3EndpointUrl'],
+                                    verify=cert_fl)
     else:
-      stor_obj = session.resource(service_name='s3',
-                                aws_access_key_id=obj.s3_info['accessKeyID'],
-                                aws_secret_access_key=obj.s3_info['accessKey'],
-                                endpoint_url=obj.s3_info['s3EndpointUrl'])
+        stor_obj = session.resource(service_name='s3',
+                                    aws_access_key_id=obj.s3_info['accessKeyID'],
+                                    aws_secret_access_key=obj.s3_info['accessKey'],
+                                    endpoint_url=obj.s3_info['s3EndpointUrl'])
     if stor_obj:
         bucket = stor_obj.Bucket(obj.s3_info['s3Bucket'])
         if bucket:
@@ -2095,17 +2094,24 @@ def get_dict_object(
         access_key = response["spec"]["objectStoreCredentials"]["secretKey"]
         certs = response["spec"]["objectStoreCredentials"].get('ca-bundle.pem')
 
+    if response["spec"]["objectStoreCredentials"].get(
+            "s3_endpoint_url") == None:
+        s3Url = "https://s3.amazonaws.com"
+    else:
+        s3Url = response["spec"]["objectStoreCredentials"].get(
+            "s3_endpoint_url")
+
     obj_dict = {
         'id': response["metadata"]["uid"],
         'storageType': response["spec"]["type"],
         'name': response["metadata"]["name"],
-        'namespace': response["metadata"]["namespace"],
+        'namespace': response["metadata"].get("namespace"),
         'accessKeyID': access_key_id,
         'accessKey': access_key,
         's3Bucket': response["spec"]["objectStoreCredentials"]["bucketName"],
-        'regionName': response["spec"]["objectStoreCredentials"]["region"],
+        'regionName': response["spec"]["objectStoreCredentials"].get("region"),
         'storageNFSSupport': "TrilioVault",
-        's3EndpointUrl': s3_endpoint_url,
+        's3EndpointUrl': s3Url,
         'vendor': response["spec"]["vendor"],
         'certs': certs,
         'secret_name': secret_name
@@ -2273,4 +2279,3 @@ if __name__ == '__main__':
             pass
     else:
         print("Please select at least one flag from backup and restore")
-
