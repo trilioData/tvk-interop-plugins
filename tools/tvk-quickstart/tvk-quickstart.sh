@@ -1592,7 +1592,7 @@ metadata:
   namespace: ${target_namespace}
 spec:
   type: ObjectStore
-  vendor: Other
+  vendor: AWS
   objectStoreCredentials:
     url: "$url"
     credentialSecret:

@@ -446,7 +446,7 @@ spec:
         - /bin/sh
         - -c
         - ' /usr/bin/python3 /opt/tvk/datastore-attacher/mount_utility/mount_by_target_crd/mount_datastores.py --target-namespace={1} --target-name={2};cp -r /tmp/{3} /triliodata/'
-        image: eu.gcr.io/amazing-chalice-243510/metamover:2.6.1
+        image: eu.gcr.io/amazing-chalice-243510/metamover:2.9.2
         imagePullPolicy: IfNotPresent
         name: backup
         resources:
@@ -1996,8 +1996,7 @@ def get_target_secret_credentials(
     finally:
         if certs_en is not None:
             return access_key.strip(), secret_key.strip(), certs_en.strip()
-        else:
-            return access_key.strip(), secret_key.strip(), ""
+        return access_key.strip(), secret_key.strip(), ""
 
 
 def login_cluster(server, user, password, logger):
@@ -2095,10 +2094,10 @@ def get_dict_object(
         certs = response["spec"]["objectStoreCredentials"].get('ca-bundle.pem')
 
     if response["spec"]["objectStoreCredentials"].get(
-            "s3_endpoint_url") == None:
-        s3Url = "https://s3.amazonaws.com"
+            "s3_endpoint_url") is None:
+        url = "https://s3.amazonaws.com"
     else:
-        s3Url = response["spec"]["objectStoreCredentials"].get(
+        url = response["spec"]["objectStoreCredentials"].get(
             "s3_endpoint_url")
 
     obj_dict = {
@@ -2111,7 +2110,7 @@ def get_dict_object(
         's3Bucket': response["spec"]["objectStoreCredentials"]["bucketName"],
         'regionName': response["spec"]["objectStoreCredentials"].get("region"),
         'storageNFSSupport': "TrilioVault",
-        's3EndpointUrl': s3Url,
+        's3EndpointUrl': url,
         'vendor': response["spec"]["vendor"],
         'certs': certs,
         'secret_name': secret_name

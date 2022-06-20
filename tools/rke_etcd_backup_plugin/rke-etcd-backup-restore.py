@@ -44,33 +44,25 @@ class ETCDbackup():
         self.cluster_name = cluster_name
         if self.cluster_name is None:
             self.cluster_name = get_cluster_name()
-            #print("cluster name {0}".format(self.cluster_name))
             if self.cluster_name is None:
                 print(
                     "Cluster name is not set in kube-system, please provide through arguments")
                 sys.exit(1)
         key_list = self.token.split(":")
-        #print(f"{key_list[0]} {key_list[1]}")
         auth = HTTPBasicAuth(
             f"{key_list[0]}", f"{key_list[1]}")
         self.auth = auth
-        # print(self.auth)
         url = f"{self.server_url}v3/clusters?name={self.cluster_name}"
         resp = requests.get(url, verify=False, auth=self.auth)
-        # print(resp)
         json_resp = resp.json()
         for item in json_resp['data']:
-            #print("I am here")
             self.cluster_id = item['id']
-        # print(json_resp)
 
     def etcd_bk(self):
         """
         This function is use to perform ETCD backup
         """
         url = f"{self.server_url}v3/etcdbackups"
-        # print(url)
-        #target_creds = parse_target(target_name, target_namespace)
         target_obj = parse_target(self.api_instance, self.custom_api,
                                   self.target_name, self.target_namespace, self.logger)
         etcdconfig = {
@@ -80,7 +72,7 @@ class ETCDbackup():
             "namespaceId": ""}
         s3config = {
             "bucketName": target_obj['s3Bucket'],
-            "region": None,
+            "region": target_obj['regionName'],
             "endpoint": target_obj['s3EndpointUrl'].split("//")[1],
             "accessKey": target_obj['accessKeyID'],
             "secretKey": target_obj['accessKey']}
@@ -104,14 +96,12 @@ class ETCDbackup():
             print("Provided S3 target is already set")
         else:
             print("Updating cluster to set new s3 etcd target..")
-            #print(s3config)
             resp_json['rancherKubernetesEngineConfig']['services']['etcd']['backupConfig']['s3BackupConfig'] = s3config
             resp_put = requests.put(
                 url_cluster,
                 verify=False,
                 auth=self.auth,
                 data=json.dumps(resp_json))
-            #print(resp_put)
             if resp_put.status_code == 200 or resp_put.status_code == 201:
                 runtime = 20
                 start = int(time.time())
@@ -140,25 +130,15 @@ class ETCDbackup():
             verify=False,
             auth=self.auth,
             data=json.dumps(etcdconfig))
-        # print(response.content)
         resp_data = response.content
-        # print("####################################################")
-        # print(response.content)
-        # print("**************************************************")
-        #resp_json = response.json()
-        # for item in resp_json['data']:
-        #  print(item)
         response_file = json.loads(resp_data.decode('utf-8'))
         print("Backup Started")
         print(
             f"Waiting for backup - {response_file['id']} to complete")
         # wait for ETCD backup to complete
-        #filename = f"{response_file['id']}_{response_file['created']}.zip"
-        # print(filename)
         query = {
             "clusterId": self.cluster_id,
             "created": response_file['created']}
-        # print(query)
         end_point = urllib.parse.urlencode(query)
         url = f"{self.server_url}v3/etcdbackups?{end_point}"
         runtime = 20
@@ -221,26 +201,20 @@ class ETCDrestore():
                     "please provide through arguments")
                 sys.exit(1)
         key_list = self.token.split(":")
-        # print(f"{key_list[0]} {key_list[1]}")
         auth = HTTPBasicAuth(
             f"{ key_list[0]}", f"{key_list[1]}")
         self.auth = auth
-        # print(self.auth)
         url = f"{self.server_url}/v3/clusters?name={self.cluster_name}"
         resp = requests.get(url, verify=False, auth=self.auth)
-        # print(resp)
         json_resp = resp.json()
         for item in json_resp['data']:
-            # print("I am here")
             self.cluster_id = item['id']
-        # print(json_resp)
 
     def etcd_rest(self):
         """This function is use to restore ETCD from
         its backup.
         """
         url = f"{self.server_url}v3/etcdbackups"
-        # print(url)
         query = {"clusterId": self.cluster_id}
         end_point = urllib.parse.urlencode(query)
         url = f"{self.server_url}v3/etcdbackups?{end_point}"
@@ -295,7 +269,7 @@ class ETCDrestore():
                     data_access_key[i['name']] = [i['backupConfig']['s3BackupConfig'][
                         'accessKey'], i['backupConfig']['s3BackupConfig']['bucketName']]
             if len(max_creation) == 0 or max_creation[1] < data_tuple[1]:
-              max_creation=data_tuple
+                max_creation = data_tuple
             data.append(data_tuple)
         print("Below are the backup and there details")
         # import pdb; pdb.set_trace()
@@ -311,26 +285,23 @@ class ETCDrestore():
         data_frame.set_index('Name', inplace=True)
         print(data_frame)
         try:
-            restore_id = input(f"Please provide the name of backup to restore: ({max_creation[0]})")
+            restore_id = input(
+                f"Please provide the name of backup to restore: ({max_creation[0]})")
         except EOFError:
-            restore_id=""
+            restore_id = ""
         if restore_id == "":
-            restore_id=max_creation[0]
-        # print(data_access_key)
+            restore_id = max_creation[0]
         s3config = {}
         # get backup info
         query = {"name": restore_id}
-        # print(query)
         end_point = urllib.parse.urlencode(query)
         bk_url_ext = f"{self.cluster_id}/etcdbackups?{end_point}"
         bk_url = f"{self.server_url}v3/clusters/{bk_url_ext}"
-        # print(bk_url)
         bk_resp = requests.get(bk_url, verify=False, auth=self.auth)
         if not (bk_resp.status_code == 200 or bk_resp.status_code == 201):
             print("Error in getting selected backup information")
             sys.exit()
         bk_json = bk_resp.json()
-        # import pdb; pdb.set_trace()
         if bk_json["data"][0]["backupConfig"]["s3BackupConfig"]:
             s3storage = 1
             s3config = {}
@@ -340,7 +311,6 @@ class ETCDrestore():
                 s3config[item] = bk_json["data"][0]["backupConfig"]["s3BackupConfig"].get(item, {
                 })
 
-        # print(s3config)
         if restore_id in data_access_key:
             print("\nChecking if cluster target storage is same as provided...")
             url_cluster = f"{self.server_url}v3/clusters/{self.cluster_id}"
@@ -348,9 +318,6 @@ class ETCDrestore():
                 url_cluster, verify=False, auth=self.auth)
             resp_json = resp_check.json()
             changed = 1
-            # print(resp_json)
-            # print("s3config = ".format(s3config[accessKey]))
-            # sys.exit()
             rke_name = 'rancherKubernetesEngineConfig'
             if resp_json['rancherKubernetesEngineConfig']['services']['etcd']['backupConfig']['s3BackupConfig']:
                 for item in 'accessKey', 'bucketName', 'endpoint':
@@ -415,7 +382,6 @@ class ETCDrestore():
             bucket = get_bucket(s3, s3config['bucketName'])
             if bucket:
                 file_exists = isfile_s3(bucket, filename)
-                # print("file_exists code {0}".format(file_exists))
                 if file_exists:
                     print("Backup exists")
                 else:
@@ -504,8 +470,7 @@ def get_cluster_name():
     cluster_name = cluster_config[1]['context']['cluster']
     if cluster_name == "":
         return None
-    else:
-        return cluster_name
+    return cluster_name
 
 
 def get_target_secret_credentials(api_instance, secret_name, secret_namespace, logging):
@@ -547,7 +512,6 @@ def parse_target(
     Function to parse target created using TVK
     and get target information.
     """
-    #import pdb; pdb.set_trace()
     TARGET_CRD_GROUP = 'triliovault.trilio.io'  # str | the custom resource's group
     TARGET_CRD_PLURAL = 'targets'  # str | the custom resource's plural name.
     TARGET_CRD_VERSION = 'v1'  # str | the custom resource's version
@@ -558,7 +522,13 @@ def parse_target(
         TARGET_CRD_PLURAL,
         target_name)
     if 'url' in response["spec"]["objectStoreCredentials"]:
-        s3_endpoint_url = response["spec"]["objectStoreCredentials"]["url"]
+        s3_endpoint_url = response["spec"]["objectStoreCredentials"].get(
+            "url", "")
+    elif response["spec"]["vendor"] == "AWS":
+        s3_endpoint_url = "https://s3.amazonaws.com"
+    else:
+        print("Please specify url/s3endpoint in target manifest")
+        sys.exit(1)
     if 'credentialSecret' in response["spec"]["objectStoreCredentials"]:
         secret_name = response["spec"]["objectStoreCredentials"]["credentialSecret"]["name"]
         secret_namespace = response["spec"]["objectStoreCredentials"]["credentialSecret"]["namespace"]
@@ -569,6 +539,9 @@ def parse_target(
         access_key_id = response["spec"]["objectStoreCredentials"]["accessKey"]
         access_key = response["spec"]["objectStoreCredentials"]["secretKey"]
 
+    if response["spec"]["objectStoreCredentials"].get("region", "") == "":
+        region = "us-east-1"
+
     obj_dict = {
         'id': response["metadata"]["uid"],
         'storageType': response["spec"]["type"],
@@ -577,12 +550,13 @@ def parse_target(
         'accessKeyID': access_key_id,
         'accessKey': access_key,
         's3Bucket': response["spec"]["objectStoreCredentials"]["bucketName"],
-        'regionName': response["spec"]["objectStoreCredentials"]["region"],
+        'regionName': response["spec"]["objectStoreCredentials"].get("region"),
         'storageNFSSupport': "TrilioVault",
         's3EndpointUrl': s3_endpoint_url,
         'vendor': response["spec"]["vendor"]
     }
     return obj_dict
+
 
 def generate_kubeconfig(server_url, token, path, cluster_name):
     key_list = token.split(":")
@@ -602,15 +576,13 @@ def generate_kubeconfig(server_url, token, path, cluster_name):
         print(e)
         print("Error in Getting kubeconfig")
         sys.exit()
-      
 
-    url=f"{server_url}v3/clusters/"\
-            f"{cluster_id}?action=generateKubeconfig"
+    url = f"{server_url}v3/clusters/"\
+        f"{cluster_id}?action=generateKubeconfig"
     resp = requests.post(url, verify=False, auth=auth)
-    #uni_resp=resp.content.decode('unicode_escape')
-    out_resp=json.loads(resp.content)
+    out_resp = json.loads(resp.content)
     try:
-        yaml_resp=yaml.safe_load(out_resp["config"])
+        yaml_resp = yaml.safe_load(out_resp["config"])
     except KeyError:
         print("Not able to connect to cluster")
         sys.exit()
@@ -620,7 +592,6 @@ def generate_kubeconfig(server_url, token, path, cluster_name):
         sys.exit()
     with open(path, "w") as outfile:
         yaml.dump(yaml_resp, outfile)
-
 
 
 def init():
@@ -671,7 +642,6 @@ def init():
         sys.exit(1)
 
 
-
 def main():
 
     args = init()
@@ -698,14 +668,14 @@ def main():
 
     # supress insecure connection error
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-   
-    #Check if server url ends with '\'
-    if not args.rancher_url.endswith('/'):
-        args.rancher_url = rancher_url + '/'
 
-    #Generate kubeconfig from the rancher server
-    generate_kubeconfig(args.rancher_url, args.bearer_token, 
-            '/tmp/etcd_bk_rest_kubeconfig', args.cluster_name)
+    # Check if server url ends with '\'
+    if not args.rancher_url.endswith('/'):
+        args.rancher_url = args.rancher_url + '/'
+
+    # Generate kubeconfig from the rancher server
+    generate_kubeconfig(args.rancher_url, args.bearer_token,
+                        '/tmp/etcd_bk_rest_kubeconfig', args.cluster_name)
 
     # Create kubernetes client object
     config.load_kube_config('/tmp/etcd_bk_rest_kubeconfig')

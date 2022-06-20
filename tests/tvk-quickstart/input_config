@@ -142,3 +142,6 @@ restore_name='trilio-test-operator'
 
 #Specify namespace in which restore should be performed
 restore_namespace='tvk-restore'
+
+#Whether TVK should be uninstalled [True, False]
+UNINSTALL=False
