@@ -20,10 +20,10 @@ storage_class=
 TVK_INSTALL=True
 
 #Specify TVK operator version
-operator_version='2.7.2'
+operator_version='2.9.3'
 
 #Specify TVK Manager version
-triliovault_manager_version='2.7.2'
+triliovault_manager_version='2.9.3'
 
 #Specify namespace name in which TVK should get installed.
 tvk_ns='tvk'
@@ -118,6 +118,9 @@ thresholdCapacity='1000Gi'
 
 #Whether or not sample test should be executed [True, False]
 SAMPLE_TEST=True
+
+#If valid csidriver is not present whether to install longhorn CSI driver
+csi_loghorn='Y'
 
 #Specify backup plan name
 bk_plan_name='trilio-test-operator'

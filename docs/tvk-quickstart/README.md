@@ -1,6 +1,6 @@
 # TrilioVault for Kubernetes tvk-quickstart plugin
 
-**tvk-quickstart** is a kubectl plugin which installs TrilioVault for Kuberentes (TVK), configures UI, creates target and run some sample backup/reson TrilioVault for Kuberentes (TVK).
+**tvk-quickstart** is a kubectl plugin which installs TrilioVault for Kuberentes (TVK), configures UI, creates target and run some sample backup/res on TrilioVault for Kuberentes (TVK) and provides option to uninstall it.
 It installs the TVK Operator, the TVM Application, configures the TVK Management Console, creates NFS/s3 target and executes sample backup and restore operations.
 This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 
@@ -30,7 +30,8 @@ OS:
 	Creates and validate the target where backups are stored. Users can create S3 (DigitalOCean Spaces / AWS S3) or NFS based target.  
 - Run Sample Tests of Backup and Restore:
         Run sample tests for ['Label_based','Namespace_based','Operator_based','Helm_based'] applications. By default, 'Label_based' backup tests are run against a MySQL Database application, 'Namespace_based' tests against a Wordpress application, 'Operator_based' tests against MySQL Database operator application,'Helm_based' tests against a Mongo Database helm based application.
-
+- TVK uninstall:
+	Uninstalls TVK and its associated resources.
 
 ## Installation, Upgrade, Removal of Plugins :
 
@@ -104,15 +105,21 @@ Flags:
 
 | Parameter                     | Description   
 | :---------------------------- |:-------------:
-| -n, --noninteractive          | Run script in non-interactive mode.for this you need to provide config file
-| -i, --install_tvk             | Installs TVK and it's free trial license.
-| -c, --configure_ui            | Configures TVK UI.
-| -t, --target                  | Create Target for backup and restore jobs
-| -s, --sample_test		| Create sample backup and restore jobs
-| --preflight		        | Checks if all the pre-requisites are satisfied
+| -h, --help			| Shows brief help
+| -n, --noninteractive          | Runs script in non-interactive mode.for this you need to provide config file
+| -i, --install-tvk             | Installs TVK and it's free trial license.
+| -c, --configure-ui            | Configures TVK UI.
+| -t, --target                  | Creates Target for backup and restore jobs
+| -s, --sample-test		| Creates sample backup and restore jobs
+| -p, --preflight		| Checks if all the pre-requisites are satisfied
+| -v, --verbose			| Runs the plugin in verbose mode
+| -u, --uninstall-tvk		| Uninstalls TVK and related resources
+
 
 ```shell script
 kubectl tvk-quickstart -i -c -t -s
+kubectl tvk-quickstart -n /tmp/input_config
+kubectl tvk-quickstart -u
 ```
 
 **2. Non-interactive**:
@@ -197,6 +204,8 @@ kubectl tvk-quickstart -n
 	Specify if any other NFS option needs to be set. Additional values for the nfsOptions field can be found @[here](https://docs.trilio.io/kubernetes/architecture/apis-and-command-line-reference/custom-resource-definitions-application-1#triliovault.trilio.io/v1.NFSCredentials)
 - **thresholdCapacity**:
 	Capacity at which the IO operations are performed on the target.Units supported - [Mi,Gi,Ti]
+- **csi_loghorn**:
+        If valid csidriver is not present on cluster, it confirms to install longhorn CSI driver - [Y,N]
 - **bk_plan_name**:
 	Specify the name for backup plan creation for the sample application. Default value is 'trilio-test-backup'.
 - **bk_plan_namespace**:
