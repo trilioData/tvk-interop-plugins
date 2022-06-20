@@ -215,11 +215,12 @@ kubectl tvk-quickstart -n
 - **backup_namespace**:
 	Specify the namespace in which backup should get created. Default value is 'trilio-test-backup'.
 - **backup_way**:
-	Specify the way in which backup should be taken.Supported values  ['Label_based','Namespace_based','Operator_based','Helm_based'].
+	Specify the way in which backup should be taken.Supported values  ['Label_based','Namespace_based','Operator_based','Helm_based', 'Transformation'].
 	For Label_based, MySQL application would be installed and sample backup/restore will be showcased.
 	For Namespace_based, Wordpress application would be installed and sample backup/restore will be showcased.
 	For Operator_based, MySQL operator  would be installed and sample backup/restore will be showcased.
 	For Helm_based, Mongodb  application would be installed and sample backup/restore will be showcased.
+        For Transformation, PostgreSQL application would get installed, backup would be taken and during restore, it will showcase how the transformation works.
 - **restore**:
 	Specify whether or not restore should be executed. Allowed values are one from the  [True, False] list.
 - **restore_name**:
