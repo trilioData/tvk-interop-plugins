@@ -6,7 +6,7 @@ This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 
 ## Pre-requisites:
 
-1. All the prerequisites that are required for TVK installation.[refer](https://docs.trilio.io/kubernetes/getting-started-3/getting-started/install-and-configure)
+1. All the prerequisites that are required for TVK installation.[refer](https://docs.trilio.io/kubernetes/getting-started-3/getting-started#prerequisites-for-tvk)
 2. S3cmd. Install from [here](https://s3tools.org/s3cmd)
 3. yq(version >= 4). Information can be found @[here](https://github.com/mikefarah/yq) 
 4. oc, if running for OCP cluster - Install from here [here](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/)
