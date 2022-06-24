@@ -2,6 +2,7 @@
 Program to take ETCD backup and perform restore on OCP cluster
 """
 import os
+import errno
 import random
 import base64
 import string
@@ -259,6 +260,8 @@ spec:
                         '/bin/sh',
                         '-c',
                         f'ETCDCTL_ENDPOINTS=https://{val}:2379 etcdctl put /{key1} {val1}']
+                err_str = "Error in adding target info in ETCD"
+
                 try:
                     stream(
                         self.api_instance.connect_get_namespaced_pod_exec,
@@ -680,20 +683,6 @@ class ETCDOcpRestore:
 
         with open('public.pem', 'r') as file:
             mykey = file.read()
-        merge_patch = f"""
-spec:
-  config:
-    passwd:
-      users:
-      - name: core
-        sshAuthorizedKeys:
-        - |
-          {mykey}"""
-
-        patchfile = open("merge_patch.yaml", "w")
-        patchfile.write(merge_patch)
-        patchfile.close()
-
         try:
             cmd = "kubectl get mc 99-master-ssh"
             proc = subprocess.Popen(cmd, stderr=None, stdout=DEVNULL,
@@ -753,8 +742,10 @@ spec:
         old_ver = resp['metadata']['generation']
 
         obj = subprocess.Popen(
-            'kubectl patch mc 99-master-ssh --type merge '
-            '--patch "$(cat merge_patch.yaml)"',
+            'kubectl patch machineconfig 99-master-ssh --type=json '
+            '--patch="[{\\\"op\\\":\\\"add\\\", '
+            '\\\"path\\\":\\\"/spec/config/passwd/users/0/sshAuthorizedKeys/-\\\", '
+            '\\\"value\\\":\\\"$(cat public.pem)\\\"}]"',
             shell=True,
             stdout=subprocess.PIPE)
         subprocess_return = obj.stdout.read()
@@ -1107,8 +1098,10 @@ spec:
             print(spin[idx % len(spin)], end="\r")
             idx += 1
             time.sleep(0.1)
-        time.sleep(5)
+        time.sleep(10)
         exec_command = ['/bin/sh', '-c', ls_cmd]
+        err_str = f"Error in executing {ls_cmd} on pod {pod_name}"
+
         try:
             resp = stream(
                 self.api_instance.connect_get_namespaced_pod_exec,
@@ -1132,7 +1125,10 @@ spec:
         err = "No such file or directory"
         if rest_list[0].find(err) != -1:
             self.logger.error(
-                "Error in mounting target, please check pod logs in 'ocp-restore-etcd' namespace")
+                "Error in getting backups, please check if backup "
+                "was created or retry after few minutes. "
+                "if issue still persist please check logs in "
+                "'ocp-restore-etcd' namespace and retry after few minutes")
             sys.exit(1)
         rest_list.sort(reverse=True)
         base_directory = rest_list[0].rsplit("/", 1)[0]
@@ -1153,22 +1149,43 @@ spec:
 
         # check if backup files are present in selected directory
         #import pdb; pdb.set_trace()
-        if secret_path != "":
-            resp = check_objects(self, default_bk, 'ca-bundle.pem')
+        file_cnt = f"ls {base_directory}/{selected} | wc -l"
+        exec_command = ['/bin/sh', '-c', file_cnt]
+        err_str = f"Error in executing {file_cnt} on pod {pod_name}"
 
-        else:
-            resp = check_objects(self, default_bk)
-
-        if resp == 1:
-            self.logger.error("No backup files are present in selected "
-                              "directory, please check the backup once..")
+        try:
+            resp = stream(
+                self.api_instance.connect_get_namespaced_pod_exec,
+                pod_name,
+                restore_ns,
+                command=exec_command,
+                stderr=True,
+                stdin=False,
+                stdout=True,
+                tty=False)
+        except ApiException as exception:
+            self.logger.error(
+                f"Error in executing {file_cnt} on pod {pod_name}")
+        except BaseException as exception:
+            self.logger.error(
+                f"Error in executing {file_cnt} on pod {pod_name}")
+            self.logger.error(exception)
             sys.exit(1)
+
+        if int(resp) < 2:
+            self.logger.error(
+                "Number of Backup files in selected directory are "
+                "not as expected, please check if backup was successfull")
+            sys.exit(1)
+
         # copy selected folder in the host
 
         cpy_cmd = f"cp -r {base_directory}/{selected} /tmp/"
 
         print(cpy_cmd)
         exec_command = ['/bin/sh', '-c', cpy_cmd]
+        err_str = f"Error in executing {cpy_cmd} on pod {pod_name}"
+
         try:
             resp = stream(
                 api_instance.connect_get_namespaced_pod_exec,
@@ -1187,6 +1204,7 @@ spec:
                 f"Error in executing {cpy_cmd} on pod {pod_name}")
             self.logger.error(exception)
             sys.exit(1)
+
         selected_loc = "/etc/kubernetes/static-pod-resources/"\
             f"etcd-member/{selected}"
         return selected_loc
@@ -1398,6 +1416,7 @@ wait_for_containers_to_start "${STATIC_POD_CONTAINERS[@]}"
                 '/bin/sh',
                 '-c',
                 f'ETCDCTL_ENDPOINTS=https://{self.nodes_dict[etcd_node_name]}:2379 etcdctl get /{i}']
+
             try:
                 resp = stream(
                     self.api_instance.connect_get_namespaced_pod_exec,
@@ -2016,43 +2035,6 @@ def login_cluster(server, user, password, logger):
     return 0
 
 
-def check_objects(obj, filename, cert_fl=""):
-    """
-    function to check if backup files are present in provided filename
-    """
-    # checking if backup files are available in target
-    session = boto3.session.Session()
-    if cert_fl != "":
-        stor_obj = session.resource(service_name='s3',
-                                    aws_access_key_id=obj.s3_info['accessKeyID'],
-                                    aws_secret_access_key=obj.s3_info['accessKey'],
-                                    endpoint_url=obj.s3_info['s3EndpointUrl'],
-                                    verify=cert_fl)
-    else:
-        stor_obj = session.resource(service_name='s3',
-                                    aws_access_key_id=obj.s3_info['accessKeyID'],
-                                    aws_secret_access_key=obj.s3_info['accessKey'],
-                                    endpoint_url=obj.s3_info['s3EndpointUrl'])
-    if stor_obj:
-        bucket = stor_obj.Bucket(obj.s3_info['s3Bucket'])
-        if bucket:
-            objs = list(bucket.objects.filter(Prefix=f"{filename}/"))
-            if len(objs) >= 2:
-                obj.logger.info("Backup fils are present in target")
-            else:
-                obj.logger.error("No backup files found, please check if "
-                                 "files are present and retry..")
-                return 1
-        else:
-            obj.logger.error("No bucket is present in specified "
-                             "target..exiting..")
-            return 1
-    else:
-        obj.logger.error(
-            "Error in getting s3 object, please check credentials..")
-        return 1
-
-
 def get_dict_object(
         api_instance,
         custom_api,
@@ -2079,7 +2061,14 @@ def get_dict_object(
         logger.error("Exception in getting Target {target_name} info")
         logger.error(exception)
     if 'url' in response["spec"]["objectStoreCredentials"]:
-        s3_endpoint_url = response["spec"]["objectStoreCredentials"]["url"]
+        endpoint_url = response["spec"]["objectStoreCredentials"]["url"]
+    elif response["spec"]["vendor"] == 'AWS':
+        endpoint_url = "https://s3.amazonaws.com"
+    else:
+        logger.error("Please provide url in objectStoreCredentials"
+                     "in target manifest")
+        sys.exit(1)
+
     if 'credentialSecret' in response["spec"]["objectStoreCredentials"]:
         secret_name = response["spec"]["objectStoreCredentials"][
             "credentialSecret"]["name"]
@@ -2093,13 +2082,6 @@ def get_dict_object(
         access_key = response["spec"]["objectStoreCredentials"]["secretKey"]
         certs = response["spec"]["objectStoreCredentials"].get('ca-bundle.pem')
 
-    if response["spec"]["objectStoreCredentials"].get(
-            "s3_endpoint_url") is None:
-        url = "https://s3.amazonaws.com"
-    else:
-        url = response["spec"]["objectStoreCredentials"].get(
-            "s3_endpoint_url")
-
     obj_dict = {
         'id': response["metadata"]["uid"],
         'storageType': response["spec"]["type"],
@@ -2110,12 +2092,20 @@ def get_dict_object(
         's3Bucket': response["spec"]["objectStoreCredentials"]["bucketName"],
         'regionName': response["spec"]["objectStoreCredentials"].get("region"),
         'storageNFSSupport': "TrilioVault",
-        's3EndpointUrl': url,
+        's3EndpointUrl': endpoint_url,
         'vendor': response["spec"]["vendor"],
         'certs': certs,
         'secret_name': secret_name
     }
     return obj_dict
+
+
+def delete_file(filename):
+    try:
+        os.remove(filename)
+    except OSError as exception:
+        if exception.errno != errno.ENOENT:  # check no such file or directory
+            raise  # re-raise exception if a different error occurred
 
 
 def init():
@@ -2209,72 +2199,87 @@ if __name__ == '__main__':
     logger.addHandler(consoleHandler)
 
     if args.backup is True:
-        if not args.target_name or not args.target_namespace \
-                or not args.api_server_url or not args.ocp_cluster_user \
-                or not args.ocp_cluster_pass:
-            print("For backup, user would need to provide "
-                  " logging credentials and target_name and its namespace")
-            sys.exit()
-        etcd_bk = ETCDOcpBackup(
-            api_instance,
-            api_batch,
-            custom_api,
-            logger,
-            args.api_server_url,
-            args.ocp_cluster_user,
-            args.ocp_cluster_pass)
-        print("storing target info..")
-        certs, secret = etcd_bk.store_target_data_to_etcd(
-            args.target_name, args.target_namespace)
-        etcd_bk.create_backup_job()
-        etcd_bk.create_backup_mover(
-            args.target_name,
-            args.target_namespace,
-            certs,
-            secret)
-        #etcd_bk.delete_jobs(mover="true", backup="true")
-    elif args.restore is True:
-        etcd_bk = ETCDOcpRestore(
-            api_instance,
-            api_batch,
-            logger,
-            args.api_server_url,
-            args.ocp_cluster_user,
-            args.ocp_cluster_pass)
-        if not args.api_server_url or not args.ocp_cluster_user \
-                or not args.ocp_cluster_pass:
-            print("Please provide server, user and password to login cluster")
-            sys.exit()
-        if args.p is False:
-            target_name, secret_name, cert = etcd_bk.create_triliosecret()
-            etcd_bk.create_ssh_connectivity_between_nodes()
-            restore_path = etcd_bk.create_metamover_and_display_available_restore(
-                target_name, secret_name, "trilio-secret", cert)
-            nodes = etcd_bk.stop_static_pods()
-
-            etcd_bk.create_restore_job(
-                restore_path,
-                args.api_server_url,
-                args.ocp_cluster_user,
-                args.ocp_cluster_pass)
-            etcd_bk.post_restore_task(
-                args.api_server_url,
-                args.ocp_cluster_user,
-                args.ocp_cluster_pass)
-        else:
-            nodes = etcd_bk.get_nodes()
-            etcd_bk.post_restore_task(
-                args.api_server_url,
-                args.ocp_cluster_user,
-                args.ocp_cluster_pass)
         try:
-            os.remove('trilio-secret')
-            os.remove('ca-bundle.pem')
-            os.remove('merge_patch.yaml')
-            os.remove('public.pem')
-            os.remove('metamover_pod.yaml')
-            os.remove('private.pem')
-        except OSError:
-            pass
+            if not args.target_name or not args.target_namespace \
+                    or not args.api_server_url or not args.ocp_cluster_user \
+                    or not args.ocp_cluster_pass:
+                print("For backup, user would need to provide "
+                      " logging credentials and target_name and its namespace")
+                sys.exit()
+            etcd_bk = ETCDOcpBackup(
+                api_instance,
+                api_batch,
+                custom_api,
+                logger,
+                args.api_server_url,
+                args.ocp_cluster_user,
+                args.ocp_cluster_pass)
+            print("storing target info..")
+            certs, secret = etcd_bk.store_target_data_to_etcd(
+                args.target_name, args.target_namespace)
+            etcd_bk.create_backup_job()
+            etcd_bk.create_backup_mover(
+                args.target_name,
+                args.target_namespace,
+                certs,
+                secret)
+            #etcd_bk.delete_jobs(mover="true", backup="true")
+        except BaseException as exception:
+            print(exception)
+        finally:
+            delete_file('etcd-backup_job.yaml')
+            delete_file('metamover_pod.yaml')
+    elif args.restore is True:
+        try:
+            print('Warning: Restoring to a previous cluster state is a '
+                  'destructive and destablizing action to take '
+                  'on a running cluster. This procedure should '
+                  'only be used as a last resort.')
+            rest_confirm = input(
+                f"Do you want to continue? (y/n): ")
+            if rest_confirm != 'Y' and rest_confirm != 'y':
+                #print("Input Y/y to confirm and continue")
+                sys.exit(1)
+            etcd_bk = ETCDOcpRestore(
+                api_instance,
+                api_batch,
+                logger,
+                args.api_server_url,
+                args.ocp_cluster_user,
+                args.ocp_cluster_pass)
+            if not args.api_server_url or not args.ocp_cluster_user \
+                    or not args.ocp_cluster_pass:
+                print("Please provide server, user and password to login cluster")
+                sys.exit()
+            if args.p is False:
+                target_name, secret_name, cert = etcd_bk.create_triliosecret()
+                etcd_bk.create_ssh_connectivity_between_nodes()
+                restore_path = etcd_bk.create_metamover_and_display_available_restore(
+                    target_name, secret_name, "trilio-secret", cert)
+                nodes = etcd_bk.stop_static_pods()
+
+                etcd_bk.create_restore_job(
+                    restore_path,
+                    args.api_server_url,
+                    args.ocp_cluster_user,
+                    args.ocp_cluster_pass)
+                etcd_bk.post_restore_task(
+                    args.api_server_url,
+                    args.ocp_cluster_user,
+                    args.ocp_cluster_pass)
+            else:
+                nodes = etcd_bk.get_nodes()
+                etcd_bk.post_restore_task(
+                    args.api_server_url,
+                    args.ocp_cluster_user,
+                    args.ocp_cluster_pass)
+        except BaseException as exception:
+            print(exception)
+        finally:
+            delete_file('public.pem')
+            delete_file('private.pem')
+            delete_file('trilio-secret')
+            delete_file('metamover_pod.yaml')
+            delete_file('ca-bundle.pem')
     else:
         print("Please select at least one flag from backup and restore")

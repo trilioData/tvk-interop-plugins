@@ -2087,7 +2087,15 @@ check_csi() {
   fi
   if [[ -z $csi ]] || [[ $flag -eq 1 ]]; then
     echo "For tvk imstallation and running sample programs valid CSI driver is needed"
-    echo "Note: longhorn CSI Driver may not work as expected on OCP cluster"
+    #Check if cluster is OCP
+    kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+    ret_val=$?
+    if [ "$ret_code" -eq 0 ]; then
+      echo "Longhorn installation using this plugin on OCP is not supported.."
+      echo "Please install valid CSI driver and try again"
+      exit 1
+    fi
+    #echo "Note: longhorn CSI Driver may not work as expected on OCP cluster"
     if [[ -z "${input_config}" ]]; then
       read -r -p "Do you want to install longhorn CSI driver(y): " csi_loghorn
     fi

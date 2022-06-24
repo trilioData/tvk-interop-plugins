@@ -704,6 +704,14 @@ def main():
             args.cluster_name)
         etcd_obj.etcd_bk()
     elif args.restore is True:
+        print('Warning: Restoring to a previous cluster state can be '\
+                        'destructive and destablizing action to take '\
+                        'on a running cluster.')
+        rest_confirm = input(
+                f"Do you want to continue? (y/n): ")
+        if rest_confirm != 'Y' and rest_confirm != 'y':
+            #print("Input Y/y to confirm and continue")
+            sys.exit(1)
         etcd_obj = ETCDrestore(
             logger,
             api_instance,
