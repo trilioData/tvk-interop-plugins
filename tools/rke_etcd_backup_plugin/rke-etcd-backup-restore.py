@@ -2,6 +2,7 @@ import logging
 import argparse
 import sys
 import os
+import errno
 import json
 import yaml
 import time
@@ -70,12 +71,22 @@ class ETCDbackup():
             "manual": True,
             "name": "",
             "namespaceId": ""}
-        s3config = {
-            "bucketName": target_obj['s3Bucket'],
-            "region": target_obj['regionName'],
-            "endpoint": target_obj['s3EndpointUrl'].split("//")[1],
-            "accessKey": target_obj['accessKeyID'],
-            "secretKey": target_obj['accessKey']}
+        if target_obj['certs'] == "":
+            s3config = {
+                "bucketName": target_obj['s3Bucket'],
+                "region": target_obj['regionName'],
+                "endpoint": target_obj['s3EndpointUrl'].split("//")[1],
+                "accessKey": target_obj['accessKeyID'],
+                "secretKey": target_obj['accessKey'],
+                "customCa": ""}
+        else:
+            s3config = {
+                "bucketName": target_obj['s3Bucket'],
+                "region": target_obj['regionName'],
+                "endpoint": target_obj['s3EndpointUrl'].split("//")[1],
+                "accessKey": target_obj['accessKeyID'],
+                "secretKey": target_obj['accessKey'],
+                "customCa": target_obj['certs']}
         print("Checking if cluster target storage is same as provided...")
         url_cluster = f"{self.server_url}v3/clusters/{self.cluster_id}"
         resp_check = requests.get(url_cluster, verify=False, auth=self.auth)
@@ -307,9 +318,9 @@ class ETCDrestore():
             s3config = {}
             bk_name = bk_json["data"][0]["filename"]
             filename = os.path.basename(bk_name)
-            for item in 'accessKey', 'bucketName', 'endpoint':
-                s3config[item] = bk_json["data"][0]["backupConfig"]["s3BackupConfig"].get(item, {
-                })
+            for item in 'accessKey', 'bucketName', 'endpoint', 'customCa':
+                s3config[item] = bk_json["data"][0]["backupConfig"]["s3BackupConfig"].get(item,
+                                                                                          "")
 
         if restore_id in data_access_key:
             print("\nChecking if cluster target storage is same as provided...")
@@ -319,10 +330,12 @@ class ETCDrestore():
             resp_json = resp_check.json()
             changed = 1
             rke_name = 'rancherKubernetesEngineConfig'
+            #import pdb; pdb.set_trace()
             if resp_json['rancherKubernetesEngineConfig']['services']['etcd']['backupConfig']['s3BackupConfig']:
-                for item in 'accessKey', 'bucketName', 'endpoint':
-                    if s3config[item] != resp_json[rke_name]['services']['etcd']['backupConfig']['s3BackupConfig'].get(item, {
-                    }):
+                for item in 'accessKey', 'bucketName', 'endpoint', 'customCa':
+                    if s3config.get(item, "") != resp_json[rke_name].get('services', {}).get('etcd', {}).get(
+                        'backupConfig', {}).get(
+                            's3BackupConfig', {}).get(item, {}):
                         changed = 1
                         break
                     else:
@@ -338,9 +351,9 @@ class ETCDrestore():
             else:
                 secret_key = input(
                     f"Please provide secret key for the below s3 target "
-                    "details: \naccessKey: {s3config['accessKey']} "
-                    "\n bucketName: {s3config['bucketName']}\n "
-                    "endpoint: {s3config['endpoint']}\n - ")
+                    f"details: \naccessKey: {s3config['accessKey']} "
+                    f"\n bucketName: {s3config['bucketName']}\n "
+                    f"endpoint: {s3config['endpoint']}\n - ")
                 s3config['secretKey'] = secret_key
                 s3config_bk = resp_json['rancherKubernetesEngineConfig']['services']['etcd']['backupConfig']['s3BackupConfig']
                 print("Updating cluster to set new s3 etcd target..")
@@ -377,6 +390,7 @@ class ETCDrestore():
 
         # Check if selected backup is available
         print("Checking if backup is available in target")
+        # print(s3config)
         s3 = get_resource(s3config)
         if s3:
             bucket = get_bucket(s3, s3config['bucketName'])
@@ -392,6 +406,12 @@ class ETCDrestore():
         else:
             print("Error in getting object")
 
+        # Delete created files
+        try:
+            os.remove("ca-bundle.pem")
+        except OSError as exception:
+            if exception.errno != errno.ENOENT:  # check no such file or directory
+                raise
         # Finally restoring
         print("restore is in progress")
         url = f'{self.server_url}v3/clusters/{self.cluster_id}?action=restoreFromEtcdBackup'
@@ -438,11 +458,23 @@ def get_resource(config: dict = {}):
     Looks in the environment first."""
 
     session = boto3.session.Session()
-    s3 = session.resource(service_name='s3',
-                          aws_access_key_id=config['accessKey'],
-                          aws_secret_access_key=config['secretKey'],
-                          endpoint_url="https://{0}".format(config['endpoint']))
-    return s3
+    if config['customCa'] != "":
+        cert_fd_nm = "ca-bundle.pem"
+        certs_fd = open(cert_fd_nm, "w")
+        certs_fd.write(config['customCa'])
+        certs_fd.close()
+        stor_obj = session.resource(service_name='s3',
+                                    aws_access_key_id=config['accessKey'],
+                                    aws_secret_access_key=config['secretKey'],
+                                    endpoint_url="https://{0}".format(
+                                        config['endpoint']),
+                                    verify='ca-bundle.pem')
+    else:
+        stor_obj = session.resource(service_name='s3',
+                                    aws_access_key_id=config['accessKey'],
+                                    aws_secret_access_key=config['secretKey'],
+                                    endpoint_url="https://{0}".format(config['endpoint']))
+    return stor_obj
 
 
 def get_bucket(s3, s3_uri: str):
@@ -488,6 +520,9 @@ def get_target_secret_credentials(api_instance, secret_name, secret_namespace, l
                 secret.data['accessKey']).decode('utf-8')
             secret_key = base64.b64decode(
                 secret.data['secretKey']).decode('utf-8')
+            certs_en = secret.data.get('ca-bundle.pem')
+            if certs_en is not None:
+                certs_en = base64.b64decode(certs_en).decode('utf-8')
             if access_key == "":
                 logging.info(
                     'Unable to get access key for ObjectStore from secret')
@@ -499,7 +534,9 @@ def get_target_secret_credentials(api_instance, secret_name, secret_namespace, l
     except BaseException as exception:
         logging.error(exception)
     finally:
-        return access_key.strip(), secret_key.strip()
+        if certs_en is not None:
+            return access_key.strip(), secret_key.strip(), certs_en.strip()
+        return access_key.strip(), secret_key.strip(), ""
 
 
 def parse_target(
@@ -529,15 +566,18 @@ def parse_target(
     else:
         print("Please specify url/s3endpoint in target manifest")
         sys.exit(1)
+    #import pdb; pdb.set_trace()
+    certs = ""
     if 'credentialSecret' in response["spec"]["objectStoreCredentials"]:
         secret_name = response["spec"]["objectStoreCredentials"]["credentialSecret"]["name"]
         secret_namespace = response["spec"]["objectStoreCredentials"]["credentialSecret"]["namespace"]
-        access_key_id, access_key = get_target_secret_credentials(
+        access_key_id, access_key, certs = get_target_secret_credentials(
             api_instance, secret_name, secret_namespace, logger)
 
     else:
         access_key_id = response["spec"]["objectStoreCredentials"]["accessKey"]
         access_key = response["spec"]["objectStoreCredentials"]["secretKey"]
+        certs = response["spec"]["objectStoreCredentials"].get('ca-bundle.pem')
 
     if response["spec"]["objectStoreCredentials"].get("region", "") == "":
         region = "us-east-1"
@@ -553,7 +593,8 @@ def parse_target(
         'regionName': response["spec"]["objectStoreCredentials"].get("region"),
         'storageNFSSupport': "TrilioVault",
         's3EndpointUrl': s3_endpoint_url,
-        'vendor': response["spec"]["vendor"]
+        'vendor': response["spec"]["vendor"],
+        'certs': certs
     }
     return obj_dict
 
@@ -704,11 +745,11 @@ def main():
             args.cluster_name)
         etcd_obj.etcd_bk()
     elif args.restore is True:
-        print('Warning: Restoring to a previous cluster state can be '\
-                        'destructive and destablizing action to take '\
-                        'on a running cluster.')
+        print('Warning: Restoring to a previous cluster state can be '
+              'destructive and destablizing action to take '
+              'on a running cluster.')
         rest_confirm = input(
-                f"Do you want to continue? (y/n): ")
+            f"Do you want to continue? (y/n): ")
         if rest_confirm != 'Y' and rest_confirm != 'y':
             #print("Input Y/y to confirm and continue")
             sys.exit(1)
