@@ -24,19 +24,23 @@ spec:
       to: .
 
   description: |
-    tvk-quickstart plugin is use to install, configure and test available sample application on a kubermetes cluster managed by cloud or upstream
-    > Check available flags for tvk-quickstart plugin with :-
-    kubectl tvk-quickstart --help
     --------------------------------------------------------------
-    tvk-quickstart - Installs, Configures UI, Creates target, Run sample backup/restore test
+    tvk-quickstart - Installs, Configures UI, Creates sample backup/restore tests
     Usage:
-    kubectl tvk-quickstart [options]
+    kubectl tvk-quickstart [options] [arguments]
     Options:
-        -h, --help                show brief help
-        -n, --noninteractive      run script in non-interactive mode
-        -i, --install_tvk         Installs TVK and it's free trial license.
-        -c, --configure_ui        Configures TVK UI
+        -h, --help                Shows brief help
+        -n, --noninteractive      Runs script in non-interactive mode.for this you need to provide config file
+        -i, --install-tvk         Installs TVK and its free trial license.
+        -c, --configure-ui        Configures TVK UI
         -t, --target              Created Target for backup and restore jobs
-        -s, --sample_test         Create sample backup and restore jobs
+        -s, --sample-test         Create sample backup and restore jobs
         -p, --preflight           Checks if all the pre-requisites are satisfied
-    -----------------------------------------------------------------------
+        -v, --verbose             Runs the plugin in verbose mode
+        -u, --uninstall-tvk       Uninstalls TVK and related resources.
+
+    Example:
+    kubectl tvk-quickstart -i -c -t -s
+    kubectl tvk-quickstart -n /tmp/input_config
+    kubectl tvk-quickstart -u
+    ----------------------------------------------------------------------
