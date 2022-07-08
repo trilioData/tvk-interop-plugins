@@ -262,10 +262,11 @@ install_tvk() {
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
-    old_operator_version=$(helm list -n "$get_ns" | grep k8s-triliovault-operator | awk '{print $9}' | rev | cut -d- -f1 | rev | sed 's/[a-z-]//g')
+    old_operator_version=$(helm list -n "$get_ns" | grep k8s-triliovault-operator | awk '{print $10}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
     # shellcheck disable=SC2001
     new_operator_version=$(echo $operator_version | sed 's/[a-z-]//g')
     vercomp "$old_operator_version" "$new_operator_version"
+    #vercomp "$old_operator_version" "$operator_version"
     ret_val=$?
     if [[ $ret_val != 2 ]]; then
       echo "Triliovault operator cannot be upgraded, please check version number"
@@ -314,7 +315,10 @@ install_tvk() {
     return 1
   fi
   echo "Triliovault operator is running"
-  #set value for tvm_name
+
+  #check if TVK versione is greater than or equals to 2.9.4
+  vercomp "$old_operator_version" "2.9.4"
+  ret_tvm=$?
   tvm_name="triliovault-manager"
   #check if TVK manager is installed
   ret_code=$(kubectl get tvm -A 2>/dev/null)
@@ -323,39 +327,48 @@ install_tvk() {
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
-    tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
-    tvk_ns="$get_ns"
-    #Check if TVM can be upgraded
-    old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
-    # shellcheck disable=SC2001
-    new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
-    vercomp "$old_tvm_version" "2.7.0"
-    ret_ingress=$?
-    if [[ $ret_ingress == 0 ]]; then
-      echo "Error in getting installed TVM, please check if TVM is installed correctly"
-      exit 1
-    fi
-    if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
-      ingressGateway="${ingressGateway_2_7_0}"
-      masterIngName="${masterIngName_2_7_0}"
-    fi
-    if [[ -z "$old_tvm_version" ]]; then
+    if [[ $ret_tvm == 2 ]]; then
+      tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
+      tvk_ns="$get_ns"
+      #Check if TVM can be upgraded
+      old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
       # shellcheck disable=SC2001
-      vercomp "$old_tvm_version" "$new_triliovault_manager_version"
-      ret_val=$?
-      if [[ $ret_val != 2 ]]; then
-        echo "TVM cannot be upgraded! Please check version"
-        if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-          exit 1
-        fi
-        install_license "$tvk_ns"
-        return
+      new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
+      vercomp "$old_tvm_version" "2.7.0"
+      ret_ingress=$?
+      if [[ $ret_ingress == 0 ]]; then
+        echo "Error in getting installed TVM, please check if TVM is installed correctly"
+        exit 1
       fi
+      if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+        ingressGateway="${ingressGateway_2_7_0}"
+        masterIngName="${masterIngName_2_7_0}"
+      fi
+      if [[ -z "$old_tvm_version" ]]; then
+        # shellcheck disable=SC2001
+        vercomp "$old_tvm_version" "$new_triliovault_manager_version"
+        ret_val=$?
+        if [[ $ret_val != 2 ]]; then
+          echo "TVM cannot be upgraded! Please check version"
+          if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+            exit 1
+          fi
+          install_license "$tvk_ns"
+          return
+        fi
+      fi
+      vercomp "$old_tvm_version" "$new_triliovault_manager_version"
+      ret_equal=$?
+      vercomp "2.6.5" "$new_triliovault_manager_version"
+      ret_val1=$?
+      upgrade_tvm=0
+    else
+      ret_val1=2
+      upgrade_tvo=0
+      ret_equal=0
+      ret_val=0
+      upgrade_tvm=1
     fi
-    vercomp "$old_tvm_version" "$new_triliovault_manager_version"
-    ret_equal=$?
-    vercomp "2.6.5" "$new_triliovault_manager_version"
-    ret_val1=$?
     if [[ $upgrade_tvo == 1 ]] && [[ $ret_val1 == 2 ]] && [[ $ret_equal != 1 ]]; then
       svc_type=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.spec.type}')
       if [[ $svc_type == LoadBalancer ]]; then
@@ -464,7 +477,7 @@ EOF
       ret_val1=$?
       kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
       ret_val=$?
-      if [[ $ret_val != 0 ]] || [[ $ret_val1 != 0 ]]; then
+      if [[ $ret_val != 0 ]] || [[ $ret_val1 != 0 ]] && [[ $upgrade_tvm == 0 ]]; then
         echo "TVM installation failed"
         exit 1
       else
@@ -1960,28 +1973,28 @@ create_target() {
       create_doks_s3
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        exit 1
+        return 1
       fi
       ;;
     2)
       create_aws_s3
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        exit 1
+        return 1
       fi
       ;;
     3)
       create_readymade_minio
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        exit 1
+        return 1
       fi
       ;;
     4)
       create_gcp_s3
       ret_code=$?
       if [ "$ret_code" -ne 0 ]; then
-        exit 1
+        return 1
       fi
       ;;
     *)
@@ -2087,6 +2100,7 @@ check_csi() {
   fi
   if [[ -z $csi ]] || [[ $flag -eq 1 ]]; then
     echo "For tvk imstallation and running sample programs valid CSI driver is needed"
+    exit 1
     #Check if cluster is OCP
     kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
     ret_val=$?
@@ -2851,6 +2865,12 @@ EOF
       echo "Creating restore..."
       #Applying restore manifest
       if [[ "$app" == "transformation-postgresql" ]]; then
+        kubectl get storageclass trans-storageclass 1>> >(logit) 2>> >(logit)
+        retcode=$?
+        if [ "$retcode" -ne 0 ]; then
+          echo "storageclass trans-storageclass already exists, please delete it and try again"
+          return 1
+        fi
         default_storage=$(kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
         kubectl get storageclass "$default_storage" -o yaml >storageclass_trans.yaml
         yq eval -i '.metadata.name="trans-storageclass"' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
@@ -2861,7 +2881,8 @@ EOF
           echo "Error while creating clone of default storageclass"
           return 1
         fi
-        #echo "Removing 'default' label from $default_storage storageclass"
+        #echo "Removing 'default' label from trans-storageclass storageclass"
+        kubectl patch storageclass trans-storageclass -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
         #kubectl patch storageclass $default_storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' 2>> >(logit)
         cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
