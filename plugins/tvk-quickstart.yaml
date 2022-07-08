@@ -17,7 +17,7 @@ spec:
         - darwin
         - linux
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.1.0/tvk-quickstart.tar.gz
-    sha256: 88f49552b496141199b03da1af6db63dfc901bb38d5f228e52a971c9a2ae77b3
+    sha256: 41d4d5e85e2634ea768c7be3c4d686a69f4f4c418223f0b88044ce91434caf5a
     bin: tvk-quickstart
     files:
     - from: tvk-quickstart/*
@@ -28,15 +28,21 @@ spec:
     > Check available flags for tvk-quickstart plugin with :-
     kubectl tvk-quickstart --help
     --------------------------------------------------------------
-    tvk-quickstart - Installs, Configures UI, Creates target, Run sample backup/restore test
+    tvk-quickstart - Installs, Configures UI, Creates sample backup/restore tests
     Usage:
-    kubectl tvk-quickstart [options]
+    kubectl tvk-quickstart [options] [arguments]
     Options:
-        -h, --help                show brief help
-        -n, --noninteractive      run script in non-interactive mode
-        -i, --install_tvk         Installs TVK and it's free trial license.
-        -c, --configure_ui        Configures TVK UI
+        -h, --help                Shows brief help
+        -n, --noninteractive      Runs script in non-interactive mode.for this you need to provide config file
+        -i, --install-tvk         Installs TVK and it's free trial license.
+        -c, --configure-ui        Configures TVK UI
         -t, --target              Created Target for backup and restore jobs
-        -s, --sample_test         Create sample backup and restore jobs
+        -s, --sample-test         Create sample backup and restore jobs
         -p, --preflight           Checks if all the pre-requisites are satisfied
+        -v, --verbose             Runs the plugin in verbose mode
+        -u, --uninstall-tvk       Uninstalls TVK and related resources.
     -----------------------------------------------------------------------
+    Example:
+    kubectl tvk-quickstart -i -c -t -s
+    kubectl tvk-quickstart -n /tmp/input_config
+    kubectl tvk-quickstart -u
