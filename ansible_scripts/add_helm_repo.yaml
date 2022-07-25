@@ -1,9 +1,0 @@
----
-- hosts: localhost
-  vars:
-     helm_chart_url: "http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator"
-  tasks:
-      - name: Add helm repo
-        kubernetes.core.helm_repository:
-    	    name: triliovault-operator
-    	    repo_url: "{{ helm_chart_url }}"
