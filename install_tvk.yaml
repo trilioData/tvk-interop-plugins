@@ -1,8 +1,0 @@
----
-- hosts: localhost
-  tasks:
-     - name: Install TVK chart
-       kubernetes.core.helm:
-    	   name: triliovault-operator
-    	   namespace: tvk
-    	   chart_ref: triliovault-operator/k8s-triliovault-operator
