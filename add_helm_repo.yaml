@@ -1,5 +1,5 @@
 ---
-- hosts: k8s-master
+- hosts: localhost
   vars:
     helm_chart_url: "http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator"
   tasks:
