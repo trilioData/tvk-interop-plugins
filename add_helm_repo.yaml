@@ -3,16 +3,6 @@
   vars:
     helm_chart_url: "http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator"
   tasks:
-    - name: Retrieve helm binary archive.
-      unarchive:
-        src: https://get.helm.sh/helm-v3.5.1-linux-amd64.tar.gz
-        dest: /tmp
-        creates: /usr/local/bin/helm
-        remote_src: yes
-    - name: Move helm binary into place.
-      command: >
-        cp /tmp/linux-amd64/helm /usr/local/bin/helm
-        creates=/usr/local/bin/helm
     - name: Add helm repo
       kubernetes.core.helm_repository:
         name: triliovault-operator
