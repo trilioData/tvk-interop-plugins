@@ -3,12 +3,12 @@
   vars:
     helm_chart_url: "http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator"
   tasks:
-    - name: Add helm repo
-      kubernetes.core.helm_repository:
-        name: triliovault-operator
-        repo_url: "{{ helm_chart_url }}"
-    - name: Install TVK chart
-      kubernetes.core.helm:
-        name: triliovault-operator
-        namespace: tvk
-        chart_ref: triliovault-operator/k8s-triliovault-operator
+  - name: Add helm repo
+    kubernetes.core.helm_repository:
+      name: triliovault-operator
+      repo_url: "{{ helm_chart_url }}"
+  - name: Install TVK chart
+    kubernetes.core.helm:
+      name: triliovault-operator
+      namespace: tvk
+      chart_ref: triliovault-operator/k8s-triliovault-operator
