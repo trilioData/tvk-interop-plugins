@@ -1,11 +1,8 @@
 ---
-- hosts: localhost
+- hosts: 104.197.26.8
   vars:
     helm_chart_url: "http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator"
   tasks:
-    - name: Display the config
-      debug:
-        msg: "The hostname is {{ ansible_net_hostname }} and the OS is {{ ansible_net_version }}"
     - name: Retrieve helm binary archive.
       unarchive:
         src: https://get.helm.sh/helm-v3.2.1-linux-amd64.tar.gz
