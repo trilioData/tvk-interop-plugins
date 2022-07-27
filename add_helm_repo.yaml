@@ -11,6 +11,8 @@
       shell: export PATH=$PATH:/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     - name: Unarchive the helm repo
       shell: gunzip /tmp/helm-v3.2.1-linux-amd64.tar.gz
+    - name: Install tar
+      shell: yum install tar
     - name: Untar the tar file
       shell: /usr/bin/tar -vxf /tmp/helm-v3.2.1-linux-amd64.tar
       args:
