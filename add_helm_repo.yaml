@@ -4,10 +4,10 @@
     helm_chart_url: "http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator"
   tasks:
     - name: Retrieve helm binary archive.
-      - copy:
+      copy:
         src: https://get.helm.sh/helm-v3.2.1-linux-amd64.tar.gz
         dest: /tmp/helm-v3.2.1-linux-amd64.tar.gz
-      - shell: gunzip /tmp/helm-v3.2.1-linux-amd64.tar.gz
+      shell: gunzip /tmp/helm-v3.2.1-linux-amd64.tar.gz
     - name: Move helm binary into place.
       command: cp /tmp/linux-amd64/helm /usr/local/bin/helm
       args:
