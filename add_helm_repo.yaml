@@ -8,9 +8,9 @@
         url: https://get.helm.sh/helm-v3.2.1-linux-amd64.tar.gz
         dest: /tmp/helm-v3.2.1-linux-amd64.tar.gz
     - name: Unarchive the helm repo
-      shell: gunzip /tmp/helm-v3.2.1-linux-amd64.tar.gz
-    - name: Retrieve helm binary archive.
-      shell: tar -xvf /tmp/helm-v3.2.1-linux-amd64.tar.gz
+      unarchive:
+        src: /tmp/helm-v3.2.1-linux-amd64.tar.gz
+        dest: /tmp
     - name: Move helm binary into place.
       command: cp /tmp/linux-amd64/helm /usr/local/bin/helm
       args:
