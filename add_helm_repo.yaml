@@ -13,6 +13,7 @@
       shell: gunzip /tmp/helm-v3.2.1-linux-amd64.tar.gz
     - name: Install tar
       become: yes
+      become_method: su
       yum: name=https://vault.centos.org/centos/8/BaseOS/x86_64/os/Packages/tar-1.30-5.el8.x86_64.rpm
     - name: Untar the tar file
       shell: /usr/bin/tar -vxf /tmp/helm-v3.2.1-linux-amd64.tar
