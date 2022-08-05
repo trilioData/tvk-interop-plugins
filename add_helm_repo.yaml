@@ -1,13 +1,12 @@
 - hosts: localhost
   gather_facts: no
   tasks:
-    - name: add uid
-      shell:  echo "tempuser:x:$(id -u):$(id -g):,,,:${HOME}:/bin/bash" >> /etc/passwd; echo "tempuser:x:$(id -G | cut -d' ' -f 2)" >> /etc/group && id
     - name: Check if snapshot specific CRD's are presen
       shell: kubectl get crd volumesnapshotclasses.snapshot.storage.k8s.io && kubectl get crd volumesnapshotcontents.snapshot.storage.k8s.io && kubectl get crd volumesnapshots.snapshot.storage.k8s.io
       register: crd_out
       ignore_errors: true
       become: true
+      become_user: root
       failed_when: false
       #no_log: True
 
