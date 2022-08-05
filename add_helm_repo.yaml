@@ -5,8 +5,6 @@
       shell: kubectl get crd volumesnapshotclasses.snapshot.storage.k8s.io && kubectl get crd volumesnapshotcontents.snapshot.storage.k8s.io && kubectl get crd volumesnapshots.snapshot.storage.k8s.io
       register: crd_out
       ignore_errors: true
-      become: true
-      become_user: root
       failed_when: false
       #no_log: True
 
