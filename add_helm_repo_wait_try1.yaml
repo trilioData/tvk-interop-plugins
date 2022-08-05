@@ -1,0 +1,58 @@
+- hosts: localhost
+  tasks:
+    - name: Check if snapshot specific CRD's are presen
+      shell: kubectl get crd volumesnapshotclasses.snapshot.storage.k8s.io && kubectl get crd volumesnapshotcontents.snapshot.storage.k8s.io && kubectl get crd volumesnapshots.snapshot.storage.k8s.io
+      register: crd_out
+      ignore_errors: true
+      failed_when: false
+      no_log: True
+
+    - fail: msg="Missing required CRD, Please check if all CRD's specific to volumesnapshots are there"
+      when: crd_out.rc != 0
+
+    - name: Get a list of storageclass
+      shell: kubectl get storageclass
+      register: storageclass
+
+    - debug:
+        msg: "{{ storageclass.stdout }}"
+
+    - debug:
+        msg: "{{ storageclass.rc }}"
+
+    - name: Get default storageclass
+      shell: kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}'
+      register: default_st_class
+      ignore_errors: true
+      failed_when: false
+      no_log: True
+
+    - debug:
+        msg: "{{ default_st_class.rc }}  {{default_st_class.stdout }} {{ default_st_class.stdout.split()|length }}"
+
+    - fail: msg="There should be atleast and only one default class with valid provisioner to progress"
+      when: default_st_class.stdout.split()|length == 0 or 2 <= default_st_class.stdout.split()|length
+
+    - name: Get provisioner for default storage class
+      shell: kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].provisioner}'
+      register: st_provisioner
+
+    - name: Check if provisioner exists in CSI drivers list
+      shell: kubectl get csidriver | grep "{{ st_provisioner.stdout }}"
+      register: provisioner
+      ignore_errors: true
+      failed_when: false
+      no_log: True
+
+    - fail: msg="No default storageclass found with valid provisioner, please create the storageclass with valid provisioner"
+      when: provisioner.stdout|length == 0 or provisioner.rc != 0
+
+    - name: Check for valid volumesnapshotclass
+      shell: kubectl get volumesnapshotclass -o=jsonpath='{.items[?(@.driver=="pd.csi.storage.gke.io")].metadata.name}'
+      register: volume_class
+      ignore_errors: true
+      failed_when: false
+      no_log: True
+
+    - fail: msg="No default storageclass found with valid provisioner, please create the storageclass with valid provisioner"
+      when: volume_class.stdout|length == 0 or volume_class.rc != 0
