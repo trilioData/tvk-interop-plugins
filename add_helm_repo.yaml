@@ -1,8 +1,6 @@
 - hosts: localhost
   gather_facts: no
   tasks:
-    - name: set kubeconfig
-      shell: echo $KUBECONFIG
     - name: Check if snapshot specific CRD's are presen
       shell: kubectl get crd volumesnapshotclasses.snapshot.storage.k8s.io && kubectl get crd volumesnapshotcontents.snapshot.storage.k8s.io && kubectl get crd volumesnapshots.snapshot.storage.k8s.io
       register: crd_out
