@@ -6,7 +6,7 @@
       register: crd_out
       ignore_errors: true
       failed_when: false
-      no_log: True
+      #no_log: True
 
     - fail: msg="Missing required CRD, Please check if all CRD's specific to volumesnapshots are there"
       when: crd_out.rc != 0
