@@ -1046,7 +1046,7 @@ configure_loadbalancer_for_tvkUI() {
       return 1
     fi
     if [[ -z ${tvkhost_name} ]]; then
-      tvkhost_name="tvk-doks.com"
+      tvkhost_name="tvk-doks"
     fi
     tvk_name=$tvkhost_name.$domain
   else
