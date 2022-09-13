@@ -206,9 +206,10 @@ install_tvk() {
   fi
   helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
+  latest_ver=$(helm search repo --devel triliovault-operator  | grep 'triliovault-operator/k8s-triliovault-operator' | awk  '{print $2}')
   if [[ -z ${input_config} ]]; then
-    read -r -p "Please provide the operator version to be installed (default - 2.9.2): " operator_version
-    read -r -p "Please provide the triliovault manager version (default - 2.9.2): " triliovault_manager_version
+    read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
+    read -r -p "Please provide the triliovault manager version (default - $latest_ver): " triliovault_manager_version
     read -r -p "Namespace name in which TVK should be installed: (default - default): " tvk_ns
     read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
@@ -216,10 +217,10 @@ install_tvk() {
     if_resource_exists_still_proceed='y'
   fi
   if [[ -z "$operator_version" ]]; then
-    operator_version='2.9.2'
+    operator_version=$latest_ver
   fi
   if [[ -z "$triliovault_manager_version" ]]; then
-    triliovault_manager_version='2.9.2'
+    triliovault_manager_version=$latest_ver
   fi
   if [[ -z "$tvk_ns" ]]; then
     tvk_ns="default"
@@ -876,6 +877,20 @@ configure_ui() {
   ret_code=$?
   case $ui_access_type in
   3)
+    # Getting tvm version and setting the configs accordingly
+    tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
+    tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
+    tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+    vercomp "$tvm_version" "2.7.0"
+    ret_ingress=$?
+    if [[ $ret_ingress == 0 ]]; then
+      echo "Error in getting installed TVM, please check if TVM is installed correctly"
+      exit 1
+    fi
+    if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+      ingressGateway="${ingressGateway_2_7_0}"
+      masterIngName="${masterIngName_2_7_0}"
+    fi
     get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
     echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
     echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> <ingress_host_name>' in /etc/hosts file.TVK management console traffic will be forwarded to your localhost IP via port 80."
@@ -3107,4 +3122,6 @@ if [ "$ret_code" -ne 0 ]; then
   echo "pip3 install is failing.Please check the permisson and try again.."
   exit 1
 fi
-main "$@"
+if [ "${1}" != "--source-only" ]; then
+    main "${@}"
+fi
