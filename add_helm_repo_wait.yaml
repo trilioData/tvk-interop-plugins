@@ -18,7 +18,7 @@
       no_log: True
 
     - fail: msg="helm utility is missing or version is not compatible, please ensure that the utility is installed correctly"
-      when: helm_out.rc != 0 && $(python3 -c "from packaging import version;print(version.parse(helm_out.stdout) < version.parse('3.0.0'))")
+      when: helm_out.rc != 0 and $(python3 -c "from packaging import version;print(version.parse(helm_out.stdout) < version.parse('3.0.0'))")
 
 
     - name: check if helm is installed and its version is 
