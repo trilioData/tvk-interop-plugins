@@ -24,8 +24,8 @@
       failed_when: false
       no_log: True
 
-    - fail: msg="helm utility is missing {{ helm_out }} or version is not compatible, please ensure that the utility is installed correctly"
-      when: helm_ver.rc == 0
+    - fail: msg="helm utility is missing {{ helm_out }} or version {{ helm_ver }} is not compatible, please ensure that the utility is installed correctly"
+      when: kube_out.rc == 0
 
     - name: check if helm is installed and its version is 
       shell: 
