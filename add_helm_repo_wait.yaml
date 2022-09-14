@@ -8,7 +8,7 @@
       no_log: True
 
     - fail: msg="kubectl utility is missing, please ensure that the utility is installed"
-      when kube_out.rc != 0
+      when: kube_out.rc != 0
 
     - name: check if helm version is greater than 3.x.x
       shell: helm version --template='{{.Version}}' | cut -c2-
