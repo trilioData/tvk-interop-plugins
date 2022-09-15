@@ -11,10 +11,10 @@
       when: kube_out.rc != 0
 
     - name: Get helm version
-      shell: helm version --template='{{.Version}}' | cut -c2-
+      shell: helm version --template='{{\.Version}}' | cut -c2-
       register: helm_ver
       ignore_errors: true
-      failed_when: false
+      failed_when: true
       no_log: true
 
     - debug:
