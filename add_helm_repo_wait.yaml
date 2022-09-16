@@ -5,46 +5,78 @@
       register: kube_out
       ignore_errors: true
       failed_when: false
-      no_log: True
+
+    - debug:
+        var: kube_out
+        verbosity: 2
 
     - fail: msg="kubectl utility is missing, please ensure that the utility is installed"
       when: kube_out.rc != 0
 
+
     - name: Get helm version
-      shell: helm version --template='{{\.Version}}' | cut -c2-
+      shell:  bash -c  "helm version --template=\{\{'.Version'\}\} | cut -c2-"
       register: helm_ver
       ignore_errors: true
-      failed_when: true
-      no_log: true
+      failed_when: false
 
-    - debug:
-        var: helm_ver
-        verbosity: 2
 
     - name: check if helm version is greater than 3.x.x
-      shell: python3 -c "from packaging import version;print(version.parse(helm_out.stdout) < version.parse('3.0.0'))"
+      shell: python3 -c "from packaging import version;print(version.parse('{{helm_ver.stdout}}') < version.parse('3.0.0'))"
       register: helm_out
       ignore_errors: true
       failed_when: false
-      no_log: True
+      no_log: true
 
     - debug:
         var: helm_out
         verbosity: 2
 
-    - fail: msg="helm utility is missing {{ helm_out }} or version {{ helm_ver }} is not compatible, please ensure that the utility is installed correctly"
-      when: helm_out.rc == 0
+    - fail: msg="helm utility is missing or version is not compatible, please ensure that the utility is installed correctly"
+      when: helm_out.stdout == "True"
 
-    - name: check if helm is installed and its version is 
-      shell: 
+    - name: Get kubernetes version
+      shell: kubectl version --short | grep Server | awk '{print $3}'
+      register: kube_ver
       ignore_errors: true
-      failed_when: true
+      failed_when: false
+      no_log: true
+
+    - name: Set MIN_K8S_VERSION
+      set_fact:
+        MIN_K8S_VERSION: "1.17.0"
+
+    - name: Sort current kubernetes version and min_k8_ver
+      shell: bash -c 'echo -e "{{ kube_ver.stdout }}\n{{ MIN_K8S_VERSION }}" | sort -V -r | head -n 1'
+      register: sorted_ver
+      ignore_errors: true
+      failed_when: false
+      no_log: true
+
+    - debug:
+        var: sorted_ver
+        verbosity: 2
+
+    - fail: msg="Kubernetes version '{{ kube_ver.stdout }}' does not meets minimum requirements"
+      when: sorted_ver.stdout != kube_ver.stdout or  sorted_ver.stdout == MIN_K8S_VERSION
+
+    - name: Ensures RBAC is enabled in cluster
+      shell: kubectl api-versions | grep rbac.authorization.k8s.io
+      register: rbac_check
+      ignore_errors: true
+      failed_when: false
+      no_log: true
+
+    - fail: msg="Kubernetes RBAC is not enabled, ensure that RBAC is enabled"
+      when: rbac_check.rc != 0
+
     - name: Check if snapshot specific CRD's are presen
       shell: kubectl get crd volumesnapshotclasses.snapshot.storage.k8s.io && kubectl get crd volumesnapshotcontents.snapshot.storage.k8s.io && kubectl get crd volumesnapshots.snapshot.storage.k8s.io
       register: crd_out
       ignore_errors: true
       failed_when: false
-      no_log: True
+      no_log: true
+
 
     - fail: msg="Missing required CRD, Please check if all CRD's specific to volumesnapshots are there"
       when: crd_out.rc != 0
@@ -93,5 +125,5 @@
       failed_when: false
       no_log: True
 
-    - fail: msg="No default storageclass found with valid provisioner, please create the storageclass with valid provisioner"
+    - fail: msg="No default volumesnapshotclass found with valid provisioner, please create the storageclass with valid provisioner"
       when: volume_class.stdout|length == 0 or volume_class.rc != 0
