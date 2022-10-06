@@ -332,7 +332,7 @@ install_tvk() {
       tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
       tvk_ns="$get_ns"
       #Check if TVM can be upgraded
-      old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+      old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
       # shellcheck disable=SC2001
       new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
       vercomp "$old_tvm_version" "2.7.0"
@@ -880,7 +880,7 @@ configure_ui() {
     # Getting tvm version and setting the configs accordingly
     tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
     tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-    tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+    tvm_version=$(kubectl get TrilioVaultManager -n "$tvk_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
     vercomp "$tvm_version" "2.7.0"
     ret_ingress=$?
     if [[ $ret_ingress == 0 ]]; then
@@ -941,7 +941,7 @@ configure_nodeport_for_tvkui() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
@@ -1085,7 +1085,7 @@ configure_loadbalancer_for_tvkUI() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
