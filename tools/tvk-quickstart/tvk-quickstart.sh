@@ -2978,15 +2978,15 @@ tvk-quickstart - Installs, Configures UI, Creates sample backup/restore tests
 Usage:
 kubectl tvk-quickstart [options] [arguments]
 Options:
-        -h, --help                Shows brief help
-        -n, --noninteractive      Runs script in non-interactive mode.for this you need to provide config file
+        -h, --help                Shows brief help.
+        -n, --noninteractive      Runs script in non-interactive mode. For this you need to provide config file
         -i, --install-tvk         Installs TVK and it's free trial license.
-        -c, --configure-ui        Configures TVK UI
-        -t, --target              Created Target for backup and restore jobs
-        -s, --sample-test         Create sample backup and restore jobs
-	-p, --preflight           Checks if all the pre-requisites are satisfied
-	-v, --verbose             Runs the plugin in verbose mode
-	-u, --uninstall-tvk       Uninstalls TVK and related resources.         
+        -c, --configure-ui        Configures the TVK UI.
+        -t, --target              Create the Target for backup and restore jobs.
+        -s, --sample-test         Create the sample backup and restore jobs.
+	-p, --preflight           Checks if all the pre-requisites are satisfied.
+	-v, --verbose             Runs the plugin in verbose mode.
+	-u, --uninstall-tvk       Uninstalls TVK and related resources.
 -----------------------------------------------------------------------
 Example:
 kubectl tvk-quickstart -i -c -t -s
