@@ -206,7 +206,7 @@ install_tvk() {
   fi
   helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
-  latest_ver=$(helm search repo --devel triliovault-operator  | grep 'triliovault-operator/k8s-triliovault-operator' | awk  '{print $2}')
+  latest_ver=$(helm search repo --devel triliovault-operator | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}')
   if [[ -z ${input_config} ]]; then
     read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
     read -r -p "Please provide the triliovault manager version (default - $latest_ver): " triliovault_manager_version
