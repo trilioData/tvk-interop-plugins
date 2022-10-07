@@ -206,20 +206,21 @@ install_tvk() {
   fi
   helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
+  latest_ver=$(helm search repo --devel triliovault-operator  | grep 'triliovault-operator/k8s-triliovault-operator' | awk  '{print $2}')
   if [[ -z ${input_config} ]]; then
-    read -r -p "Please provide the operator version to be installed (default - 2.9.2): " operator_version
-    read -r -p "Please provide the triliovault manager version (default - 2.9.2): " triliovault_manager_version
+    read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
+    read -r -p "Please provide the triliovault manager version (default - $latest_ver): " triliovault_manager_version
     read -r -p "Namespace name in which TVK should be installed: (default - default): " tvk_ns
-    read -r -p "Proceed even if resource exists Y/n: " if_resource_exists_still_proceed
+    read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
   if [[ -z "$if_resource_exists_still_proceed" ]]; then
     if_resource_exists_still_proceed='y'
   fi
   if [[ -z "$operator_version" ]]; then
-    operator_version='2.9.2'
+    operator_version=$latest_ver
   fi
   if [[ -z "$triliovault_manager_version" ]]; then
-    triliovault_manager_version='2.9.2'
+    triliovault_manager_version=$latest_ver
   fi
   if [[ -z "$tvk_ns" ]]; then
     tvk_ns="default"
@@ -236,7 +237,7 @@ install_tvk() {
     fi
     # Install triliovault operator
     echo "Installing Triliovault operator..."
-    helm install triliovault-operator triliovault-operator/k8s-triliovault-operator --version $operator_version -n $tvk_ns 2>> >(logit)
+    helm install triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n $tvk_ns 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
       echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
@@ -264,7 +265,7 @@ install_tvk() {
     fi
     old_operator_version=$(helm list -n "$get_ns" | grep k8s-triliovault-operator | awk '{print $10}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
     # shellcheck disable=SC2001
-    new_operator_version=$(echo $operator_version | sed 's/[a-z-]//g')
+    new_operator_version=$(echo "$operator_version" | sed 's/[a-z-]//g')
     vercomp "$old_operator_version" "$new_operator_version"
     #vercomp "$old_operator_version" "$operator_version"
     ret_val=$?
@@ -295,7 +296,7 @@ install_tvk() {
           return 1
         fi
       fi
-      helm upgrade triliovault-operator triliovault-operator/k8s-triliovault-operator --version $operator_version -n "$get_ns" 2>> >(logit)
+      helm upgrade triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
         echo "There was an error while running 'helm upgrade', please resolve and try again." 2>> >(logit)
@@ -331,9 +332,9 @@ install_tvk() {
       tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
       tvk_ns="$get_ns"
       #Check if TVM can be upgraded
-      old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+      old_tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
       # shellcheck disable=SC2001
-      new_triliovault_manager_version=$(echo $triliovault_manager_version | sed 's/[a-z-]//g')
+      new_triliovault_manager_version=$(echo "$triliovault_manager_version" | sed 's/[a-z-]//g')
       vercomp "$old_tvm_version" "2.7.0"
       ret_ingress=$?
       if [[ $ret_ingress == 0 ]]; then
@@ -876,6 +877,20 @@ configure_ui() {
   ret_code=$?
   case $ui_access_type in
   3)
+    # Getting tvm version and setting the configs accordingly
+    tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
+    tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
+    tvm_version=$(kubectl get TrilioVaultManager -n "$tvk_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+    vercomp "$tvm_version" "2.7.0"
+    ret_ingress=$?
+    if [[ $ret_ingress == 0 ]]; then
+      echo "Error in getting installed TVM, please check if TVM is installed correctly"
+      exit 1
+    fi
+    if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+      ingressGateway="${ingressGateway_2_7_0}"
+      masterIngName="${masterIngName_2_7_0}"
+    fi
     get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
     echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
     echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> <ingress_host_name>' in /etc/hosts file. TVK management console traffic will be forwarded to your localhost IP via port 80."
@@ -926,7 +941,7 @@ configure_nodeport_for_tvkui() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
@@ -1070,7 +1085,7 @@ configure_loadbalancer_for_tvkUI() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep trilioVaultAppVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
@@ -1670,7 +1685,7 @@ create_readymade_minio() {
       exit 1
     fi
     if [[ -z ${input_config} ]]; then
-      read -r -p "Use existing minio server if available (N/y): " use_existing_minio
+      read -r -p "Use existing minio server if available y/n (default - y): " use_existing_minio
     fi
     if [[ -z "$use_existing_minio" ]]; then
       use_existing_minio="y"
@@ -2111,7 +2126,7 @@ check_csi() {
     fi
     #echo "Note: longhorn CSI Driver may not work as expected on OCP cluster"
     if [[ -z "${input_config}" ]]; then
-      read -r -p "Do you want to install longhorn CSI driver(y/N): " csi_loghorn
+      read -r -p "Do you want to install longhorn CSI driver(y/n): " csi_loghorn
     fi
     if [[ -z $csi_loghorn ]]; then
       csi_loghorn="y"
@@ -3107,4 +3122,6 @@ if [ "$ret_code" -ne 0 ]; then
   echo "The pip3 installation is failing. Please check permissions and try again."
   exit 1
 fi
-main "$@"
+if [ "${1}" != "--source-only" ]; then
+  main "${@}"
+fi
