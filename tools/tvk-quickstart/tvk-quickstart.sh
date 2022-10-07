@@ -14,7 +14,7 @@ tvkingressSALater=k8s-triliovault-ingress-nginx
 preflight_checks() {
   ret=$(kubectl krew 2>/dev/null)
   if [[ -z "$ret" ]]; then
-    echo "Please install krew plugin and then try again.  For information on krew installation please visit:"
+    echo "Please install krew plugin and then try again. For information on krew installation please visit:"
     echo "https://krew.sigs.k8s.io/docs/user-guide/setup/install/"
     return 1
   fi
