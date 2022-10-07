@@ -14,24 +14,24 @@ tvkingressSALater=k8s-triliovault-ingress-nginx
 preflight_checks() {
   ret=$(kubectl krew 2>/dev/null)
   if [[ -z "$ret" ]]; then
-    echo "Please install krew plugin and then try.For information on krew installation please visit:"
+    echo "Please install krew plugin and then try again.  For information on krew installation please visit:"
     echo "https://krew.sigs.k8s.io/docs/user-guide/setup/install/"
     return 1
   fi
   ret=$(kubectl tvk-preflight --help 2>/dev/null)
   # shellcheck disable=SC2236
   if [[ ! -z "$ret" ]]; then
-    echo "Skipping/Upgrading plugin tvk-preflight installation as it is already installed"
+    echo "Skipping/Upgrading plugin tvk-preflight installation as it is already installed."
     ret_val=$(kubectl krew upgrade tvk-preflight 2>&1)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
       echo "$ret_val" | grep -q "can't upgrade, the newest version is already installed"
       ret=$?
       if [ "$ret" -ne 0 ]; then
-        echo "Failed to uggrade tvk-plugins/tvk-preflight plugin"
+        echo "Failed to uggrade tvk-plugins/tvk-preflight plugin."
         return 1
       else
-        echo "tvk-preflight is already the newest version"
+        echo "tvk-preflight is already the newest version."
       fi
     fi
   else
@@ -40,7 +40,7 @@ preflight_checks() {
     kubectl krew install tvk-plugins/tvk-preflight 1>> >(logit) 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "Failed to install tvk-plugins/tvk-preflight plugin"
+      echo "Failed to install tvk-plugins/tvk-preflight plugin."
       return 1
     fi
   fi
@@ -51,7 +51,7 @@ preflight_checks() {
   fi
   if [[ -z "$storage_class" ]]; then
     if [[ -z "$default_storage_class" ]]; then
-      echo "Neither default storage found nor any input is provided"
+      echo "No default storage found and no input was provided."
       return 1
     else
       storage_class=$default_storage_class
@@ -61,19 +61,19 @@ preflight_checks() {
     kubectl get storageclass "$storage_class" 1>> >(logit) 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "No storageclass $storage_class found"
+      echo "No storageclass $storage_class found."
       return 1
     else
       #check if selected storageclass is annoteted with "default" Label
       kubectl get storageclass "$storage_class" | grep -w '(default)' 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
-        echo "The selected storageclass is not annoteted as default, patching it to act as default and used by TVK"
-        echo "Removing 'default' annotation from other storageclass"
+        echo "The selected storageclass is not annotated as 'default', patching it to act as default and for use by TVK."
+        echo "Removing 'default' annotation from other storageclasses."
         kubectl get storageclass | grep -w '(default)' | awk '{print $1}' | xargs -I {} kubectl patch storageclass {} -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' 2>> >(logit)
         kubectl patch storageclass "$storage_class" -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
       else
-        echo "Removing 'default' annotation from other storageclass"
+        echo "Removing 'default' annotation from other storageclasses."
         kubectl get storageclass | grep -w '(default)' | grep -v "$storage_class" | awk '{print $1}' | xargs -I {} kubectl patch storageclass {} -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' 2>> >(logit)
       fi
     fi
@@ -82,15 +82,15 @@ preflight_checks() {
   check=$(kubectl tvk-preflight run --storage-class "$storage_class" | tee /dev/tty)
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
-    echo "Failed to run 'kubectl tvk-preflight',please check if PATH variable for krew is set properly and then try"
+    echo "Failed to run 'kubectl tvk-preflight', please check if PATH variable for krew is set properly and then try again."
   fi
   check_for_fail=$(echo "$check" | grep 'Some Pre-flight Checks Failed!')
   if [[ -z "$check_for_fail" ]]; then
-    echo "All preflight checks are done and you can proceed"
+    echo "All preflight checks are completed and you can proceed."
   else
     if [[ -z "${input_config}" ]]; then
-      echo "There are some failures"
-      read -r -p "Do you want to proceed? y/n: " proceed_even_PREFLIGHT_fail
+      echo "There are some failures!"
+      read -r -p "Do you want to proceed? y/N: " proceed_even_PREFLIGHT_fail
     fi
     if [[ "$proceed_even_PREFLIGHT_fail" != "Y" ]] && [[ "$proceed_even_PREFLIGHT_fail" != "y" ]]; then
       exit 1
@@ -103,24 +103,24 @@ preflight_checks() {
 tvk_uninstall() {
   ret=$(kubectl krew 2>/dev/null)
   if [[ -z "$ret" ]]; then
-    echo "Please install krew plugin and then try.For information on krew installation please visit:"
+    echo "Please install krew plugin and then try again. For information on krew installation please visit:"
     echo "https://krew.sigs.k8s.io/docs/user-guide/setup/install/"
     return 1
   fi
   ret=$(kubectl tvk-cleanup --help 2>/dev/null)
   # shellcheck disable=SC2236
   if [[ ! -z "$ret" ]]; then
-    echo "Skipping/Upgrading plugin tvk-cleanup installation as it is already installed"
+    echo "Skipping/Upgrading plugin tvk-cleanup installation as it is already installed."
     ret_val=$(kubectl krew upgrade tvk-cleanup 2>&1)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
       echo "$ret_val" | grep -q "can't upgrade, the newest version is already installed"
       ret=$?
       if [ "$ret" -ne 0 ]; then
-        echo "Failed to uggrade tvk-plugins/tvk-cleanup plugin"
+        echo "Failed to uggrade tvk-plugins/tvk-cleanup plugin."
         return 1
       else
-        echo "tvk-cleanup is already the newest version"
+        echo "tvk-cleanup is already the newest version."
       fi
     fi
   else
@@ -129,7 +129,7 @@ tvk_uninstall() {
     kubectl krew install tvk-plugins/tvk-cleanup 1>> >(logit) 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "Failed to install tvk-plugins/tvk-cleanup plugin" 2>> >(logit)
+      echo "Failed to install tvk-plugins/tvk-cleanup plugin." 2>> >(logit)
     fi
   fi
 
@@ -137,7 +137,7 @@ tvk_uninstall() {
   check=$(kubectl tvk-cleanup -n -t -c -r | tee /dev/tty)
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
-    echo "Failed to run 'kubectl tvk-cleanup',please check if PATH variable for krew is set properly and then try"
+    echo "Failed to run 'kubectl tvk-cleanup', please check if PATH variable for krew is set properly and then try again."
   fi
 }
 
@@ -165,8 +165,8 @@ wait_install() {
   i=0
   endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
   if [[ -z ${endtime} ]]; then
-    echo "There is some issue with date usage, please check the pre-requsites in README page" 1>> >(logit) 2>> >(logit)
-    echo "Something went wrong..terminating" 2>> >(logit)
+    echo "There is an issue with date usage, please check the pre-requsites in the README." 1>> >(logit) 2>> >(logit)
+    echo "Something went wrong... terminating!" 2>> >(logit)
   fi
   val1=$(eval "$2")
   flag=0
@@ -178,7 +178,7 @@ wait_install() {
       orig_cmd=$2
       cmd=${orig_cmd%$searchstring1*}
       cmd=${cmd%$searchstring2*}
-      echo -e "Waiting on resource to be in expected state, running below command to check \n[$cmd]"
+      echo -e "Waiting on resource to be in expected state, running below command to check: \n[$cmd]"
     fi
     i=$(((i + 1) % 4))
     printf "\r %s" "${spin:$i:1}"
@@ -200,8 +200,8 @@ install_tvk() {
   helm repo add triliovault-operator http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator 1>> >(logit) 2>> >(logit)
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-    echo "There is some error in helm update,please resolve and try again" 1>> >(logit) 2>> >(logit)
-    echo "Error ading helm repo"
+    echo "There is an error in helm update, please resolve and try again." 1>> >(logit) 2>> >(logit)
+    echo "Error ading helm repo."
     return 1
   fi
   helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
@@ -210,7 +210,7 @@ install_tvk() {
     read -r -p "Please provide the operator version to be installed (default - 2.9.2): " operator_version
     read -r -p "Please provide the triliovault manager version (default - 2.9.2): " triliovault_manager_version
     read -r -p "Namespace name in which TVK should be installed: (default - default): " tvk_ns
-    read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
+    read -r -p "Proceed even if resource exists Y/n: " if_resource_exists_still_proceed
   fi
   if [[ -z "$if_resource_exists_still_proceed" ]]; then
     if_resource_exists_still_proceed='y'
@@ -230,7 +230,7 @@ install_tvk() {
     ret=$(kubectl get ns $tvk_ns 2>/dev/null)
     if [[ -z "$ret" ]]; then
       if ! kubectl create ns $tvk_ns 2>> >(logit); then
-        echo "$tvk_ns namespace creation failed"
+        echo "$tvk_ns namespace creation failed."
         return 1
       fi
     fi
@@ -239,7 +239,7 @@ install_tvk() {
     helm install triliovault-operator triliovault-operator/k8s-triliovault-operator --version $operator_version -n $tvk_ns 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "There is some error in helm install triliovaul operator,please resolve and try again" 2>> >(logit)
+      echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
       return 1
     fi
     if [ "$open_flag" -eq 1 ]; then
@@ -251,7 +251,7 @@ install_tvk() {
         kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
         kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
       else
-        echo "Something wrong when assigning privilege to Trilio operator SA"
+        echo "Something wrong when assigning privilege to the Trilio operator SA."
         exit 1
       fi
     fi
@@ -269,9 +269,9 @@ install_tvk() {
     #vercomp "$old_operator_version" "$operator_version"
     ret_val=$?
     if [[ $ret_val != 2 ]]; then
-      echo "Triliovault operator cannot be upgraded, please check version number"
+      echo "Triliovault operator cannot be upgraded, please check the version number."
       if [[ $ret_val == 1 ]]; then
-        echo "Triliovault operator is already at same version"
+        echo "Triliovault operator is already at this version."
         upgrade_tvo=1
       fi
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
@@ -279,7 +279,7 @@ install_tvk() {
       fi
     else
       upgrade_tvo=1
-      echo "Upgrading Triliovault operator"
+      echo "Upgrading Triliovault operator."
       # shellcheck disable=SC2206
       semver=(${old_operator_version//./ })
       major="${semver[0]}"
@@ -291,14 +291,14 @@ install_tvk() {
         helm tvm-upgrade --release="$rel_name" --namespace="$get_ns" 2>> >(logit)
         retcode=$?
         if [ "$retcode" -ne 0 ]; then
-          echo "There is some error in helm tvm-upgrade,please resolve and try again" 2>> >(logit)
+          echo "There was an error running 'helm tvm-upgrade', please resolve and try again." 2>> >(logit)
           return 1
         fi
       fi
       helm upgrade triliovault-operator triliovault-operator/k8s-triliovault-operator --version $operator_version -n "$get_ns" 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
-        echo "There is some error in helm upgrade,please resolve and try again" 2>> >(logit)
+        echo "There was an error while running 'helm upgrade', please resolve and try again." 2>> >(logit)
         return 1
       fi
       sleep 10
@@ -308,13 +308,13 @@ install_tvk() {
   wait_install 10 "$cmd"
   if ! kubectl get pods -l release=triliovault-operator -n "$tvk_ns" 2>/dev/null | grep -q Running; then
     if [[ $upgrade_tvo == 1 ]]; then
-      echo "Triliovault operator upgrade failed"
+      echo "Triliovault operator upgrade failed."
     else
-      echo "Triliovault operator installation failed"
+      echo "Triliovault operator installation failed."
     fi
     return 1
   fi
-  echo "Triliovault operator is running"
+  echo "Triliovault operator is running."
 
   #check if TVK versione is greater than or equals to 2.9.4
   vercomp "$old_operator_version" "2.9.4"
@@ -323,7 +323,7 @@ install_tvk() {
   #check if TVK manager is installed
   ret_code=$(kubectl get tvm -A 2>/dev/null)
   if [[ -n "$ret_code" ]]; then
-    echo "Triliovault manager is already installed"
+    echo "Triliovault manager is already installed."
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
@@ -337,7 +337,7 @@ install_tvk() {
       vercomp "$old_tvm_version" "2.7.0"
       ret_ingress=$?
       if [[ $ret_ingress == 0 ]]; then
-        echo "Error in getting installed TVM, please check if TVM is installed correctly"
+        echo "Error while checking for installed TVM, please check if TVM is installed correctly."
         exit 1
       fi
       if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
@@ -349,7 +349,7 @@ install_tvk() {
         vercomp "$old_tvm_version" "$new_triliovault_manager_version"
         ret_val=$?
         if [[ $ret_val != 2 ]]; then
-          echo "TVM cannot be upgraded! Please check version"
+          echo "TVM cannot be upgraded! Please check version."
           if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
             exit 1
           fi
@@ -419,11 +419,11 @@ EOF
         retcode=$?
       fi
       if [ "$retcode" -ne 0 ]; then
-        echo "There is error upgrading triliovault manager,please resolve and try again" 2>> >(logit)
+        echo "There is error upgrading triliovault manager, please resolve and try again." 2>> >(logit)
         return 0
       else
-        echo "Upgrading Triliovault manager"
-        echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK."
+        echo "Upgrading Triliovault manager."
+        echo "It will take some time for pods to update, please wait for the upgrade to complete before trying any operation on TVK."
         echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
       fi
       tvm_upgrade=1
@@ -457,13 +457,13 @@ EOF
           kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
           kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
         else
-          echo "Something went wrong when assigning privilege to Trilio Manager SA"
-          echo "or $tvkmanagerSA service account is taking more time to get created"
-          echo "Please retry after 5 minutes"
+          echo "Something went wrong when assigning privileges to Trilio Manager SA."
+          echo "Or $tvkmanagerSA service account is taking more time to get created."
+          echo "Please retry after 5 minutes."
           exit 1
         fi
       fi
-      echo "Waiting for Pods to come up.."
+      echo "Waiting for Pods to come up..."
       sleep 10
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n "$get_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$get_ns" 1>> >(logit) 2>> >(logit)
@@ -478,7 +478,7 @@ EOF
       kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
       ret_val=$?
       if [[ $ret_val != 0 ]] || [[ $ret_val1 != 0 ]] && [[ $upgrade_tvm == 0 ]]; then
-        echo "TVM installation failed"
+        echo "TVM installation failed."
         exit 1
       else
         echo "TVM is up and running!"
@@ -486,7 +486,7 @@ EOF
       install_license "$tvk_ns"
       return
     else
-      echo "checking if triliovault manager can be upgraded"
+      echo "Checking if TrilioVault Manager can be upgraded."
       tvm_upgrade=1
       vercomp "2.5" "$new_triliovault_manager_version"
       ret_val=$?
@@ -519,11 +519,11 @@ spec:
 EOF
           retcode=$?
           if [ "$retcode" -ne 0 ]; then
-            echo "There is error upgrading triliovault manager,please resolve and try again" 2>> >(logit)
+            echo "There is error upgrading TrilioVault Manager, please resolve and try again." 2>> >(logit)
             return 1
           else
-            echo "Upgrading Triliovault manager"
-            echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+            echo "Upgrading TrilioVault Manager."
+            echo "It will take some time for pods to update, please wait for the upgrade to complete before trying any operation on TVK."
             echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
           fi
         fi
@@ -553,11 +553,11 @@ spec:
 EOF
           retcode=$?
           if [ "$retcode" -ne 0 ]; then
-            echo "There is error upgrading triliovault manager,please resolve and try again" 2>> >(logit)
+            echo "There was an error upgrading TrilioVault Manager, please resolve and try again." 2>> >(logit)
             return 0
           else
-            echo "Upgrading Triliovault manager"
-            echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+            echo "Upgrading TrilioVault Manager."
+            echo "It will take some time for pods to update, please wait for the upgrade to complete before trying any operation on TVK."
             echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
           fi
         fi
@@ -611,11 +611,11 @@ EOF
 
         retcode=$?
         if [ "$retcode" -ne 0 ]; then
-          echo "There is error upgrading triliovault manager,please resolve and try again" 2>> >(logit)
+          echo "There was an error upgrading TrilioVault Manager, please resolve and try again." 2>> >(logit)
           return 1
         else
-          echo "Upgrading Triliovault manager"
-          echo "It will take some time for pods to update, wait for upgrade to complete before trying any operation on TVK"
+          echo "Upgrading TrilioVault Manager."
+          echo "It will take some time for pods to update, please wait for the upgrade to complete before trying any operation on TVK."
           echo "To check if TVM is upgraded, run 'kubectl get tvm -n $tvk_ns'"
         fi
       fi
@@ -656,7 +656,7 @@ spec:
 EOF
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
-        echo "There is error in installingi/upgrading triliovault manager,please resolve and try again" 2>> >(logit)
+        echo "There was an error while installingi/upgrading TrilioVault Manager, please resolve and try again." 2>> >(logit)
         return 1
       fi
     else
@@ -676,7 +676,7 @@ spec:
 EOF
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
-        echo "There is error in installingi/upgrading triliovault manager,please resolve and try again" 2>> >(logit)
+        echo "There was an error while installingi/upgrading TrilioVault Manager, please resolve and try again." 2>> >(logit)
         return 1
       fi
     fi
@@ -716,7 +716,7 @@ EOF
       fi
     fi
 
-    echo "Installing Triliovault manager...."
+    echo "Installing TrilioVault Manager..."
   fi
   cmd="kubectl get pods -l app=k8s-triliovault-control-plane -n $tvk_ns 2>/dev/null | grep Running"
   wait_install 10 "$cmd"
@@ -724,16 +724,16 @@ EOF
   wait_install 10 "$cmd"
   if ! kubectl get pods -l app=k8s-triliovault-control-plane -n "$tvk_ns" 2>/dev/null | grep -q Running || ! kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" 2>/dev/null | grep -q Running; then
     if [[ $tvm_upgrade == 1 ]]; then
-      echo "TVM upgrade failed"
+      echo "TVM upgrade failed."
     else
-      echo "TVM installation failed"
+      echo "TVM installation failed."
     fi
     return 1
   fi
   if [[ $tvm_upgrade == 1 ]]; then
     echo "TVM is upgraded successfully!"
   else
-    echo "TVK Manager is installed"
+    echo "TVK Manager is installed."
   fi
   install_license "$tvk_ns"
 }
@@ -747,15 +747,15 @@ install_license() {
     ret_val=$(kubectl get license "$ret" -n "$get_ns" 2>> >(logit) | grep -q Active)
     ret_code_A=$?
     if [ "$ret_code_A" -eq 0 ]; then
-      echo "License is already installed and is in active state"
+      echo "License is already installed and is in 'active' state."
       return
     fi
     #license is installed but is in inactive state
-    echo "License is already installed and is in inactive state"
+    echo "License is already installed and is in 'inactive' state."
     flag=1
   fi
 
-  echo "Installing required packages.."
+  echo "Installing required packages..."
   {
     pip3 install requests
     pip3 install beautifulsoup4
@@ -795,10 +795,10 @@ EOF
   ret=$(kubectl get license -n "$tvk_ns" 2>> >(logit) | grep -q Active)
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
-    echo "License installation failed"
+    echo "License installation failed!"
     exit 1
   else
-    echo "License is installed successfully"
+    echo "License is installed successfully."
   fi
 }
 
@@ -809,7 +809,7 @@ check_tvk_install() {
   kubectl get svc -A | grep k8s-triliovault-operator 1>> >(logit) 2>> >(logit)
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
-    echo "Triliovault-operator is not installed..Exiting"
+    echo "TrilioVault Operator is not installed...Exiting!"
     exit 1
   fi
   tvk_control_name=$(kubectl get pods -l app=k8s-triliovault-control-plane -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit))
@@ -818,7 +818,7 @@ check_tvk_install() {
   tvk_webhook_namespace=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit))
   webhook_state=$(kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
   if [[ "$webhook_state" != "Running" ]]; then
-    echo "TVK webhook pod is not in Running state"
+    echo "TVK webhook pod is not in Running state!"
     return 1
   else
     kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
@@ -826,7 +826,7 @@ check_tvk_install() {
   fi
   control_plane_state=$(kubectl get pod "$tvk_control_name" -n "$tvk_control_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
   if [[ "$control_plane_state" != "Running" ]]; then
-    echo "TVK control plane pod is not in Running state"
+    echo "TVK control plane pod is not in Running state!"
     return 1
   else
     kubectl get pod "$tvk_control_name" -n "$tvk_control_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
@@ -845,7 +845,7 @@ configure_ui() {
   check_tvk_install
   ret_code=$?
   if [[ $ret_code != 0 ]]; then
-    echo "TVK is not in healthy state, UI configuration may fail or UI will not work as expected."
+    echo "TVK is not in a healthy state, UI configuration may fail or UI will not work as expected."
   fi
   if [[ -z ${input_config} ]]; then
     echo -e "TVK UI can be accessed using \n1.LoadBalancer \n2.NodePort \n3.PortForwarding"
@@ -858,7 +858,7 @@ configure_ui() {
     elif [[ $ui_access_type == 'PortForwarding' ]]; then
       ui_access_type=3
     else
-      echo "Wrong option selected for ui_access_type"
+      echo "Wrong option selected for ui_access_type."
       return 1
     fi
   fi
@@ -878,7 +878,7 @@ configure_ui() {
   3)
     get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
     echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
-    echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> <ingress_host_name>' in /etc/hosts file.TVK management console traffic will be forwarded to your localhost IP via port 80."
+    echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> <ingress_host_name>' in /etc/hosts file. TVK management console traffic will be forwarded to your localhost IP via port 80."
     ;;
   2)
     if [[ $ret_code == 0 ]]; then
@@ -897,7 +897,7 @@ configure_ui() {
     return 0
     ;;
   *)
-    echo "Incorrect choice"
+    echo "Incorrect choice."
     return
     ;;
   esac
@@ -911,13 +911,13 @@ configure_nodeport_for_tvkui() {
   if [[ $do -eq "True" ]]; then
     ret=$(doctl auth list 2>/dev/null)
     if [[ -z $ret ]]; then
-      echo "This functionality requires doctl installed"
-      echo "Please follow  to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl"
+      echo "This functionality requires that doctl is installed."
+      echo "Please follow these instructions to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl."
       return 1
     fi
   fi
   if [[ -z ${input_config} ]]; then
-    read -r -p "Please enter host name for tvk ingress (default - tvk-doks.com): " tvkhost_name
+    read -r -p "Please enter the host name for tvk ingress (default - tvk-doks.com): " tvkhost_name
   fi
   if [[ -z ${tvkhost_name} ]]; then
     tvkhost_name="tvk-doks.com"
@@ -930,7 +930,7 @@ configure_nodeport_for_tvkui() {
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
-    echo "Error in getting installed TVM, please check if TVM is installed correctly"
+    echo "Error while checking for TVM, please check if TVM is installed correctly."
     exit 1
   fi
   if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
@@ -940,7 +940,7 @@ configure_nodeport_for_tvkui() {
   # shellcheck disable=SC1083
   gateway=$(kubectl get pods --no-headers=true -n "$get_ns" 2>/dev/null | awk "/$ingressGateway/"{'print $1}')
   if [[ -z "$gateway" ]]; then
-    echo "Not able to find $ingressGateway resource,TVK UI configuration failed"
+    echo "Not able to find $ingressGateway resource, TVK UI configuration failed."
     return 1
   fi
   node=$(kubectl get pods "$gateway" -n "$get_ns" -o jsonpath='{.spec.nodeName}' 2>> >(logit))
@@ -978,16 +978,16 @@ EOF
       fi
     done
     if [[ "$ret_code" -ne 0 ]]; then
-      echo "Error while configuring TVM CRD.."
+      echo "Error while configuring TVM CRD."
       return 1
     fi
   else
     if ! kubectl patch ingress k8s-triliovault-ingress-master -n "$get_ns" -p '{"spec":{"rules":[{"host":"'"${tvkhost_name}"'"}]}}'; then
-      echo "TVK UI configuration failed, please check ingress"
+      echo "TVK UI configuration failed, please check ingress."
       return 1
     fi
     if ! kubectl patch svc "$ingressGateway" -n "$get_ns" -p '{"spec": {"type": "NodePort"}}' 1>> >(logit) 2>> >(logit); then
-      echo "TVK UI configuration failed, please check ingress"
+      echo "TVK UI configuration failed, please check ingress."
       return 1
     fi
   fi
@@ -996,7 +996,7 @@ EOF
   kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.spec.type}' | grep -q 'NodePort'
   ret_code=$?
   if [[ "$retCode" -ne 0 ]]; then
-    echo "Changing type of service for $ingressGateway taking long time than usual"
+    echo "Changing type of service for $ingressGateway is taking longer than usual."
     return 1
   fi
   if [[ $do -eq "True" ]]; then
@@ -1005,17 +1005,17 @@ EOF
   fi
 
   if [[ -z ${ip} ]] || [[ $ip == "none" ]]; then
-    echo "since the nodes are not public, we need use port forwarding"
+    echo "Since the nodes are not public, we need use port forwarding."
     echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
-    echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> $tvkhost_name' in /etc/hosts file.TVK management console traffic will be forwarded to your localhost IP via port 80."
-    echo "After creating an entry,TVK UI can be accessed through http://$tvkhost_name"
+    echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> $tvkhost_name' in /etc/hosts file. TVK management console traffic will be forwarded to your localhost IP via port 80."
+    echo "After creating an entry, TVK UI can be accessed through - http://$tvkhost_name"
   else
-    echo "Please add '$ip $tvkhost_name' entry to your /etc/host file before launching the console"
-    echo "After creating an entry,TVK UI can be accessed through http://$tvkhost_name:$port/login"
-    echo "If there is an issue accesing TVK console please refer https://docs.trilio.io/kubernetes/support/troubleshooting-guide/issues-and-workaround#management-console-not-accessible-using-nodeport"
+    echo "Please add '$ip $tvkhost_name' entry to your /etc/host file before launching the console."
+    echo "After creating an entry, TVK UI can be accessed through http://$tvkhost_name:$port/login"
+    echo "If there is an issue accesing the TVK console please refer to - https://docs.trilio.io/kubernetes/support/troubleshooting-guide/issues-and-workaround#management-console-not-accessible-using-nodeport"
   fi
-  echo "provide config file to login"
-  echo "For https access, please refer - https://docs.trilio.io/kubernetes/management-console/user-interface/accessing-the-ui"
+  echo "Provide config file to login."
+  echo "For https access, please refer to - https://docs.trilio.io/kubernetes/management-console/user-interface/accessing-the-ui"
 }
 
 #This function is used to configure TVK UI through Loadbalancer
@@ -1025,24 +1025,24 @@ configure_loadbalancer_for_tvkUI() {
   if [[ $do -eq "True" ]]; then
     ret=$(doctl auth list 2>/dev/null)
     if [[ -z $ret ]]; then
-      echo "This functionality requires doctl installed"
-      echo "Please follow  to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl"
+      echo "This functionality requires doctl to be installed."
+      echo "Please follow these instructions to install https://docs.digitalocean.com/reference/doctl/how-to/install/ doctl."
       return 1
     fi
     if [[ -z ${input_config} ]]; then
-      echo "To use DigitalOcean DNS, you need to register a domain name with a registrar and update your domain’s NS records to point to DigitalOcean’s name servers."
+      echo "To use DigitalOcean DNS, you need to register a domain name with a registrar and update your domain's NS records to point to DigitalOcean's name servers."
       read -r -p "Please enter domainname for cluster (Domain name you have registered and added in Doks console): " domain
-      read -r -p "Please enter host name for tvk ingress (default - tvk-doks): " tvkhost_name
+      read -r -p "Please enter host name for tvk ingress (default - tvk-doks.com): " tvkhost_name
       read -r -p "Please enter auth token for doctl: " doctl_token
     fi
     if [[ -z ${doctl_token} ]]; then
-      echo "This functionality requires Digital Ocean authentication token"
+      echo "This functionality requires a DigitalOcean authentication token."
       return 1
     fi
     ret=$(doctl auth init -t "$doctl_token")
     ret_code=$?
     if [ "$ret_code" -ne 0 ]; then
-      echo "Cannot authenticate with the provided doctl auth token"
+      echo "Cannot authenticate with the provided doctl auth token."
       return 1
     fi
     if [[ -z ${tvkhost_name} ]]; then
@@ -1062,8 +1062,8 @@ configure_loadbalancer_for_tvkUI() {
   if [[ $do -eq "True" ]]; then
     cluster_name=$(kubectl config view --minify -o jsonpath='{.clusters[].name}' | cut -d'-' -f3-)
     if [[ -z ${cluster_name} ]]; then
-      echo "Error in getting cluster name from the current-context set in kubeconfig"
-      echo "Please check the current-context"
+      echo "Error in getting cluster name from the current-context setting in kubeconfig."
+      echo "Please check the current-context."
       return 1
     fi
   fi
@@ -1074,7 +1074,7 @@ configure_loadbalancer_for_tvkUI() {
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
-    echo "Error in getting installed TVM, please check if TVM is installed correctly"
+    echo "Error while checking TVM, please check if TVM is installed correctly."
     exit 1
   fi
   if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
@@ -1113,16 +1113,16 @@ EOF
       fi
     done
     if [[ "$ret_code" -ne 0 ]]; then
-      echo "Error while configuring TVM CRD.."
+      echo "Error while configuring TVM CRD."
       return 1
     fi
   else
     if ! kubectl patch svc "$ingressGateway" -n "$get_ns" -p '{"spec": {"type": "LoadBalancer"}}' 1>> >(logit) 2>> >(logit); then
-      echo "TVK UI configuration failed, please check ingress"
+      echo "TVK UI configuration failed, please check ingress."
       return 1
     fi
   fi
-  echo "Configuring UI......This may take some time"
+  echo "Configuring UI... This may take some time!"
   sleep 10
   cmd="kubectl get svc $ingressGateway -n $get_ns -o 'jsonpath={.status.loadBalancer}'"
   wait_install 20 "$cmd"
@@ -1135,7 +1135,7 @@ EOF
   if [[ -z "$external_ip" ]]; then
     hostname=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.status.loadBalancer.ingress[0].hostname}' 2>> >(logit))
     if [[ -z "$hostname" ]]; then
-      echo "ExternalIP is not set, please check configurations"
+      echo "ExternalIP is not set, please check configuration."
       return 1
     fi
     external_ip=$(dig "$hostname" +short | awk 'NR==2 {print $1}' 2>> >(logit))
@@ -1149,14 +1149,14 @@ EOF
   kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.spec.type}' | grep -q 'LoadBalancer'
   ret_code=$?
   if [[ "$retCode" -ne 0 ]]; then
-    echo "Changing type of service for $ingressGateway taking long time than usual"
+    echo "Changing the type of service for $ingressGateway is taking longer than usual."
     return 1
   fi
   if [[ $do -eq "True" ]]; then
     doctl compute domain records create "${domain}" --record-type A --record-name "${tvkhost_name}" --record-data "${external_ip}" 1>> >(logit) 2>> >(logit)
     retCode=$?
     if [[ "$retCode" -ne 0 ]]; then
-      echo "Failed to create record, please check domain name"
+      echo "Failed to create record, please check the domain name."
       return 1
     fi
 
@@ -1164,8 +1164,8 @@ EOF
     echo "Config file can be found at location: $PWD/config_${cluster_name}"
     link="http://${tvkhost_name}.${domain}/login"
     echo "You can access TVK UI: $link"
-    echo "provide config file to login"
-    echo "Info:UI may take 30 min to come up"
+    echo "Provide the config file to login."
+    echo "The UI may take 30 min to come up!"
   else
     if [[ -z "$external_ip" ]]; then
       echo "Add the /etc/hosts entry: '${hostname} ${tvkhost_name}'"
@@ -1195,7 +1195,7 @@ stringData:
 EOF
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-    echo "Secret for target creation failed..Exiting"
+    echo "Secret for target creation failed...Exiting!"
     return 1
   fi
 }
@@ -1210,7 +1210,7 @@ check_target_existence() {
   region=$7
   if [[ $(kubectl get target "$target_name" -n "$target_namespace" 2>> >(logit)) ]]; then
     if kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
-      echo "Target with same name already exists but is in Unavailable state"
+      echo "Target with same name already exists but is in an 'Unavailable' state!"
       return 1
     else
       secret_name=$(kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.spec.objectStoreCredentials.credentialSecret.name}')
@@ -1333,8 +1333,8 @@ EOM
 
 create_doks_s3() {
   if [[ -z ${input_config} ]]; then
-    echo "Please go through https://docs.digitalocean.com/products/spaces/resources/s3cmd/ to know about options"
-    echo "for creation of bucket, please provide input"
+    echo "Please go through https://docs.digitalocean.com/products/spaces/resources/s3cmd/ to understand the options."
+    echo "To create the bucket please provide the following input:"
     read -r -p "Access_key: " access_key
     read -r -p "Secret_key: " secret_key
     read -r -p "Host Base (default - nyc3.digitaloceanspaces.com): " host_base
@@ -1368,10 +1368,10 @@ create_doks_s3() {
     ret_code=$(echo "$ret_val" | grep 'Bucket already exists')
     ret_code_err=$(echo "$ret_val_error" | grep 'Bucket already exists')
     if [[ "$ret_code" ]] || [[ $ret_code_err ]]; then
-      echo "WARNING: Bucket already exists"
+      echo "WARNING: Bucket already exists."
     else
       echo "$ret_mgs"
-      echo "Error in creating spaces,please check credentials"
+      echo "Error while creating spaces, please check credentials."
       exit 1
     fi
   fi
@@ -1386,7 +1386,7 @@ create_doks_s3() {
     if_resource_exists_still_proceed='y'
   fi
   if [[ -z "$target_name" ]]; then
-    echo "Target name is required to proceed"
+    echo "Target name is required to proceed."
     exit 1
   fi
   if [[ -z "$target_namespace" ]]; then
@@ -1434,7 +1434,7 @@ spec:
 EOF
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-    echo "Target creation failed"
+    echo "Target creation failed."
     return 1
   fi
 }
@@ -1515,8 +1515,8 @@ EOM
 #Function to create Aws s3 target
 create_aws_s3() {
   if [[ -z ${input_config} ]]; then
-    echo "Please go through https://linux.die.net/man/1/s3cmd to know about options"
-    echo "for creation of bucket, please provide input"
+    echo "Please go through https://linux.die.net/man/1/s3cmd to understand the options."
+    echo "To create the bucket, please provide the following input:"
     read -r -p "Access_key: " access_key
     read -r -p "Secret_key: " secret_key
     read -r -p "Host Base (default - s3.amazonaws.com): " host_base
@@ -1561,7 +1561,7 @@ create_aws_s3() {
   if [[ -z ${input_config} ]]; then
     read -r -p "Target Name (default): " target_name
     read -r -p "Target Namespace: " target_namespace
-    read -r -p "thresholdCapacity (Units can be[Mi/Gi/Ti]) (default - 1000Gi): " thresholdCapacity
+    read -r -p "ThresholdCapacity (Units can be[Mi/Gi/Ti]) (default - 1000Gi): " thresholdCapacity
     read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
   if [[ -z "$if_resource_exists_still_proceed" ]]; then
@@ -1575,7 +1575,7 @@ create_aws_s3() {
     kubectl create ns $target_namespace 2>> >(logit)
   fi
   if [[ -z "$target_name" ]]; then
-    echo "Target name is required to proceed"
+    echo "Target name is required to proceed."
     exit 1
   fi
   if [[ -z "$thresholdCapacity" ]]; then
@@ -1617,7 +1617,7 @@ spec:
 EOF
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-    echo "Target creation failed"
+    echo "Target creation failed."
     return 1
   fi
 }
@@ -1655,22 +1655,22 @@ create_readymade_minio() {
   helm repo add minio https://helm.min.io/ 1>> >(logit) 2>> >(logit)
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-    echo "There is some error in helm update,please resolve and try again" 1>> >(logit) 2>> >(logit)
-    echo "Error ading helm repo"
+    echo "There were some error while adding the helm repo, please resolve and try again." 1>> >(logit) 2>> >(logit)
+    echo "Error adding minio helm repo."
     exit 1
   fi
   #check if minio server already exists
   helm show chart minio/minio -n $minio_server_namespace 1>> >(logit) 2>> >(logit)
   rel_name=$(helm list -n $minio_server_namespace | awk '$9 ~ "^minio" { print $0 }' | sed -n '1p' | awk '{print $1}')
   if [[ "$rel_name" != "" ]]; then
-    echo "minio is already installed"
+    echo "Minio is already installed."
     #rel_name=$(helm list -n $minio_server_namespace | awk '$9 ~ "^minio" { print $0 }' | sed -n '1p'| awk '{print $1}')
     #pod_name=$(kubectl get pod -n $minio_server_namespace | grep "$rel_name" | awk '{print $1}')
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
     if [[ -z ${input_config} ]]; then
-      read -r -p "Use existing minio server if available ('Y'): " use_existing_minio
+      read -r -p "Use existing minio server if available (N/y): " use_existing_minio
     fi
     if [[ -z "$use_existing_minio" ]]; then
       use_existing_minio="y"
@@ -1681,20 +1681,20 @@ create_readymade_minio() {
     #echo "$ret_val" 1>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "There is some error in installing minio helm chart, please resolve and try again"
+      echo "There was an error while installing minio helm chart, please resolve and try again."
       exit 1
     fi
     rel_name=$(awk 'NR==1 {print $2}' <<<"$ret_val")
   else
     if [[ -z ${input_config} ]]; then
-      read -r -p "use any available minio server (y/n) ('Y') : " default_minio
+      read -r -p "Use any available minio server (Y/n) : " default_minio
     fi
     if [[ -z "$default_minio" ]]; then
       default_minio="y"
     fi
     if [[ "$default_minio" != "Y" ]] && [[ "$default_minio" != "y" ]]; then
       #read -r -p "Enter the service name of the existing minio: " pod_name
-      read -r -p "Enter the namespace in which th minio pod resides: " minio_server_namespace
+      read -r -p "Enter the namespace in which the minio pod resides: " minio_server_namespace
       read -r -p "Enter the secret name for the existing minio server: " rel_name
     else
       i=1
@@ -1709,20 +1709,20 @@ create_readymade_minio() {
       done
     fi
     if [[ "$rel_name" == "" ]]; then
-      echo "No minio server is in available state"
+      echo "No minio server is in 'available' state."
       exit 1
     fi
   fi
   #Check if minio is deployed correctly
   #rel_name=$(echo $ret_val | awk '{print $2}')
   #pod_name=$(kubectl get pod -n "$minio_server_namespace" | grep $rel_name | awk '{print $1}')
-  echo "Waiting for Minio deployment to be in Ready state.."
+  echo "Waiting for Minio deployment to be in 'Ready' state..."
   cmd="kubectl get deployment $rel_name -n $minio_server_namespace -o 'jsonpath={.status.conditions[*].status}' | grep -v False"
   wait_install 1 "$cmd"
   kubectl get deployment $rel_name -n "$minio_server_namespace" -o jsonpath="{.status.conditions[*].status}" | grep -q False 1>> >(logit) 2>> >(logit)
   ret_code=$?
   if [[ $ret_code -eq 0 ]]; then
-    echo "Minio deployment taking more time than usual to be in Ready state, Exiting.."
+    echo "Minio deployment taking longer than usual to be in 'Ready' state so exiting..."
     exit 1
   fi
   #get credentials and create target crd and apply it.
@@ -1740,7 +1740,7 @@ create_readymade_minio() {
   ret_val=$(kubectl run "$mc_pod_nm" --image=minio/mc -n "$minio_server_namespace" --restart=Never --command -- /bin/sh -c 'while true; do sleep 5s; done' 1>> >(logit) 2>> >(logit))
   ret_code=$?
   if [[ "$ret_code" -ne 0 ]]; then
-    echo "not able to run minio cclinet image/container"
+    echo "Not able to run minio client image/container."
     return 1
   fi
   kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
@@ -1752,13 +1752,13 @@ create_readymade_minio() {
     open_flag=1
   fi
   set -x
-  echo "Waiting for minio client pod to be in Ready state.."
+  echo "Waiting for minio client pod to be in 'Ready' state..."
   cmd="kubectl get pod $mc_pod_nm -n $minio_server_namespace -o jsonpath='{.status.phase}' 2>/dev/null | grep -e Running"
   wait_install 10 "$cmd"
   kubectl get pod "$mc_pod_nm" -n "$minio_server_namespace" -o jsonpath="{.status.conditions[*].status}" | grep -q False 1>> >(logit) 2>> >(logit)
   ret_code=$?
   if [[ "$ret_code" -eq 0 ]]; then
-    echo "Minio client container taking more time than usual to be in Ready state, Exiting.."
+    echo "Minio client container taking longer than usual to be in 'Ready' state so exiting..."
     return 1
   fi
   kubectl -n "$minio_server_namespace" exec -i "$mc_pod_nm" -- mc alias set minio "$URL" "$ACCESS_KEY" "$SECRET_KEY"
@@ -1768,9 +1768,9 @@ create_readymade_minio() {
   if [[ "$ret_code" -ne 0 ]]; then
     ret_val=$(echo "$ret_msg" | grep 'you already own it')
     if [[ "$ret_val" ]]; then
-      echo "WARNING: Bucket already exists"
+      echo "WARNING: Bucket already exists."
     else
-      echo "Error in creating bucket,please check credentials"
+      echo "Error in creating bucket, please check credentials."
       exit 1
     fi
   fi
@@ -1805,15 +1805,15 @@ spec:
 EOF
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-    echo "Target creation failed"
+    echo "Target creation failed!"
     return 1
   fi
 }
 
 create_gcp_s3() {
   if [[ -z ${input_config} ]]; then
-    echo "Please go through https://linux.die.net/man/1/s3cmd to know about options"
-    echo "for creation of bucket, please provide input"
+    echo "Please go through https://linux.die.net/man/1/s3cmd to understand the options"
+    echo "for creating a bucket, please provide the following input."
     read -r -p "Access_key: " access_key
     read -r -p "Secret_key: " secret_key
     read -r -p "Host Base (default - https://storage.googleapis.com): " host_base
@@ -1851,11 +1851,11 @@ create_gcp_s3() {
     if [[ "$ret_code" ]]; then
       echo "WARNING: Bucket already exists"
     elif [[ "$ret_code1" ]]; then
-      echo "WARNING: Bucket Name unavailable,please use different name"
+      echo "WARNING: Bucket Name unavailable, please use a different name."
       exit 1
     else
       echo "$ret_val"
-      echo "Error in creating bucket,please check credentials/name"
+      echo "Error while creating bucket, please check credentials/name."
       exit 1
     fi
   fi
@@ -1918,7 +1918,7 @@ spec:
 EOF
   retcode=$?
   if [ "$retcode" -ne 0 ]; then
-    echo "Target creation failed"
+    echo "Target creation failed!"
     return 1
   fi
 }
@@ -1927,7 +1927,7 @@ EOF
 create_target() {
   check_tvk_install
   if [[ $ret_code != 0 ]]; then
-    echo "TVK is not in healthy state, Target creation may fail or may not work as expected."
+    echo "TVK is not in a healthy state. Target creation may fail or may not work as expected."
   fi
   if [[ -z ${input_config} ]]; then
     echo -e "Target can be created on NFS or s3 compatible storage\n1.NFS (default) \n2.S3"
@@ -1938,7 +1938,7 @@ create_target() {
     elif [[ $target_type == 'S3' ]]; then
       target_type=2
     else
-      echo "Wrong value provided for target"
+      echo "Wrong value provided for target!"
     fi
   fi
   if [[ -z "$target_type" ]]; then
@@ -1948,7 +1948,7 @@ create_target() {
   2)
     ret=$(s3cmd --version 2>/dev/null)
     if [[ -z $ret ]]; then
-      echo "This functionality requires s3cmd utility installed"
+      echo "This functionality requires the s3cmd utility installed."
       echo "Please check README or follow https://s3tools.org/s3cmd"
       return 1
     fi
@@ -1965,7 +1965,7 @@ create_target() {
       elif [[ $vendor_type == "GCP" ]]; then
         vendor_type=4
       else
-        echo "Wrong value provided for target"
+        echo "Wrong value provided for target."
       fi
     fi
     case $vendor_type in
@@ -1998,7 +1998,7 @@ create_target() {
       fi
       ;;
     *)
-      echo "Wrong selection"
+      echo "Wrong selection!"
       exit 1
       ;;
     esac
@@ -2007,12 +2007,12 @@ create_target() {
   1)
     if [[ -z ${input_config} ]]; then
       # shellcheck disable=SC2140
-      echo "NOTE: Verify if 'nfs-common' package is installed on all nodes, else NFS target creation might fail"
+      echo "NOTE: Verify if 'nfs-common' package is installed on all nodes, else NFS target creation will fail."
       read -r -p "Target Name: " target_name
       read -r -p "namespace (default): " target_namespace
       read -r -p "NFS Path (server_ip:nfs_path): " nfs_path
       read -r -p "NFSoption (default - nfsvers=4): " nfs_options
-      read -r -p "thresholdCapacity (Units can be[Mi/Gi/Ti]) (default - 1000Gi): " thresholdCapacity
+      read -r -p "ThresholdCapacity (Units can be[Mi/Gi/Ti]) (default - 1000Gi): " thresholdCapacity
       read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
     fi
     if [[ -z "$if_resource_exists_still_proceed" ]]; then
@@ -2027,10 +2027,10 @@ create_target() {
     fi
     if [[ $(kubectl get target "$target_name" -n "$target_namespace" 2>/dev/null) ]]; then
       if kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
-        echo "Target with same name already exists but is in Unavailable state"
+        echo "Target with same name already exists but is in 'Unavailable' state."
         exit 1
       else
-        echo "Target with same name already exists"
+        echo "Target with same name already exists."
         return 0
       fi
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
@@ -2062,24 +2062,24 @@ spec:
 EOF
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "Target creation failed"
+      echo "Target creation failed."
       return 1
     fi
     ;;
   *)
-    echo "Wrong selection"
+    echo "Wrong selection."
     return 1
     ;;
   esac
   shift
-  echo "Creating Target.."
+  echo "Creating Target..."
   cmd="kubectl get target $target_name -n $target_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Unavailable"
   wait_install 20 "$cmd"
   if ! kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
-    echo "Failed to create target"
+    echo "Failed to create target."
     exit 1
   else
-    echo "Target is Available to use"
+    echo "Target is Available to use."
   fi
 }
 
@@ -2094,24 +2094,24 @@ check_csi() {
   kubectl get csidriver 2>> >(logit) | grep -q "hostpath.csi.k8s.io"
   ret_code=$?
   if [[ $num_csi -eq 1 ]] && [[ $ret_code -eq 0 ]] && [[ $num_nodes -gt 1 ]]; then
-    echo "Hostpath CSI driver found"
-    echo "Limitation of host path, only works for a single node, not for multiple nodes"
+    echo "Hostpath CSI driver found."
+    echo "Limitation of host path, only works for a single node, not for multiple nodes."
     flag=1
   fi
   if [[ -z $csi ]] || [[ $flag -eq 1 ]]; then
-    echo "For tvk imstallation and running sample programs valid CSI driver is needed"
+    echo "For tvk installation and running sample programs a valid CSI driver is required."
     exit 1
     #Check if cluster is OCP
     kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
     ret_val=$?
     if [ "$ret_code" -eq 0 ]; then
-      echo "Longhorn installation using this plugin on OCP is not supported.."
-      echo "Please install valid CSI driver and try again"
+      echo "Longhorn installation using this plugin on OCP is not supported!"
+      echo "Please install a valid CSI driver and try again."
       exit 1
     fi
     #echo "Note: longhorn CSI Driver may not work as expected on OCP cluster"
     if [[ -z "${input_config}" ]]; then
-      read -r -p "Do you want to install longhorn CSI driver(y): " csi_loghorn
+      read -r -p "Do you want to install longhorn CSI driver(y/N): " csi_loghorn
     fi
     if [[ -z $csi_loghorn ]]; then
       csi_loghorn="y"
@@ -2119,19 +2119,19 @@ check_csi() {
     if [[ "$csi_loghorn" != "Y" ]] && [[ "$csi_loghorn" != "y" ]]; then
       exit 1
     fi
-    echo "Longhorn requires open-iscsi,nfs-common installed and cluster admin to enable role-based access control else the installation will fail"
-    echo "Pre-requisites for the Longhorn CSI can be find at https://longhorn.io/docs/1.3.0/deploy/install/#using-the-environment-check-script"
-    echo "Longhorn CSI also requires target to store volumesnapshot"
+    echo "Longhorn requires open-iscsi, nfs-common installed and cluster admin to enable role-based access control else the installation will fail."
+    echo "Pre-requisites for the Longhorn CSI can be found at https://longhorn.io/docs/1.3.0/deploy/install/#using-the-environment-check-script"
+    echo "Longhorn CSI also requires a target to store the volumesnapshot."
 
     snap_ver="release-6.0"
     #check if volumesnapshot CRDS are present
     if kubectl get volumesnapshotclasses.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit) && kubectl get volumesnapshots.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit) && kubectl get volumesnapshotcontents.snapshot.storage.k8s.io 1>> >(logit) 2>> >(logit); then
-      echo "Volumesnapshot CRDS are present.."
-      echo "Checking for snapshot controller"
+      echo "Volumesnapshot CRDS are present."
+      echo "Checking for snapshot controller."
       snap_ver="release-6.0"
       #check if snapshoter is present
       if kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\n"}{range .spec.containers[*]}{.image}{", "}{end}{end}' | grep snapshot-controller 1>> >(logit) 2>> >(logit); then
-        echo "Snapshot controller is installed.."
+        echo "Snapshot controller is installed."
       else
         kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
         kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
@@ -2146,8 +2146,8 @@ check_csi() {
     fi
     helm repo add longhorn https://charts.longhorn.io
     helm repo update 1>> >(logit) 2>> >(logit)
-    echo "Longhorn requires target to store volume snapshop"
-    echo "Using local minio to create target for longhorn"
+    echo "Longhorn requires a target to store volume snapshop."
+    echo "Using local minio to create a target for longhorn."
     #make changes below:
     kubectl create ns longhorn-system
     kubectl create -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/backupstores/minio-backupstore.yaml
@@ -2162,7 +2162,7 @@ check_csi() {
       sleep .1
     done
     if kubectl get pods -l app=longhorn-test-minio -n longhorn-system -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-      echo "Local minio is taking more to come up which is required as longhorn snapshot store, Exiting.."
+      echo "Local minio is taking longer to come up, it is required by longhorn as the snapshot store, exiting..."
       return 1
     fi
     echo "Local minio is Up and Running to use as storage for snapshot created by longhorn CSI!"
@@ -2173,7 +2173,7 @@ check_csi() {
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
       echo "Error in installing longhorn..."
-      echo "Please check pod logs in longhorn-system namespace"
+      echo "Please check pod logs in longhorn-system namespace."
       exit 1
     fi
     cat <<EOF | kubectl apply -f - 2>> >(logit)
@@ -2202,7 +2202,7 @@ EOF
 
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "Storageclass or volumesnapshot class creation failed, pleasecheck volume CRD"
+      echo "Storageclass or volumesnapshot class creation failed, please check volume CRD."
       return 1
     fi
   fi
@@ -2219,22 +2219,22 @@ EOF
     # shellcheck disable=SC2116
     num_of_store=$(echo ${#def_store[@]})
     if [[ $num_of_store -gt 1 ]]; then
-      echo "Multiple storageclass are marked with 'default label', please mark only one storageclass as default"
+      echo "Multiple storageclasses are marked with the 'default' label, please mark only one storageclass as 'default'."
       return 1
     elif [[ $num_of_store -eq 1 ]]; then
       if [[ $prov == "hostpath.csi.k8s.io" ]] && [[ $num_nodes -gt 1 ]]; then
-        echo "Hostpath works only for single node..Please select other storage class as default"
+        echo "Hostpath works only for single node. Please select another storage class as 'default'."
         return 1
       fi
       kubectl get csidriver | grep "$prov" 1>> >(logit) 2>> >(logit)
       # shellcheck disable=SC2181
       if [[ $? -ne 0 ]]; then
-        echo "Storageclass labeled as 'default' does not have valid provisioner...Exiting"
+        echo "Storageclass labeled as 'default' does not have valid provisioner, exiting."
         exit 1
       fi
     fi
   else
-    echo "No storageclass with default label is present, please label 'default' to one of the valid storageclass"
+    echo "No storageclass with 'default' label is present, please add the label 'default' to one of the valid storageclasses."
     return 1
   fi
 
@@ -2248,7 +2248,7 @@ EOF
   kubectl get volumesnapshotclass -o jsonpath='{.items[*].driver}' | grep -q "$prov"
   # shellcheck disable=SC2181
   if [[ $? -ne 0 ]]; then
-    echo "Please make sure that volumesnapshotclass created is consistent with default storageclass"
+    echo "Please make sure that the volumesnapshotclass created is consistent with 'default' storageclass."
     return 1
   fi
 
@@ -2299,12 +2299,12 @@ sample_test() {
     elif [[ $backup_way == "Transformation" ]]; then
       backup_way=5
     else
-      echo "Backup way is wrong/not defined"
+      echo "The backup method is wrong/not defined."
       return 1
     fi
   fi
   if [[ -z $backup_way ]]; then
-    echo "Please provide valid option..exiting.."
+    echo "Please provide a valid option, exiting..."
     return 1
   fi
   case $backup_way in
@@ -2325,7 +2325,7 @@ sample_test() {
     ;;
   esac
   if [[ -z ${input_config} ]]; then
-    echo "Please provide input for test demo"
+    echo "Please provide input for the test demo."
     read -r -p "Target Name: " target_name
     read -r -p "Target Namespace: " target_namespace
     read -r -p "Backupplan name (default - trilio-$app-testback): " bk_plan_name
@@ -2351,7 +2351,7 @@ sample_test() {
   fi
   storage_class=$(kubectl get storageclass | grep -w '(default)' | awk '{print $1}')
   if [[ -z "$storage_class" ]]; then
-    echo "No default storage class found, need one to proceed"
+    echo "No default storage class found, we need one to proceed!"
     return 1
   fi
   #Check if cluster is OCP
@@ -2365,7 +2365,7 @@ sample_test() {
   #Check if yq is installed
   ret=$(yq -V 2>/dev/null)
   if [[ -z $ret ]]; then
-    echo "This functionality requires yq utility installed"
+    echo "This functionality requires that the yq utility is installed."
     echo "Please check README or follow https://github.com/mikefarah/yq"
     return 1
   fi
@@ -2391,7 +2391,7 @@ spec:
 EOM
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
-    echo "Cannot write backupplan.yaml file, please check file system permissions"
+    echo "Cannot write backupplan.yaml file, please check the file system permissions."
     return 1
   fi
   chmod 666 backupplan.yaml
@@ -2413,7 +2413,7 @@ EOM
       cmd="kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep Running"
       wait_install 15 "$cmd"
       if ! kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep -q Running; then
-        echo "Application taking more time than usual to be in Ready state, Exiting.."
+        echo "Application is taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
     else
@@ -2427,7 +2427,7 @@ EOM
       sleep 10
       cmd=$(kubectl get pods -l app=mysql-qa -n $backup_namespace 2>&1)
       if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-        echo "Error in creating pod, please check security context"
+        echo "Error in creating pod, please check security context."
         return 1
       fi
       runtime=20
@@ -2441,7 +2441,7 @@ EOM
         sleep .1
       done
       if kubectl get pods -l app=mysql-qa -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-        echo "Mysql Application taking more time than usual to be in Ready state, Exiting.."
+        echo "Mysql application is taking longer than usual to be the 'Ready' state, exiting..."
         return 1
       fi
     fi
@@ -2452,15 +2452,15 @@ EOM
     ;;
   2)
     if helm list -n $backup_namespace | grep -w -q my-wordpress 2>> >(logit); then
-      echo "Application exists"
+      echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
-      echo "Waiting for application to be in Ready state"
+      echo "Waiting for application to be in the 'Ready' state."
     else
       #Add bitnami helm repo
       helm repo add bitnami https://charts.bitnami.com/bitnami 1>> >(logit) 2>> >(logit)
-      echo "Installing mysql which will be used as underlying db for wordpress.."
+      echo "Installing mysql which will be used as underlying db for wordpress..."
       rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
       helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
       if [ "$open_flag" -eq 1 ]; then
@@ -2470,7 +2470,7 @@ EOM
       # shellcheck disable=SC2086
       cmd=$(kubectl get pods -l app=mysql-$rand_name -n $backup_namespace 2>&1)
       if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-        echo "Error in creating pod, please check security context"
+        echo "Error in creating pod, please check security context."
         return 1
       fi
       runtime=20
@@ -2486,7 +2486,7 @@ EOM
       done
       # shellcheck disable=SC2086
       if kubectl get pods -l app=mysql-$rand_name -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-        echo "Wordpress underlying Mysql Application taking more time than usual to be in Ready state, Exiting.."
+        echo "Wordpress underlying Mysql application is taking longer than usual to be in the 'Ready' state, exiting..."
         return 1
       fi
       cat >initcontainer.yaml <<-EOM
@@ -2515,7 +2515,7 @@ EOM
     sleep 5
     cmd=$(kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n $backup_namespace 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-      echo "Error in creating pod, please check security context"
+      echo "Error in creating pod, please check security context."
       return 1
     fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
@@ -2525,7 +2525,7 @@ EOM
       sleep .1
     done
     if kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-      echo "Wordpress Application taking more time than usual to be in Ready state, Exiting.."
+      echo "Wordpress application taking longer than usual to be in the 'Ready' state, exiting..."
       return 1
     fi
     echo "Requested application is Up and Running!"
@@ -2534,13 +2534,13 @@ EOM
     ;;
   3)
     if helm list -n $backup_namespace | grep -w -q mysql-operator 2>> >(logit); then
-      echo "Application exists"
+      echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
-      echo "Waiting for application to be in Ready state"
+      echo "Waiting for application to be in the 'Ready' state."
     else
-      echo "MySQL operator will require enough resources, else the deployment will fail"
+      echo "MySQL operator will require enough resources or else the deployment will fail!"
       helm repo add bitpoke https://helm-charts.bitpoke.io 1>> >(logit) 2>> >(logit)
       cat >initcontainer.yaml <<-EOM
 initContainers:
@@ -2558,7 +2558,7 @@ initContainers:
 EOM
       errormessage=$(helm install mysql-operator bitpoke/mysql-operator --set orchestrator.persistence.enabled=false -f initcontainer.yaml -n $backup_namespace 2>> >(logit))
       if echo "$errormessage" | grep -Eq 'Error:|error:'; then
-        echo "Mysql operator Installation failed with error: $errormessage"
+        echo "MySQL operator Installation failed with error: $errormessage"
         return 1
       fi
       echo "Installing MySQL Operator..."
@@ -2573,7 +2573,7 @@ EOM
     sleep 5
     cmd=$(kubectl get pod -l app.kubernetes.io/name=mysql-operator -n $backup_namespace 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-      echo "Error in creating pod, please check security context"
+      echo "Error in creating pod, please check security context."
       return 1
     fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
@@ -2587,8 +2587,8 @@ EOM
       return 1
     fi
     if ! kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace --ignore-not-found 1>> >(logit); then
-      echo "Mysql cluster already exists.."
-      echo "Waiting for application to be in Ready state"
+      echo "MySQL cluster already exists..."
+      echo "Waiting for application to be in the 'Ready' state."
     else
       #Create a MySQL cluster
       kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n $backup_namespace 2>> >(logit)
@@ -2606,7 +2606,7 @@ EOM
     sleep 5
     cmd=$(kubectl get pod -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-      echo "Error in creating pod, please check security context"
+      echo "Error in creating pod, please check security context."
       return 1
     fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
@@ -2622,7 +2622,7 @@ EOM
       sleep .1
     done
     if kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-      echo "MySQL cluster taking more time than usual to be in Ready state, Exiting.."
+      echo "MySQL cluster taking longer than usual to be in the 'Ready' state, exiting..."
       return 1
     fi
     echo "Requested application is Up and Running!"
@@ -2641,11 +2641,11 @@ EOM
     ;;
   4)
     if helm list -n $backup_namespace | grep -q -w mongotest; then
-      echo "Application exists"
+      echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
-      echo "Waiting for application to be in Ready state"
+      echo "Waiting for application to be in the 'Ready' state."
     else
       {
         helm repo add bitnami https://charts.bitnami.com/bitnami
@@ -2663,19 +2663,19 @@ EOM
     sleep 5
     cmd=$(kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-      echo "Error in creating pod, please check security context"
+      echo "Error in creating pod, please check security context."
       return 1
     fi
     # shellcheck disable=SC2016
     cmd='kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False'
     wait_install_app 30 "$backup_namespace" "$cmd"
     if kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-      echo "Mongodb Application taking more time than usual to be in Ready state, Exiting.."
-      echo "Retrying by changing volume permissions"
+      echo "Mongodb Application taking longer than usual to be in the 'Ready' state, exiting..."
+      echo "Retrying by changing volume permissions."
       helm upgrade mongotest bitnami/mongodb --set volumePermissions.enabled=true --set auth.rootPassword="$MONGODB_ROOT_PASSWORD" -n $backup_namespace
       wait_install_app 15 "$backup_namespace" "$cmd"
       if kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-        echo "Failed to install Mongodb Application"
+        echo "Failed to install Mongodb application."
         return 1
       fi
     fi
@@ -2687,11 +2687,11 @@ EOM
     ## Install postgresql helm chart
     #check if app is already installed with same name
     if helm list -n "$backup_namespace" | grep -w -q postgresql; then
-      echo "Application exists"
+      echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
-      echo "Waiting for application to be in Ready state"
+      echo "Waiting for application to be in the 'Ready' state."
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
         kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
@@ -2699,11 +2699,11 @@ EOM
       cmd="kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace 2>/dev/null | grep Running"
       wait_install 15 "$cmd"
       if ! kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace 2>/dev/null | grep -q Running; then
-        echo "Application taking more time than usual to be in Ready state, Exiting.."
+        echo "Application taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
     else
-      echo "There should be only one storageclass with 'default' label, else the installation would fail"
+      echo "There should be only one storageclass with the 'default' label or else the installation will fail!"
       {
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
@@ -2714,11 +2714,11 @@ EOM
         kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
         kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
       fi
-      echo "Installing Application"
+      echo "Installing Application."
       sleep 10
       cmd=$(kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace 2>&1)
       if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-        echo "Error in creating pod, please check security context"
+        echo "Error in creating pod, please check security context."
         return 1
       fi
       runtime=20
@@ -2732,7 +2732,7 @@ EOM
         sleep .1
       done
       if kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-        echo "Postgresql Application taking more time than usual to be in Ready state, Exiting.."
+        echo "Postgresql application taking longer than usual to be in the 'Ready' state, exiting..."
         return 1
       fi
     fi
@@ -2742,12 +2742,12 @@ EOM
     yq eval -i '.spec.backupPlanComponents.helmReleases[0]="postgresql"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
   *)
-    echo "Wrong choice"
+    echo "Wrong choice."
     ;;
   esac
   #check if backupplan with same name already exists
   if [[ $(kubectl get backupplan $bk_plan_name -n $backup_namespace 2>/dev/null) ]]; then
-    echo "Backupplan with same name already exists"
+    echo "Backupplan with same name already exists."
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
@@ -2777,26 +2777,26 @@ spec:
 EOF
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "Erro while applying policy"
+      echo "Erro while applying policy."
       return 1
     fi
     if ! kubectl apply -f backupplan.yaml -n $backup_namespace; then
-      echo "Backupplan creation failed"
+      echo "Backupplan creation failed."
       return 1
     fi
   fi
-  echo "Waiting for backupplan to be Available to use.."
+  echo "Waiting for backupplan to be Available to use..."
   cmd="kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Unavailable"
   wait_install 10 "$cmd"
   if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
-    echo "Backupplan is in Unavailable state"
+    echo "Backupplan is in Unavailable state!"
     return 1
   else
-    echo "Backupplan is in Available state"
+    echo "Backupplan is in Available state."
   fi
   rm -f backupplan.yaml
   if [[ $(kubectl get backup $backup_name -n $backup_namespace 2>> >(logit)) ]]; then
-    echo "Backup with same name already exists"
+    echo "Backup with same name already exists."
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
@@ -2818,21 +2818,21 @@ spec:
 EOF
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "Error while creating backup"
+      echo "Error while creating backup."
       return 1
     fi
   fi
-  echo "Waiting for backup to be available.."
+  echo "Waiting for backup to be available..."
   cmd="kubectl get backup $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Failed"
   wait_install 60 "$cmd"
   if ! kubectl get backup $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq Available; then
-    echo "Backup Failed"
+    echo "Backup Failed!"
     return 1
   else
-    echo "Backup is Available Now"
+    echo "Backup is Available Now."
   fi
   if [[ -z ${input_config} ]]; then
-    read -r -p "whether restore test should also be done? y/n: " restore
+    read -r -p "Whether restore test should also be done? y/n: " restore
   fi
   if [[ ${restore} == "Y" ]] || [[ ${restore} == "y" ]] || [[ ${restore} == "True" ]]; then
     if [[ -z ${input_config} ]]; then
@@ -2843,12 +2843,12 @@ EOF
       restore_namespace="trilio-$app-restore"
     fi
     if ! kubectl get ns "$restore_namespace" 1>> >(logit) 2>> >(logit); then
-      echo "Namespace with name $restore_namespace already Exists"
+      echo "Namespace with name $restore_namespace already exists!"
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
       if ! kubectl create ns "$restore_namespace" 1>> >(logit) 2>> >(logit); then
-        echo "Error while creating $restore_namespace namespace"
+        echo "Error while creating $restore_namespace namespace!"
         return 1
       fi
     fi
@@ -2856,11 +2856,11 @@ EOF
       restore_name="trilio-$app-restore"
     fi
     if [[ $(kubectl get restore $restore_name -n $restore_namespace 2>/dev/null) ]]; then
-      echo "Restore with same name already exists"
+      echo "Restore with same name already exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
-      echo "Waiting for Restore to be in Available state"
+      echo "Waiting for Restore to be in Available state..."
     else
       echo "Creating restore..."
       #Applying restore manifest
@@ -2868,17 +2868,17 @@ EOF
         kubectl get storageclass trans-storageclass 1>> >(logit) 2>> >(logit)
         retcode=$?
         if [ "$retcode" -ne 0 ]; then
-          echo "storageclass trans-storageclass already exists, please delete it and try again"
+          echo "Storageclass trans-storageclass already exists, please delete it and try again."
           return 1
         fi
         default_storage=$(kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
         kubectl get storageclass "$default_storage" -o yaml >storageclass_trans.yaml
         yq eval -i '.metadata.name="trans-storageclass"' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
-        echo "Creating new storageclass 'trans-storageclass' for this example.."
+        echo "Creating new storageclass 'trans-storageclass' for this example..."
         kubectl apply -f storageclass_trans.yaml
         retcode=$?
         if [ "$retcode" -ne 0 ]; then
-          echo "Error while creating clone of default storageclass"
+          echo "Error while creating clone of default storageclass."
           return 1
         fi
         #echo "Removing 'default' label from trans-storageclass storageclass"
@@ -2936,15 +2936,15 @@ EOF
         return 1
       fi
     fi
-    echo "Waiting for restore to complete.."
+    echo "Waiting for the restore to complete..."
     cmd="kubectl get restore $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Completed -e Failed"
     wait_install 60 "$cmd"
     if ! kubectl get restore $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq 'Completed'; then
-      echo "Restore Failed"
-      echo "It may because of some resource already exits, please check and try again!"
+      echo "Restore Failed!"
+      echo "It may be because some resource already exists, please check and try again!"
       return 1
     else
-      echo "Restore is Completed"
+      echo "Restore is Completed."
     fi
     if [ "$open_flag" -eq 1 ]; then
       kubectl get sa -n $restore_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $restore_namespace 1>> >(logit) 2>> >(logit)
@@ -2992,13 +2992,13 @@ main() {
     -n | --noninteractive)
       export Non_interact=True
       if [[ -z $2 ]]; then
-        echo "filename argument required"
+        echo "Filename argument required!"
         print_usage
         exit 1
       fi
       export input_config=$2
-      echo "tvk-quickstart will run in non-inetractive way"
-      echo "Other options provided will be ignored"
+      echo "Tvk-quickstart will run in non-inetractive way."
+      echo "Other options provided will be ignored."
       echo
       break
       ;;
@@ -3041,7 +3041,7 @@ main() {
       echo
       ;;
     *)
-      echo "Incorrect option, check usage below..."
+      echo "Incorrect option, please check usage below..."
       echo
       print_usage
       exit 1
@@ -3091,20 +3091,20 @@ LOG_FILE="/tmp/tvk_quickstart_stderr"
 
 ret=$(python3 --version 2>/dev/null)
 if [[ -z $ret ]]; then
-  echo "Plugin requires python3 installed"
-  echo "Please install and check"
+  echo "Plugin requires python3 installation."
+  echo "Please install and check."
   return 1
 fi
 ret=$(pip3 --version 2>> >(logit))
 ret_code=$?
 if [ "$ret_code" -ne 0 ]; then
-  echo "This plugin requires pip3 to be installed.Please follow README"
+  echo "This plugin requires pip3 to be installed. Please follow the README for steps."
   exit 1
 fi
 ret=$(pip3 install packaging 1>> >(logit) 2>> >(logit))
 ret_code=$?
 if [ "$ret_code" -ne 0 ]; then
-  echo "pip3 install is failing.Please check the permisson and try again.."
+  echo "The pip3 installation is failing. Please check permissions and try again."
   exit 1
 fi
 main "$@"
