@@ -5,7 +5,7 @@ metadata:
 spec:
   homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/tvk-quickstart/README.md
   shortDescription: Plugin to Install/Configure/Test TVK
-  version: v1.1.0
+  version: v1.2.0
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -16,8 +16,8 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.1.0/tvk-quickstart.tar.gz
-    sha256: 41d4d5e85e2634ea768c7be3c4d686a69f4f4c418223f0b88044ce91434caf5a
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.2.0/tvk-quickstart.tar.gz
+    sha256: de5e63afde006cf4b68747880bce10336cd57f4726044d922680f5bf2fe040da
     bin: tvk-quickstart
     files:
     - from: tvk-quickstart/*
@@ -28,21 +28,22 @@ spec:
     > Check available flags for tvk-quickstart plugin with :-
     kubectl tvk-quickstart --help
     --------------------------------------------------------------
-    tvk-quickstart - Installs, Configures UI, Creates sample backup/restore tests
+    tvk-quickstart - Installs, Configures UI, Creates target, Run sample backup/restore test, Uninstalls TVK
     Usage:
     kubectl tvk-quickstart [options] [arguments]
     Options:
         -h, --help                Shows brief help.
         -n, --noninteractive      Runs script in non-interactive mode. For this you need to provide config file
-        -i, --install-tvk         Installs TVK and its free trial license.
+        -i, --install-tvk         Installs TVK and it's free trial license.
         -c, --configure-ui        Configures the TVK UI.
-        -t, --target              Create Target for backup and restore jobs.
-        -s, --sample-test         Create sample backup and restore jobs.
+        -t, --target              Create the Target for backup and restore jobs.
+        -s, --sample-test         Create the sample backup and restore jobs.
         -p, --preflight           Checks if all the pre-requisites are satisfied.
         -v, --verbose             Runs the plugin in verbose mode.
         -u, --uninstall-tvk       Uninstalls TVK and related resources.
     -----------------------------------------------------------------------
     Example:
-    kubectl tvk-quickstart -i -c -t -s
-    kubectl tvk-quickstart -n /tmp/input_config
-    kubectl tvk-quickstart -u
+      kubectl tvk-quickstart -i -c -t -s
+      kubectl tvk-quickstart -n /tmp/input_config
+      kubectl tvk-quickstart -u
+
