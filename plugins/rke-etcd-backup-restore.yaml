@@ -16,7 +16,7 @@ spec:
         values:
         - linux
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.2.0/rke-etcd-backup-restore-Linux.tar.gz
-    sha256: 7864f28233a558f44da5e24b20ee5b6e3c6d875311773bffc6a62a0a2cef029e
+    sha256: 4b4632479d675dc0d9189327d2be109846ad6c817f8f7554c4c6e60270f7b9a2
     bin: rke-etcd-backup-restore
     files:
     - from: '*'
@@ -29,7 +29,7 @@ spec:
         values:
         - darwin
     uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.2.0/rke-etcd-backup-restore-macOS.tar.gz
-    sha256: fb9dfd92a1b4cf6f249bed106571d063886bb4eee970af3b5481a41fc37b7618
+    sha256: 7ed2a29c6593c3332ad35eede3cd39a582c8bb7c4516b23599e6250def75055f
     bin: rke-etcd-backup-restore
     files:
     - from: '*'
