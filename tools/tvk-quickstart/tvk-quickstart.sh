@@ -2802,10 +2802,16 @@ EOF
   fi
   echo "Waiting for backupplan to be Available to use..."
   cmd="kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Unavailable"
-  wait_install 10 "$cmd"
+  wait_install 15 "$cmd"
   if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
-    echo "Backupplan is in Unavailable state!"
-    return 1
+    if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
+      echo "Backupplan is in Unavailable state!"
+      return 1
+    else
+      echo "Backupplan is taking longer time than usual to be in available state!"
+      echo "Please check and retry..."
+      return 1
+    fi
   else
     echo "Backupplan is in Available state."
   fi
