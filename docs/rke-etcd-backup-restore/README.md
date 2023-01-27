@@ -20,6 +20,14 @@ The plugin helps user to perform ETCD backup and restore of RKE1 clusters. This 
 2. Restore functionality will only work on same cluster from where the backup was taken**
 3. Restore will only work if cluster is accessible and one of the etcd nodes in the cluster should be up and running.
 4. Plugin is supported on RKE1 cluster(Local cluster created on Rancher server is not supported)
+5. Plugin supports ETCD backup and restore of downstream cluster created on Rancher server and NOT imported clusters.
+6. Backup TVK Target URL should have DNS name not IP.
+
+### ETCD backup restore use cases:
+- An etcd backup ensures that the cluster can be restored if an upgrade failure occurs.
+- You have deleted something critical in the cluster by mistake.
+- You have lost the majority of your control plane hosts, leading to ETCD quorum loss.
+ 
 
 ### Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
