@@ -1,6 +1,6 @@
-# RKE ETCD BACKUP RESTORE:
+# RKE ETCD BACKUP RESTORE
 
-## ETCD:
+## Introduction to ETCD
 Etcd is the persistent data store for Kubernetes. It is a distributed key-value store that records the state of all resources in a Kubernetes cluster.
 Etcd is a distributed reliable key-value store which is simple, fast and secure. 
 It acts like a backend service discovery and database, runs on different servers in Kubernetes clusters at the 
