@@ -204,9 +204,12 @@ install_tvk() {
     echo "Error ading helm repo."
     return 1
   fi
-  helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
+  #helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
+  helm repo add triliovault-operator-dev https://charts.k8strilio.net/trilio-dev/k8s-triliovault-operator
   helm repo update 1>> >(logit) 2>> >(logit)
-  latest_ver=$(helm search repo triliovault-operator | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}')
+  #latest_ver=$(helm search repo triliovault-operator -l --devel | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
+  latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator -l --devel | grep 'triliovault-operator-dev/k8s-triliovault-operator' | awk '{print $2}'| head -n 1)
+  #latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator --versions --devel )
   if [[ -z ${input_config} ]]; then
     read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
     read -r -p "Please provide the triliovault manager version (default - $latest_ver): " triliovault_manager_version
@@ -237,7 +240,7 @@ install_tvk() {
     fi
     # Install triliovault operator
     echo "Installing Triliovault operator..."
-    helm install triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n $tvk_ns 2>> >(logit)
+    helm install triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n $tvk_ns 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
       echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
@@ -296,7 +299,7 @@ install_tvk() {
           return 1
         fi
       fi
-      helm upgrade triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
+      helm upgrade triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
         echo "There was an error while running 'helm upgrade', please resolve and try again." 2>> >(logit)
@@ -1766,7 +1769,6 @@ create_readymade_minio() {
     kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
     open_flag=1
   fi
-  set -x
   echo "Waiting for minio client pod to be in 'Ready' state..."
   cmd="kubectl get pod $mc_pod_nm -n $minio_server_namespace -o jsonpath='{.status.phase}' 2>/dev/null | grep -e Running"
   wait_install 10 "$cmd"
@@ -2222,8 +2224,7 @@ EOF
     fi
   fi
   #check if there is storageclass with default label and valid provisioner
-
-  prov=$(kubectl get storageclass | grep default | awk '{printf $3}')
+  prov=$(kubectl get storageclass | grep -w "(default)" | awk '{printf $3}')
   kubectl get storageclass | grep -q default
   # shellcheck disable=SC2181
   if [[ $? -eq 0 ]]; then
@@ -2392,14 +2393,16 @@ metadata:
   name: trilio-test-label
   namespace: trilio-test-backup
 spec:
-  backupNamespace: trilio-test-backup
   backupConfig:
     target:
       name: 
-      namespace: 
+      namespace:
     schedulePolicy:
-      incrementalCron:
-        schedule: "* 0 * * *"
+      fullBackupPolicy:
+        apiVersion: triliovault.trilio.io/v1
+        kind: Policy
+        name: sample-schedule
+        namespace: default
     retentionPolicy:
       name: sample-policy
       namespace: default
@@ -2463,7 +2466,7 @@ EOM
     echo "Requested application is Up and Running!"
 
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    yq eval -i '.spec.backupPlanComponents.custom[0].matchLabels.app="mysql-qa"' backupplan.yaml 1>> >(logit) 2>> >(logit)
+    yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.labelSelector[0].matchLabels.app="mysql-qa"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
   2)
     if helm list -n $backup_namespace | grep -w -q my-wordpress 2>> >(logit); then
@@ -2516,8 +2519,7 @@ initContainers:
       subPath: wordpress
 EOM
       # shellcheck disable=SC2086
-      helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-$rand_name.$backup_namespace.svc.cluster.local --set externalDatabase.user=trilio --set externalDatabase.password=trilio --set externalDatabase.database=my-database --set externalDatabase.port=3306 -f initcontainer.yaml -n $backup_namespace 1>> >(logit) 2>> >(logit)
-
+      helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set containerSecurityContext.allowPrivilegeEscalation=true --set externalDatabase.host=mysql-$rand_name.$backup_namespace.svc.cluster.local --set externalDatabase.user=trilio --set externalDatabase.password=trilio --set externalDatabase.database=my-database --set externalDatabase.port=3306 -f initcontainer.yaml -n $backup_namespace
       echo "Installing Application"
     fi
     if [ "$open_flag" -eq 1 ]; then
@@ -2615,6 +2617,7 @@ EOM
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
     fi
+    kubectl scale --replicas=1 mysqlcluster my-cluster -n $backup_namespace 2>> >(logit)
     runtime=25
     spin='-\|/'
     i=0
@@ -2642,20 +2645,21 @@ EOM
     fi
     echo "Requested application is Up and Running!"
     #Creating backupplan
-    {
+    { 
       yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].operatorId="my-cluster"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group="mysql.presslabs.org" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group style="double"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version="v1alpha1" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version style="double"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind="MysqlCluster" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind style="double"' backupplan.yaml
       yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].objects[0]="my-cluster"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].operatorResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql-operator"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].applicationResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql"' backupplan.yaml
+      yq eval -i '.spec.backupPlanComponents.operators[0].operatorResources.labelSelector[0].matchLabels."app.kubernetes.io/name"="mysql-operator"' backupplan.yaml
+      yq eval -i '.spec.backupPlanComponents.operators[0].applicationResources.labelSelector[[0].matchLabels."app.kubernetes.io/name"="mysql"' backupplan.yaml
+      yq eval -i '.spec.backupPlanComponents.operators[0].applicationResources.labelSelector[[0].matchLabels."app.kubernetes.io/instance"="my-cluster"' backupplan.yaml
       rm initcontainer.yaml
     } 1>> >(logit) 2>> >(logit)
     ;;
   4)
-    if helm list -n $backup_namespace | grep -q -w mongotest; then
+    if helm list -n $backup_namespace | grep -q -w mongodb; then
       echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
@@ -2665,12 +2669,28 @@ EOM
       {
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
-        helm install mongotest bitnami/mongodb -n $backup_namespace
+      cat >initcontainer.yaml <<-EOM
+initContainers:
+  - name: volume-permissions
+    image: busybox
+    securityContext:
+      runAsUser: 0
+    command:
+      - sh
+      - -c
+      - chmod -R 777 /bitnami/mongodb; chown nobody:nobody /bitnami/mongodb
+    volumeMounts:
+      - name: datadir
+        mountPath: /bitnami/mongodb
+EOM
+	helm install mongodb bitnami/mongodb --set securityContext.enabled=True --set securityContext.runAsUser=0 -f initcontainer.yaml -n $backup_namespace
         # shellcheck disable=SC2155
-        export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace $backup_namespace mongotest-mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
+        export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace $backup_namespace mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
       } 2>> >(logit)
       echo "Installing App..."
     fi
+    #set -x
+    export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace $backup_namespace mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
     if [ "$open_flag" -eq 1 ]; then
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
       kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
@@ -2683,23 +2703,18 @@ EOM
     fi
     # shellcheck disable=SC2016
     cmd='kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False'
-    wait_install_app 30 "$backup_namespace" "$cmd"
+    wait_install_app 20 "$backup_namespace" "$cmd"
     if kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
       echo "Mongodb Application taking longer than usual to be in the 'Ready' state, exiting..."
-      echo "Retrying by changing volume permissions."
-      helm upgrade mongotest bitnami/mongodb --set volumePermissions.enabled=true --set auth.rootPassword="$MONGODB_ROOT_PASSWORD" -n $backup_namespace
-      wait_install_app 15 "$backup_namespace" "$cmd"
-      if kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-        echo "Failed to install Mongodb application."
-        return 1
-      fi
+      echo "Failed to install Mongodb application."
     fi
     echo "Requested application is Up and Running!"
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    yq eval -i '.spec.backupPlanComponents.helmReleases[0]="mongotest"' backupplan.yaml 1>> >(logit) 2>> >(logit)
+    yq eval -i '.spec.backupPlanComponents.helmReleases[0]="mongodb"' backupplan.yaml 1>> >(logit) 2>> >(logit)
+    rm initcontainer.yaml
     ;;
   5)
-    ## Install postgresql helm chart
+     ## Install postgresql helm chart
     #check if app is already installed with same name
     if helm list -n "$backup_namespace" | grep -w -q postgresql; then
       echo "Application exists."
@@ -2772,7 +2787,6 @@ EOM
     {
       yq eval -i '.metadata.name="'$bk_plan_name'"' backupplan.yaml
       yq eval -i '.metadata.namespace="'$backup_namespace'"' backupplan.yaml
-      yq eval -i '.spec.backupNamespace="'$backup_namespace'"' backupplan.yaml
       yq eval -i '.spec.backupConfig.target.name="'"$target_name"'"' backupplan.yaml
       yq eval -i '.spec.backupConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
     } 1>> >(logit) 2>> >(logit)
@@ -2795,6 +2809,23 @@ EOF
       echo "Erro while applying policy."
       return 1
     fi
+    cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Policy
+metadata:
+  name: sample-schedule
+spec:
+  default: false
+  scheduleConfig:
+    schedule:
+    - "*/20 * * * *"
+  type: Schedule
+EOF
+    retcode=$?
+    if [ "$retcode" -ne 0 ]; then
+      echo "Erro while applying scheduling policy."
+      return 1
+    fi
     if ! kubectl apply -f backupplan.yaml -n $backup_namespace; then
       echo "Backupplan creation failed."
       return 1
@@ -2802,7 +2833,7 @@ EOF
   fi
   echo "Waiting for backupplan to be Available to use..."
   cmd="kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Unavailable"
-  wait_install 15 "$cmd"
+  wait_install 20 "$cmd"
   if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
     if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
       echo "Backupplan is in Unavailable state!"
@@ -2888,7 +2919,7 @@ EOF
       if [[ "$app" == "transformation-postgresql" ]]; then
         kubectl get storageclass trans-storageclass 1>> >(logit) 2>> >(logit)
         retcode=$?
-        if [ "$retcode" -ne 0 ]; then
+        if [ "$retcode" -eq 0 ]; then
           echo "Storageclass trans-storageclass already exists, please delete it and try again."
           return 1
         fi
@@ -2920,7 +2951,6 @@ spec:
     target:
       name: ${target_name}
       namespace: ${target_namespace}
-  restoreNamespace: ${restore_namespace}
   transformComponents:
     helm:
       - release: postgresql
@@ -2928,7 +2958,28 @@ spec:
         set:
          - key: global.storageClass
            value: "trans-storageclass"
-  skipIfAlreadyExists: true
+  restoreFlags:
+    skipIfAlreadyExists: true
+EOF
+      elif [ "$open_flag" -eq 1 ]; then
+        cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Restore
+metadata:
+  name: ${restore_name}
+  namespace: ${restore_namespace}
+spec:
+  source:
+    type: Backup
+    backup:
+      namespace: ${backup_namespace}
+      name: ${backup_name}
+    target:
+      name: ${target_name}
+      namespace: ${target_namespace}
+  restoreFlags:
+    skipIfAlreadyExists: true
+    useOCPNamespaceUIDRange: true
 EOF
 
       else
@@ -2947,8 +2998,8 @@ spec:
     target:
       name: ${target_name}
       namespace: ${target_namespace}
-  restoreNamespace: ${restore_namespace}
-  skipIfAlreadyExists: true
+  restoreFlags:
+    skipIfAlreadyExists: true
 EOF
       fi
       retcode=$?
