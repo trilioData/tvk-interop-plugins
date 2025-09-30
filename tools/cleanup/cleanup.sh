@@ -49,9 +49,11 @@ delete_tvk_op() {
   if [[ $(check_if_ocp) == "True" ]]; then
     echo "This is OCP Cluster"
     # Delete k8s-triliovault operator
-    if (kubectl get subscription k8s-triliovault -n openshift-operators >/dev/null 2>&1); then
+    if (kubectl get subscription -A 2>/dev/null | grep k8s-triliovault); then
       echo "Uninstalling k8s-triliovault operator"
-      kubectl delete subscription k8s-triliovault -n openshift-operators
+      tvksubns=$(kubectl get subscription -A 2>/dev/null | grep k8s-triliovault | awk '{print $1}')
+      tvksub=$(kubectl get subscription -A 2>/dev/null | grep k8s-triliovault | awk '{print $2}')
+      kubectl delete subscription "${tvksub}" -n "${tvksubns}"
       retValue=$?
       if [ "${retValue}" -ne 0 ]; then
         exit_status=1
@@ -59,10 +61,22 @@ delete_tvk_op() {
     fi
 
     # Delete k8s-triliovault clusterserviceversion
-    tvkcsversion=$(kubectl get clusterserviceversion --no-headers -n openshift-operators 2>/dev/null | grep k8s-triliovault | awk '{print $1}')
+    tvkcsversion=$(kubectl get clusterserviceversion --no-headers 2>/dev/null | grep k8s-triliovault | awk '{print $1}')
     if [ -n "${tvkcsversion}" ]; then
       echo "Deleting k8s-triliovault clusterserviceversion"
-      kubectl delete clusterserviceversion "${tvkcsversion}" -n openshift-operators
+      kubectl delete clusterserviceversion "${tvkcsversion}" -n "${tvksubns}"
+      retValue=$?
+      if [ "${retValue}" -ne 0 ]; then
+        exit_status=1
+      fi
+    fi
+
+    # Delete operatorgroup
+    if (kubectl get operatorgroup -A 2>/dev/null | grep trilio); then
+      echo "Uninstalling Trilio operatorgroup"
+      tvkopgroupns=$(kubectl get operatorgroup -A 2>/dev/null | grep trilio | awk '{print $1}')
+      tvkopgroup=$(kubectl get operatorgroup -A 2>/dev/null | grep trilio | awk '{print $2}')
+      kubectl delete operatorgroup "${tvkopgroup}" -n "${tvkopgroupns}"
       retValue=$?
       if [ "${retValue}" -ne 0 ]; then
         exit_status=1
@@ -70,10 +84,11 @@ delete_tvk_op() {
     fi
 
     # Delete k8s-triliovault-resource-cleaner cronjob
-    tvkcron=$(kubectl get cronjob --no-headers -n openshift-operators 2>/dev/null | grep k8s-triliovault | awk '{print $1}')
-    if [ -n "${tvkcron}" ]; then
+    if (kubectl get cronjob --no-headers -A 2>/dev/null | grep k8s-triliovault); then
       echo "Deleting k8s-triliovault-resource-cleaner cronjob"
-      kubectl delete cronjob "${tvkcron}" -n openshift-operators
+      tvkcron=$(kubectl get cronjob --no-headers -A 2>/dev/null | grep k8s-triliovault | awk '{print $2}')
+      tvkcronns=$(kubectl get cronjob --no-headers -A 2>/dev/null | grep k8s-triliovault | awk '{print $1}')
+      kubectl delete cronjob "${tvkcron}" -n "${tvkcronns}"
       retValue=$?
       if [ "${retValue}" -ne 0 ]; then
         exit_status=1
@@ -175,9 +190,11 @@ while test $# -gt 0; do
   -r | --resources)
     shift
     if [[ "$*" == -* || $# -eq 0 ]]; then
-      export TVK_resources="ClusterRestore ClusterBackup ClusterBackupPlan Restore Backup Backupplan Hook Target Policy License"
+      export TVK_resources="ClusterRestore ClusterBackup clustersnapshot clusterrestore ClusterBackupPlan consistentset continuousrestoreplan Restore Backup snapshot filerecoveryvm Backupplan Hook Target Policy License triliovaultmanager"
       echo "No resources specified, will be deleting all resources listed below"
-      echo "ClusterRestore ClusterBackup ClusterBackupPlan Restore Backup Backupplan Hook Target Policy License"
+      echo "ClusterRestore ClusterBackup ClusterBackupPlan clustersnapshot clusterrestore ClusterBackupPlan"
+      echo "consistentset continuousrestoreplan Restore Backup snapshot filerecoveryvm Backupplan Hook"
+      echo "Target Policy License triliovaultmanager"
       echo
       continue
     else
@@ -235,7 +252,7 @@ if [ -n "${TVK_resources}" ]; then
   fi
 fi
 
-if [ ${Delete_TVM} ]; then
+if [ "${Delete_TVM}" ]; then
   echo "Deleting Triliovault Manager or Operator"
   echo
   # Delete Triliovault Manager or Operator
@@ -246,7 +263,7 @@ if [ ${Delete_TVM} ]; then
   fi
 fi
 
-if [ ${Delete_CRD} ]; then
+if [ "${Delete_CRD}" ]; then
   echo "Deleting Triliovault CRDs"
   echo
   # Delete CRDs
