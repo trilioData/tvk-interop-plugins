@@ -190,11 +190,11 @@ while test $# -gt 0; do
   -r | --resources)
     shift
     if [[ "$*" == -* || $# -eq 0 ]]; then
-      export TVK_resources="ClusterRestore ClusterBackup clustersnapshot clusterrestore ClusterBackupPlan consistentset continuousrestoreplan Restore Backup snapshot filerecoveryvm Backupplan Hook Target Policy License triliovaultmanager"
+      export TVK_resources="clusterrestores.triliovault.trilio.io clusterbackups.triliovault.trilio.io clustersnapshots.triliovault.trilio.io clusterbackupplans.triliovault.trilio.io consistentsets.triliovault.trilio.io continuousrestoreplans.triliovault.trilio.io restores.triliovault.trilio.io backups.triliovault.trilio.io snapshots.triliovault.trilio.io filerecoveryvms.triliovault.trilio.io hooks.triliovault.trilio.io backupplans.triliovault.trilio.io policies.triliovault.trilio.io targets.triliovault.trilio.io licenses.triliovault.trilio.io triliovaultmanagers.triliovault.trilio.io"
       echo "No resources specified, will be deleting all resources listed below"
-      echo "ClusterRestore ClusterBackup ClusterBackupPlan clustersnapshot clusterrestore ClusterBackupPlan"
-      echo "consistentset continuousrestoreplan Restore Backup snapshot filerecoveryvm Backupplan Hook"
-      echo "Target Policy License triliovaultmanager"
+      echo "ClusterRestore ClusterBackup ClusterBackupPlan clustersnapshot ClusterBackupPlan consistentset"
+      echo "continuousrestoreplan Restore Backup snapshot filerecoveryvm Backupplan Hook Target Policy"
+      echo "License triliovaultmanager"
       echo
       continue
     else
