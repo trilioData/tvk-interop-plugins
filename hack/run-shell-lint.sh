@@ -4,7 +4,7 @@ set -euo pipefail
 
 # --- config ---
 SHFMT_PKG="mvdan.cc/sh/v3/cmd/shfmt"
-SHFMT_VER="${SHFMT_VER:-v3.9.0}"   # pin or set SHFMT_VER env var
+SHFMT_VER="${SHFMT_VER:-v3.9.0}" # pin or set SHFMT_VER env var
 
 # --- ensure shfmt exists (via Go) ---
 if ! command -v shfmt >/dev/null 2>&1; then
