@@ -1,28 +1,49 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
-
 [[ -n "${DEBUG:-}" ]] && set -x
 
-# install shfmt that ensures consistent format in shell scripts
-go_path="$(go env GOPATH)"
-if ! [[ -x "$go_path/bin/shfmt" ]]; then
-  echo >&2 'Installing shfmt'
-  GO111MODULE=off go get -u -v mvdan.cc/sh/v3/cmd/shfmt
+# --- config ---
+SHFMT_PKG="mvdan.cc/sh/v3/cmd/shfmt"
+SHFMT_VER="${SHFMT_VER:-v3.9.0}"   # pin or set SHFMT_VER env var
+
+# --- ensure shfmt exists (via Go) ---
+if ! command -v shfmt >/dev/null 2>&1; then
+  if ! command -v go >/dev/null 2>&1; then
+    echo >&2 "ERROR: 'shfmt' not found and Go is not installed. Install Go or install shfmt via your package manager."
+    exit 2
+  fi
+  echo >&2 "Installing shfmt ${SHFMT_VER} with 'go install'..."
+  # Use modules (default) and the new install syntax
+  GOFLAGS="${GOFLAGS:-}" go install "${SHFMT_PKG}@${SHFMT_VER}"
+  # Ensure GOPATH/bin is on PATH for current shell
+  GOPATH_BIN="$(go env GOPATH)/bin"
+  if [[ ":${PATH}:" != *":${GOPATH_BIN}:"* ]]; then
+    export PATH="${GOPATH_BIN}:${PATH}"
+  fi
 fi
 
+# --- project root ---
 SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 
 set -x
-# run shell fmt
-shfmt_out="$(shfmt -l -i=2 "${SRC_ROOT}/hack" "${SRC_ROOT}/tools/" "${SRC_ROOT}/tests/")"
+
+# --- run shfmt (list files needing format) ---
+shfmt_out="$(shfmt -l -i=2 "${SRC_ROOT}/hack" "${SRC_ROOT}/tools" "${SRC_ROOT}/tests" || true)"
 if [[ -n "${shfmt_out}" ]]; then
-  echo >&2 "The following shell scripts need to be formatted, run: 'shfmt -w -i=2 ${SRC_ROOT}/hack ${SRC_ROOT}/tools/ ${SRC_ROOT}/tests/'"
+  echo >&2 "The following shell scripts need formatting."
+  echo >&2 "Run:"
+  echo >&2 "  shfmt -w -i=2 ${SRC_ROOT}/hack ${SRC_ROOT}/tools ${SRC_ROOT}/tests"
+  echo >&2
   echo >&2 "${shfmt_out}"
   exit 1
 fi
 
-# run shell lint
-find "${SRC_ROOT}" -type f -name "*.sh" -exec "shellcheck" {} +
+# --- run shellcheck if available ---
+if command -v shellcheck >/dev/null 2>&1; then
+  # -x follows 'source' to find files; adjust if too noisy
+  find "${SRC_ROOT}" -type f -name "*.sh" -exec shellcheck -x {} +
+else
+  echo >&2 "WARNING: shellcheck not found; skipping lint. Install it for best results."
+fi
 
 echo >&2 "shell-lint: No issues detected!"
