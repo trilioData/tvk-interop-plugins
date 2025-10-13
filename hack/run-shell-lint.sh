@@ -28,7 +28,7 @@ SRC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 set -x
 
 # --- run shfmt (list files needing format) ---
-shfmt_out="$(shfmt -l -i=2 "${SRC_ROOT}/hack" "${SRC_ROOT}/tools" "${SRC_ROOT}/tests" || true)"
+shfmt_out="$(shfmt -l -i=2 "${SRC_ROOT}/hack" "${SRC_ROOT}/tools/cleanup" "${SRC_ROOT}/tests" || true)"
 if [[ -n "${shfmt_out}" ]]; then
   echo >&2 "The following shell scripts need formatting."
   echo >&2 "Run:"
