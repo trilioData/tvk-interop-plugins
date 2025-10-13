@@ -1,6 +1,6 @@
 module github.com/trilioData/tvk-interop-plugins
 
-go 1.15
+go 1.21
 
 require (
 	cloud.google.com/go v0.93.3 // indirect
