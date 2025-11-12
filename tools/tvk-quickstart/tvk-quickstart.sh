@@ -155,7 +155,6 @@ vercomp() {
   else
     return 3
   fi
-  return 0
 }
 
 #function to print waiting symbol
@@ -176,8 +175,8 @@ wait_install() {
       searchstring1="-o"
       searchstring2="2>"
       orig_cmd=$2
-      cmd=${orig_cmd%$searchstring1*}
-      cmd=${cmd%$searchstring2*}
+      cmd=${orig_cmd%"$searchstring1"*}
+      cmd=${cmd%"$searchstring2"*}
       echo -e "Waiting on resource to be in expected state, running below command to check: \n[$cmd]"
     fi
     i=$(((i + 1) % 4))
@@ -204,9 +203,12 @@ install_tvk() {
     echo "Error ading helm repo."
     return 1
   fi
-  helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
+  #helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
+  helm repo add triliovault-operator-dev https://charts.k8strilio.net/trilio-dev/k8s-triliovault-operator
   helm repo update 1>> >(logit) 2>> >(logit)
-  latest_ver=$(helm search repo triliovault-operator | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}')
+  #latest_ver=$(helm search repo triliovault-operator -l --devel | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
+  latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator -l --devel | grep 'triliovault-operator-dev/k8s-triliovault-operator' | awk '{print $2}'| head -n 1)
+  #latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator --versions --devel )
   if [[ -z ${input_config} ]]; then
     read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
     read -r -p "Please provide the triliovault manager version (default - $latest_ver): " triliovault_manager_version
@@ -228,16 +230,16 @@ install_tvk() {
   get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
   if [ -z "$get_ns" ]; then
     #Create ns for installation, if not there.
-    ret=$(kubectl get ns $tvk_ns 2>/dev/null)
+    ret=$(kubectl get ns "$tvk_ns" 2>/dev/null)
     if [[ -z "$ret" ]]; then
-      if ! kubectl create ns $tvk_ns 2>> >(logit); then
+      if ! kubectl create ns "$tvk_ns" 2>> >(logit); then
         echo "$tvk_ns namespace creation failed."
         return 1
       fi
     fi
     # Install triliovault operator
     echo "Installing Triliovault operator..."
-    helm install triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n $tvk_ns 2>> >(logit)
+    helm install triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$tvk_ns" 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
       echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
@@ -246,7 +248,7 @@ install_tvk() {
     if [ "$open_flag" -eq 1 ]; then
       cmd="kubectl get sa -n $tvk_ns | grep $operatorSA 2>> >(logit)"
       wait_install 10 "$cmd"
-      kubectl get sa -n $tvk_ns | grep -q $operatorSA 2>> >(logit)
+      kubectl get sa -n "$tvk_ns" | grep -q $operatorSA 2>> >(logit)
       ret_code=$?
       if [[ $ret_code == 0 ]]; then
         kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
@@ -287,7 +289,7 @@ install_tvk() {
       minor="${semver[1]}"
       sub_ver=${major}.${minor}
       if [[ $sub_ver == 2.0 ]]; then
-        helm plugin install https://github.com/trilioData/tvm-helm-plugins >/dev/null 1>> >(logit) 2>> >(logit)
+        helm plugin install https://github.com/trilioData/tvm-helm-plugins 1>> >(logit) 2>> >(logit)
         rel_name=$(helm list | grep k8s-triliovault-operator | awk '{print $1}')
         helm tvm-upgrade --release="$rel_name" --namespace="$get_ns" 2>> >(logit)
         retcode=$?
@@ -296,7 +298,7 @@ install_tvk() {
           return 1
         fi
       fi
-      helm upgrade triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
+      helm upgrade triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
         echo "There was an error while running 'helm upgrade', please resolve and try again." 2>> >(logit)
@@ -316,7 +318,7 @@ install_tvk() {
     return 1
   fi
   echo "Triliovault operator is running."
-
+  old_operator_version=$(helm list -n "$get_ns" | grep k8s-triliovault-operator | awk '{print $10}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   #check if TVK versione is greater than or equals to 2.9.4
   vercomp "$old_operator_version" "2.9.4"
   ret_tvm=$?
@@ -472,13 +474,13 @@ EOF
       fi
       cmd="kubectl get pods -l app=k8s-triliovault-control-plane -n $tvk_ns -ojsonpath='{.items[*].status.conditions[?(@.type == \"ContainersReady\")].status}' 2>/dev/null | grep True"
       wait_install 10 "$cmd"
-      cmd="kubectl get pods -l app=k8s-triliovault-admission-webhook -n $tvk_ns -ojsonpath='{.items[*].status.conditions[?(@.type == \"ContainersReady\")].status}' 2>/dev/null | grep True"
-      wait_install 10 "$cmd"
+      #cmd="kubectl get pods -l app=k8s-triliovault-admission-webhook -n $tvk_ns -ojsonpath='{.items[*].status.conditions[?(@.type == \"ContainersReady\")].status}' 2>/dev/null | grep True"
+      #wait_install 10 "$cmd"
       kubectl get pods -l app=k8s-triliovault-control-plane -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
       ret_val1=$?
-      kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
-      ret_val=$?
-      if [[ $ret_val != 0 ]] || [[ $ret_val1 != 0 ]] && [[ $upgrade_tvm == 0 ]]; then
+      #kubectl get pods -l app=k8s-triliovault-admission-webhook -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
+      #ret_val=$?
+      if [[ $ret_val1 != 0 ]] && [[ $upgrade_tvm == 0 ]]; then
         echo "TVM installation failed."
         exit 1
       else
@@ -921,9 +923,10 @@ configure_ui() {
 
 #This function is used to configure TVK UI through nodeport
 configure_nodeport_for_tvkui() {
+  #shellcheck disable=SC2319
   do=$?
   # shellcheck disable=SC2154
-  if [[ $do -eq "True" ]]; then
+  if [[ $do == "True" ]]; then
     ret=$(doctl auth list 2>/dev/null)
     if [[ -z $ret ]]; then
       echo "This functionality requires that doctl is installed."
@@ -1014,7 +1017,7 @@ EOF
     echo "Changing type of service for $ingressGateway is taking longer than usual."
     return 1
   fi
-  if [[ $do -eq "True" ]]; then
+  if [[ $do == "True" ]]; then
     doctl kubernetes cluster kubeconfig show "${cluster_name}" >config_"${cluster_name}" 2>> >(logit)
     echo "Kubeconfig file is stored at location: $PWD/config_${cluster_name}"
   fi
@@ -1036,8 +1039,9 @@ EOF
 #This function is used to configure TVK UI through Loadbalancer
 #This function is used to configure TVK UI through Loadbalancer
 configure_loadbalancer_for_tvkUI() {
+  #shellcheck disable=SC2319
   do=$?
-  if [[ $do -eq "True" ]]; then
+  if [[ $do == "True" ]]; then
     ret=$(doctl auth list 2>/dev/null)
     if [[ -z $ret ]]; then
       echo "This functionality requires doctl to be installed."
@@ -1074,7 +1078,7 @@ configure_loadbalancer_for_tvkUI() {
     tvk_name=$tvkhost_name
   fi
   get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-  if [[ $do -eq "True" ]]; then
+  if [[ $do == "True" ]]; then
     cluster_name=$(kubectl config view --minify -o jsonpath='{.clusters[].name}' | cut -d'-' -f3-)
     if [[ -z ${cluster_name} ]]; then
       echo "Error in getting cluster name from the current-context setting in kubeconfig."
@@ -1167,7 +1171,7 @@ EOF
     echo "Changing the type of service for $ingressGateway is taking longer than usual."
     return 1
   fi
-  if [[ $do -eq "True" ]]; then
+  if [[ $do == "True" ]]; then
     doctl compute domain records create "${domain}" --record-type A --record-name "${tvkhost_name}" --record-data "${external_ip}" 1>> >(logit) 2>> >(logit)
     retCode=$?
     if [[ "$retCode" -ne 0 ]]; then
@@ -1407,9 +1411,9 @@ create_doks_s3() {
   if [[ -z "$target_namespace" ]]; then
     target_namespace="default"
   fi
-  res=$(kubectl get ns $target_namespace 2>> >(logit))
+  res=$(kubectl get ns "$target_namespace" 2>> >(logit))
   if [[ -z "$res" ]]; then
-    kubectl create ns $target_namespace 2>> >(logit)
+    kubectl create ns "$target_namespace" 2>> >(logit)
   fi
   if [[ -z "$thresholdCapacity" ]]; then
     thresholdCapacity='1000Gi'
@@ -1585,9 +1589,9 @@ create_aws_s3() {
   if [[ -z "$target_namespace" ]]; then
     target_namespace="default"
   fi
-  res=$(kubectl get ns $target_namespace 2>> >(logit))
+  res=$(kubectl get ns "$target_namespace" 2>> >(logit))
   if [[ -z "$res" ]]; then
-    kubectl create ns $target_namespace 2>> >(logit)
+    kubectl create ns "$target_namespace" 2>> >(logit)
   fi
   if [[ -z "$target_name" ]]; then
     echo "Target name is required to proceed."
@@ -1663,9 +1667,9 @@ create_readymade_minio() {
     bucket_name="tvk-target"
   fi
   #check if minio_server_namespace already exists
-  res=$(kubectl get ns $minio_server_namespace 2>/dev/null)
+  res=$(kubectl get ns "$minio_server_namespace" 2>/dev/null)
   if [[ -z "$res" ]]; then
-    kubectl create ns $minio_server_namespace 2>/dev/null
+    kubectl create ns "$minio_server_namespace" 2>/dev/null
   fi
   helm repo add minio https://helm.min.io/ 1>> >(logit) 2>> >(logit)
   retcode=$?
@@ -1675,8 +1679,8 @@ create_readymade_minio() {
     exit 1
   fi
   #check if minio server already exists
-  helm show chart minio/minio -n $minio_server_namespace 1>> >(logit) 2>> >(logit)
-  rel_name=$(helm list -n $minio_server_namespace | awk '$9 ~ "^minio" { print $0 }' | sed -n '1p' | awk '{print $1}')
+  helm show chart minio/minio -n "$minio_server_namespace" 1>> >(logit) 2>> >(logit)
+  rel_name=$(helm list -n "$minio_server_namespace" | awk '$9 ~ "^minio" { print $0 }' | sed -n '1p' | awk '{print $1}')
   if [[ "$rel_name" != "" ]]; then
     echo "Minio is already installed."
     #rel_name=$(helm list -n $minio_server_namespace | awk '$9 ~ "^minio" { print $0 }' | sed -n '1p'| awk '{print $1}')
@@ -1692,7 +1696,7 @@ create_readymade_minio() {
     fi
   fi
   if [[ "$use_existing_minio" != "Y" ]] && [[ "$use_existing_minio" != "y" ]] || [[ "$rel_name" == "" ]]; then
-    ret_val=$(helm install --namespace $minio_server_namespace --generate-name minio/minio 2>> >(logit))
+    ret_val=$(helm install --namespace "$minio_server_namespace" --generate-name minio/minio 2>> >(logit))
     #echo "$ret_val" 1>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
@@ -1734,15 +1738,15 @@ create_readymade_minio() {
   echo "Waiting for Minio deployment to be in 'Ready' state..."
   cmd="kubectl get deployment $rel_name -n $minio_server_namespace -o 'jsonpath={.status.conditions[*].status}' | grep -v False"
   wait_install 1 "$cmd"
-  kubectl get deployment $rel_name -n "$minio_server_namespace" -o jsonpath="{.status.conditions[*].status}" | grep -q False 1>> >(logit) 2>> >(logit)
+  kubectl get deployment "$rel_name" -n "$minio_server_namespace" -o jsonpath="{.status.conditions[*].status}" | grep -q False 1>> >(logit) 2>> >(logit)
   ret_code=$?
   if [[ $ret_code -eq 0 ]]; then
     echo "Minio deployment taking longer than usual to be in 'Ready' state so exiting..."
     exit 1
   fi
   #get credentials and create target crd and apply it.
-  ACCESS_KEY=$(kubectl get secret $rel_name -n "$minio_server_namespace" -o jsonpath="{.data.accesskey}" | base64 --decode)
-  SECRET_KEY=$(kubectl get secret $rel_name -n "$minio_server_namespace" -o jsonpath="{.data.secretkey}" | base64 --decode)
+  ACCESS_KEY=$(kubectl get secret "$rel_name" -n "$minio_server_namespace" -o jsonpath="{.data.accesskey}" | base64 --decode)
+  SECRET_KEY=$(kubectl get secret "$rel_name" -n "$minio_server_namespace" -o jsonpath="{.data.secretkey}" | base64 --decode)
   URL="http://$rel_name.$minio_server_namespace.svc:9000"
   check_target_existence "$target_name" "$target_namespace" "$ACCESS_KEY" "$SECRET_KEY" "$URL" "$bucket_name" "us-east1"
   ret_code=$?
@@ -1752,7 +1756,8 @@ create_readymade_minio() {
   #create pod to run minio clinet command
   rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
   mc_pod_nm="minio-$rand_name"
-  ret_val=$(kubectl run "$mc_pod_nm" --image=minio/mc -n "$minio_server_namespace" --restart=Never --command -- /bin/sh -c 'while true; do sleep 5s; done' 1>> >(logit) 2>> >(logit))
+  # shellcheck disable=SC2327
+  kubectl run "$mc_pod_nm" --image=minio/mc -n "$minio_server_namespace" --restart=Never --command -- /bin/sh -c 'while true; do sleep 5s; done' 1>> >(logit) 2>> >(logit)
   ret_code=$?
   if [[ "$ret_code" -ne 0 ]]; then
     echo "Not able to run minio client image/container."
@@ -1766,7 +1771,6 @@ create_readymade_minio() {
     kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
     open_flag=1
   fi
-  set -x
   echo "Waiting for minio client pod to be in 'Ready' state..."
   cmd="kubectl get pod $mc_pod_nm -n $minio_server_namespace -o jsonpath='{.status.phase}' 2>/dev/null | grep -e Running"
   wait_install 10 "$cmd"
@@ -1777,7 +1781,7 @@ create_readymade_minio() {
     return 1
   fi
   kubectl -n "$minio_server_namespace" exec -i "$mc_pod_nm" -- mc alias set minio "$URL" "$ACCESS_KEY" "$SECRET_KEY"
-  ret_msg=$(kubectl -n "$minio_server_namespace" exec -i "$mc_pod_nm" -- mc mb minio/$bucket_name 2>&1)
+  ret_msg=$(kubectl -n "$minio_server_namespace" exec -i "$mc_pod_nm" -- mc mb minio/"$bucket_name" 2>&1)
   #create bucket
   ret_code=$?
   if [[ "$ret_code" -ne 0 ]]; then
@@ -1894,9 +1898,9 @@ create_gcp_s3() {
     echo "Target name is required to proceed"
     exit 1
   fi
-  res=$(kubectl get ns $target_namespace 2>> >(logit))
+  res=$(kubectl get ns "$target_namespace" 2>> >(logit))
   if [[ -z "$res" ]]; then
-    kubectl create ns $target_namespace 2>> >(logit)
+    kubectl create ns "$target_namespace" 2>> >(logit)
   fi
   check_target_existence "$target_name" "$target_namespace" "$access_key" "$secret_key" "$url" "$bucket_name" "$bucket_location"
   ret_code=$?
@@ -2036,9 +2040,9 @@ create_target() {
     if [[ -z "$target_namespace" ]]; then
       target_namespace="default"
     fi
-    res=$(kubectl get ns $target_namespace 2>> >(logit))
+    res=$(kubectl get ns "$target_namespace" 2>> >(logit))
     if [[ -z "$res" ]]; then
-      kubectl create ns $target_namespace 2>> >(logit)
+      kubectl create ns "$target_namespace" 2>> >(logit)
     fi
     if [[ $(kubectl get target "$target_name" -n "$target_namespace" 2>/dev/null) ]]; then
       if kubectl get target "$target_name" -n "$target_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
@@ -2046,12 +2050,11 @@ create_target() {
         exit 1
       else
         echo "Target with same name already exists."
-        return 0
-      fi
-      if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-        exit 1
-      else
-        return 0
+        if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+	  exit 1
+	else
+          return 0
+	fi
       fi
     fi
     if [[ -z "$thresholdCapacity" ]]; then
@@ -2115,7 +2118,6 @@ check_csi() {
   fi
   if [[ -z $csi ]] || [[ $flag -eq 1 ]]; then
     echo "For tvk installation and running sample programs a valid CSI driver is required."
-    exit 1
     #Check if cluster is OCP
     kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
     ret_val=$?
@@ -2148,15 +2150,15 @@ check_csi() {
       if kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\n"}{range .spec.containers[*]}{.image}{", "}{end}{end}' | grep snapshot-controller 1>> >(logit) 2>> >(logit); then
         echo "Snapshot controller is installed."
       else
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${snap_ver}"/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${snap_ver}"/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
       fi
     else
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
-      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/${snap_ver}/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
+      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${snap_ver}"/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
+      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${snap_ver}"/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${snap_ver}"/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${snap_ver}"/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
+      kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/"${snap_ver}"/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
 
     fi
     helm repo add longhorn https://charts.longhorn.io
@@ -2222,8 +2224,7 @@ EOF
     fi
   fi
   #check if there is storageclass with default label and valid provisioner
-
-  prov=$(kubectl get storageclass | grep default | awk '{printf $3}')
+  prov=$(kubectl get storageclass | grep -w "(default)" | awk '{printf $3}')
   kubectl get storageclass | grep -q default
   # shellcheck disable=SC2181
   if [[ $? -eq 0 ]]; then
@@ -2313,10 +2314,22 @@ sample_test() {
       backup_way=4
     elif [[ $backup_way == "Transformation" ]]; then
       backup_way=5
+    elif [[ $backup_way == "Snapshot_Feature" ]]; then
+      backup_way=6
     else
       echo "The backup method is wrong/not defined."
       return 1
     fi
+  fi
+  gcr_cred=""
+  echo -e "Please provide GCR cred json file if you wish to execute backup/snapshot scheduling and avoid docker pull limit issue\n"
+  echo "pre-req: you should have gcloud installed"
+  read -r -p "Enter file path: " gcr_cred
+  #set -x
+  if [[ -s "$gcr_cred" ]]; then
+    gcloud auth login --cred-file="$gcr_cred"
+    gcloud auth configure-docker
+    docker login -u _json_key -p "$(cat "$gcr_cred")" http://us-central1-docker.pkg.dev
   fi
   if [[ -z $backup_way ]]; then
     echo "Please provide a valid option, exiting..."
@@ -2330,13 +2343,20 @@ sample_test() {
     app="namespace-wordpress"
     ;;
   3)
-    app="operator-mysql"
+    if [ "$open_flag" -eq 1 ]; then
+      app="operato-datagrid"
+    else
+      app="operator-mysql"
+    fi
     ;;
   4)
     app="helm-mongodb"
     ;;
   5)
     app="transformation-postgresql"
+    ;;
+  6)
+    app="snapshot-feature"
     ;;
   esac
   if [[ -z ${input_config} ]]; then
@@ -2360,9 +2380,9 @@ sample_test() {
   if [[ -z "$bk_plan_name" ]]; then
     bk_plan_name="trilio-$app-testback"
   fi
-  res=$(kubectl get ns $backup_namespace 2>/dev/null)
+  res=$(kubectl get ns "$backup_namespace" 2>/dev/null)
   if [[ -z "$res" ]]; then
-    kubectl create ns $backup_namespace 2>> >(logit)
+    kubectl create ns "$backup_namespace" 2>> >(logit)
   fi
   storage_class=$(kubectl get storageclass | grep -w '(default)' | awk '{print $1}')
   if [[ -z "$storage_class" ]]; then
@@ -2392,14 +2412,16 @@ metadata:
   name: trilio-test-label
   namespace: trilio-test-backup
 spec:
-  backupNamespace: trilio-test-backup
   backupConfig:
     target:
       name: 
-      namespace: 
+      namespace:
     schedulePolicy:
-      incrementalCron:
-        schedule: "* 0 * * *"
+      fullBackupPolicy:
+        apiVersion: triliovault.trilio.io/v1
+        kind: Policy
+        name: sample-schedule
+        namespace: default
     retentionPolicy:
       name: sample-policy
       namespace: default
@@ -2422,25 +2444,32 @@ EOM
       fi
       echo "Waiting for application to be in Ready state"
       if [ "$open_flag" -eq 1 ]; then
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       fi
       cmd="kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep Running"
       wait_install 15 "$cmd"
-      if ! kubectl get pods -l app=mysql-qa -n $backup_namespace 2>/dev/null | grep -q Running; then
+      if ! kubectl get pods -l app=mysql-qa -n "$backup_namespace" 2>/dev/null | grep -q Running; then
         echo "Application is taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
     else
-      helm install mysql-qa stable/mysql --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      #set -x
+      if [[ -s "$gcr_cred" ]]; then
+        #create gcr registry secret
+	kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        helm install mysql-qa stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false --set imagePullSecrets[0].name=gcr-docker-secret1 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      else
+        helm install mysql-qa stable/mysql --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      fi
       sleep 2
       if [ "$open_flag" -eq 1 ]; then
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       fi
       echo "Installing Application"
       sleep 10
-      cmd=$(kubectl get pods -l app=mysql-qa -n $backup_namespace 2>&1)
+      cmd=$(kubectl get pods -l app=mysql-qa -n "$backup_namespace" 2>&1)
       if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
         echo "Error in creating pod, please check security context."
         return 1
@@ -2450,23 +2479,22 @@ EOM
       i=0
       sleep 5
       endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
-      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app=mysql-qa -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app=mysql-qa -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
         i=$(((i + 1) % 4))
         printf "\r %s" "${spin:$i:1}"
         sleep .1
       done
-      if kubectl get pods -l app=mysql-qa -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+      if kubectl get pods -l app=mysql-qa -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "Mysql application is taking longer than usual to be the 'Ready' state, exiting..."
         return 1
       fi
     fi
     echo "Requested application is Up and Running!"
-
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    yq eval -i '.spec.backupPlanComponents.custom[0].matchLabels.app="mysql-qa"' backupplan.yaml 1>> >(logit) 2>> >(logit)
+    yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.labelSelector[0].matchLabels.app="mysql-qa"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
   2)
-    if helm list -n $backup_namespace | grep -w -q my-wordpress 2>> >(logit); then
+    if helm list -n "$backup_namespace" | grep -w -q my-wordpress 2>> >(logit); then
       echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
@@ -2477,10 +2505,17 @@ EOM
       helm repo add bitnami https://charts.bitnami.com/bitnami 1>> >(logit) 2>> >(logit)
       echo "Installing mysql which will be used as underlying db for wordpress..."
       rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
-      helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      if [[ -s "$gcr_cred" ]]; then
+        #create gcr registry secret
+        kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        helm install "mysql-$rand_name" stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false --set imagePullSecrets[0].name=gcr-docker-secret1 --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      else
+	 helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      fi
+      #helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
       if [ "$open_flag" -eq 1 ]; then
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       fi
       # shellcheck disable=SC2086
       cmd=$(kubectl get pods -l app=mysql-$rand_name -n $backup_namespace 2>&1)
@@ -2504,9 +2539,25 @@ EOM
         echo "Wordpress underlying Mysql application is taking longer than usual to be in the 'Ready' state, exiting..."
         return 1
       fi
-      cat >initcontainer.yaml <<-EOM
+      if [[ -s "$gcr_cred" ]]; then
+	cat >initcontainer.yaml <<-EOM
 initContainers:
-  - name: volume-permissions
+  - name: volume-permissions1
+    image: us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/minideb:latest
+    imagePullPolicy: Always
+    command: ['sh', '-c', 'chown 1001:1001 /bitnami/wordpress']
+    volumeMounts:
+    - mountPath: /bitnami/wordpress
+      name: wordpress-data
+      subPath: wordpress
+EOM
+        #create gcr registry secret
+        kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
+	helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-"$rand_name"."$backup_namespace".svc.cluster.local --set externalDatabase.user="trilio" --set externalDatabase.password="trilio" --set externalDatabase.database="my-database" --set externalDatabase.port=3306 --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.imagePullSecrets[0]=gcr-docker-secret1  --set image.pullSecrets[0]=gcr-docker-secret1 -f initcontainer.yaml  --set image.tag="6.8.2-debian-12-r2" --set volumePermissions.image.tag="12-debian-12-r49" --set metrics.image.tag="1.0.10-debian-12-r13" --set volumePermissions.enabled=true --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      else
+        cat >initcontainer.yaml <<-EOM
+initContainers:
+  - name: volume-permissions1
     image: bitnami/minideb
     imagePullPolicy: Always
     command: ['sh', '-c', 'chown 1001:1001 /bitnami/wordpress']
@@ -2516,30 +2567,31 @@ initContainers:
       subPath: wordpress
 EOM
       # shellcheck disable=SC2086
-      helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-$rand_name.$backup_namespace.svc.cluster.local --set externalDatabase.user=trilio --set externalDatabase.password=trilio --set externalDatabase.database=my-database --set externalDatabase.port=3306 -f initcontainer.yaml -n $backup_namespace 1>> >(logit) 2>> >(logit)
-
-      echo "Installing Application"
+ 
+        helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set containerSecurityContext.allowPrivilegeEscalation=true --set externalDatabase.host=mysql-$rand_name.$backup_namespace.svc.cluster.local --set externalDatabase.user=trilio --set externalDatabase.password=trilio --set externalDatabase.database=my-database --set externalDatabase.port=3306 -f initcontainer.yaml --set volumePermissions.enabled=true -n $backup_namespace
+        echo "Installing Application"
+      fi
     fi
     if [ "$open_flag" -eq 1 ]; then
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
     fi
     runtime=20
     spin='-\|/'
     i=0
     sleep 5
-    cmd=$(kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n $backup_namespace 2>&1)
+    cmd=$(kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n "$backup_namespace" 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
       echo "Error in creating pod, please check security context."
       return 1
     fi
     endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
-    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
       i=$(((i + 1) % 4))
       printf "\r %s" "${spin:$i:1}"
       sleep .1
     done
-    if kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+    if kubectl get pod -l app.kubernetes.io/instance=my-wordpress -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
       echo "Wordpress application taking longer than usual to be in the 'Ready' state, exiting..."
       return 1
     fi
@@ -2548,16 +2600,38 @@ EOM
     rm initcontainer.yaml 1>> >(logit) 2>> >(logit)
     ;;
   3)
-    if helm list -n $backup_namespace | grep -w -q mysql-operator 2>> >(logit); then
-      echo "Application exists."
-      if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+    if [ "$open_flag" -eq 1 ]; then
+      if kubectl apply -f datagrid_subscription.yaml; then
+        echo "Error while applying datagrid subscription yaml"
+	exit 1
+      fi
+      echo "waiting for datagrid oprrator to be in ready state"
+      sleep 2
+      if kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators  -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+        echo "infinispan-operator taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
-      echo "Waiting for application to be in the 'Ready' state."
+      if kubectl apply -f infi_cluster.yaml; then
+        echo "Error while applying infispan cluster yaml"
+	exit 1
+      fi
+      echo "waiting for infispan cluster to be in ready state"
+      sleep 2
+      if kubectl get pod -l "rht.comp"="Data_Grid" -n openshift-operators -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+        echo "Infispan operator taking longer than usual to be in the 'Ready' state, exiting..."
+	exit 1
+      fi
     else
-      echo "MySQL operator will require enough resources or else the deployment will fail!"
-      helm repo add bitpoke https://helm-charts.bitpoke.io 1>> >(logit) 2>> >(logit)
-      cat >initcontainer.yaml <<-EOM
+      if helm list -n "$backup_namespace" | grep -w -q mysql-operator 2>> >(logit); then
+        echo "Application exists."
+        if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+          exit 1
+        fi
+        echo "Waiting for application to be in the 'Ready' state."
+      else
+        echo "MySQL operator will require enough resources or else the deployment will fail!"
+        helm repo add bitpoke https://helm-charts.bitpoke.io 1>> >(logit) 2>> >(logit)
+        cat >initcontainer.yaml <<-EOM
 initContainers:
        - name: volume-permissions
          image: busybox
@@ -2571,91 +2645,94 @@ initContainers:
            - name: data
              mountPath: /data/mysql
 EOM
-      errormessage=$(helm install mysql-operator bitpoke/mysql-operator --set orchestrator.persistence.enabled=false -f initcontainer.yaml -n $backup_namespace 2>> >(logit))
-      if echo "$errormessage" | grep -Eq 'Error:|error:'; then
-        echo "MySQL operator Installation failed with error: $errormessage"
+        errormessage=$(helm install mysql-operator bitpoke/mysql-operator --set orchestrator.persistence.enabled=false -f initcontainer.yaml -n "$backup_namespace" 2>> >(logit))
+        if echo "$errormessage" | grep -Eq 'Error:|error:'; then
+          echo "MySQL operator Installation failed with error: $errormessage"
+          return 1
+        fi
+        echo "Installing MySQL Operator..."
+      fi
+      if [ "$open_flag" -eq 1 ]; then
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      fi
+      runtime=25
+      spin='-\|/'
+      i=0
+      sleep 5
+      cmd=$(kubectl get pod -l app.kubernetes.io/name=mysql-operator -n "$backup_namespace" 2>&1)
+      if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+        echo "Error in creating pod, please check security context."
         return 1
       fi
-      echo "Installing MySQL Operator..."
+      endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app.kubernetes.io/name=mysql-operator -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+        i=$(((i + 1) % 4))
+        printf "\r %s" "${spin:$i:1}"
+        sleep .1
+      done
+      if kubectl get pod -l app.kubernetes.io/name=mysql-operator -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+        echo "MySQL operator taking more time than usual to be in Ready state, Exiting.."
+        return 1
+      fi
+      if ! kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n "$backup_namespace" --ignore-not-found 1>> >(logit); then
+        echo "MySQL cluster already exists..."
+        echo "Waiting for application to be in the 'Ready' state."
+      else
+        #Create a MySQL cluster
+        kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n "$backup_namespace" 2>> >(logit)
+        kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster.yaml -n "$backup_namespace" 2>> >(logit)
+        echo "Installing MySQL cluster..."
+        sleep 10
+      fi
+      if [ "$open_flag" -eq 1 ]; then
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      fi
+      kubectl scale --replicas=1 mysqlcluster my-cluster -n "$backup_namespace" 2>> >(logit)
+      runtime=25
+      spin='-\|/'
+      i=0
+      sleep 5
+      cmd=$(kubectl get pod -l mysql.presslabs.org/cluster=my-cluster -n "$backup_namespace" 2>&1)
+      if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+        echo "Error in creating pod, please check security context."
+        return 1
+      fi
+      endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+        i=$(((i + 1) % 4))
+        printf "\r %s" "${spin:$i:1}"
+        sleep .1
+      done
+      sleep 5
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+        i=$(((i + 1) % 4))
+        printf "\r %s" "${spin:$i:1}"
+        sleep .1
+      done
+      if kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+        echo "MySQL cluster taking longer than usual to be in the 'Ready' state, exiting..."
+        return 1
+      fi
+      echo "Requested application is Up and Running!"
+      #Creating backupplan
+      { 
+        yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].operatorId="my-cluster"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group="mysql.presslabs.org" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group style="double"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version="v1alpha1" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version style="double"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind="MysqlCluster" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind style="double"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].objects[0]="my-cluster"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].operatorResources.labelSelector[0].matchLabels."app.kubernetes.io/name"="mysql-operator"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].applicationResources.labelSelector[[0].matchLabels."app.kubernetes.io/name"="mysql"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].applicationResources.labelSelector[[0].matchLabels."app.kubernetes.io/instance"="my-cluster"' backupplan.yaml
+        rm initcontainer.yaml
+      } 1>> >(logit) 2>> >(logit)
     fi
-    if [ "$open_flag" -eq 1 ]; then
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-    fi
-    runtime=25
-    spin='-\|/'
-    i=0
-    sleep 5
-    cmd=$(kubectl get pod -l app.kubernetes.io/name=mysql-operator -n $backup_namespace 2>&1)
-    if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-      echo "Error in creating pod, please check security context."
-      return 1
-    fi
-    endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
-    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l app.kubernetes.io/name=mysql-operator -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
-      i=$(((i + 1) % 4))
-      printf "\r %s" "${spin:$i:1}"
-      sleep .1
-    done
-    if kubectl get pod -l app.kubernetes.io/name=mysql-operator -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-      echo "MySQL operator taking more time than usual to be in Ready state, Exiting.."
-      return 1
-    fi
-    if ! kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace --ignore-not-found 1>> >(logit); then
-      echo "MySQL cluster already exists..."
-      echo "Waiting for application to be in the 'Ready' state."
-    else
-      #Create a MySQL cluster
-      kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n $backup_namespace 2>> >(logit)
-      kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster.yaml -n $backup_namespace 2>> >(logit)
-      echo "Installing MySQL cluster..."
-      sleep 10
-    fi
-    if [ "$open_flag" -eq 1 ]; then
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-    fi
-    runtime=25
-    spin='-\|/'
-    i=0
-    sleep 5
-    cmd=$(kubectl get pod -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace 2>&1)
-    if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-      echo "Error in creating pod, please check security context."
-      return 1
-    fi
-    endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
-    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
-      i=$(((i + 1) % 4))
-      printf "\r %s" "${spin:$i:1}"
-      sleep .1
-    done
-    sleep 5
-    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
-      i=$(((i + 1) % 4))
-      printf "\r %s" "${spin:$i:1}"
-      sleep .1
-    done
-    if kubectl get pods -l mysql.presslabs.org/cluster=my-cluster -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-      echo "MySQL cluster taking longer than usual to be in the 'Ready' state, exiting..."
-      return 1
-    fi
-    echo "Requested application is Up and Running!"
-    #Creating backupplan
-    {
-      yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].operatorId="my-cluster"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group="mysql.presslabs.org" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group style="double"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version="v1alpha1" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version style="double"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind="MysqlCluster" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind style="double"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].objects[0]="my-cluster"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].operatorResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql-operator"' backupplan.yaml
-      yq eval -i '.spec.backupPlanComponents.operators[0].applicationResourceSelector[0].matchLabels."app.kubernetes.io/name"="mysql"' backupplan.yaml
-      rm initcontainer.yaml
-    } 1>> >(logit) 2>> >(logit)
     ;;
   4)
-    if helm list -n $backup_namespace | grep -q -w mongotest; then
+    if helm list -n "$backup_namespace" | grep -q -w mongodb; then
       echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
@@ -2665,41 +2742,74 @@ EOM
       {
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
-        helm install mongotest bitnami/mongodb -n $backup_namespace
+	if [[ -s "$gcr_cred" ]]; then
+          cat >initcontainer.yaml <<-EOM
+initContainers:
+  - name: volume-permissions1
+    image: busybox
+      tag: 1.32
+    securityContext:
+      runAsUser: 0
+    command:
+      - sh
+      - -c
+      - chmod -R 777 /bitnami/mongodb; chown nobody:nobody /bitnami/mongodb
+    volumeMounts:
+      - name: datadir
+        mountPath: /bitnami/mongodb
+EOM
+          #create gcr registry secret
+          kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
+          helm install mongodb bitnami/mongodb --set image.tag="8.0.12-debian-12-r0" --set tls.tag="1.29.0-debian-12-r4" --set dnsCheck.image.tag="12-debian-12-r49" --set volumePermissions.image.tag="12-debian-12-r49" --set 12-debian-12-r49.image.tag="12-debian-12-r49" --set metrics.tag.image="0.45.0-debian-12-r5" --set volumePermissions.enabled=true --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.imagePullSecrets[0]=gcr-docker-secret1  --set image.pullSecrets[0]=gcr-docker-secret1 --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        else
+          cat >initcontainer.yaml <<-EOM
+initContainers:
+  - name: volume-permissions1
+    image: busybox
+    securityContext:
+      runAsUser: 0
+    command:
+      - sh
+      - -c
+      - chmod -R 777 /bitnami/mongodb; chown nobody:nobody /bitnami/mongodb
+    volumeMounts:
+      - name: datadir
+        mountPath: /bitnami/mongodb
+EOM
+	  helm install mongodb bitnami/mongodb --set securityContext.enabled=True --set securityContext.runAsUser=0 -f initcontainer.yaml -n "$backup_namespace"
+	fi
         # shellcheck disable=SC2155
-        export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace $backup_namespace mongotest-mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
+        export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace "$backup_namespace" mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
       } 2>> >(logit)
       echo "Installing App..."
     fi
+    #set -x
+    # shellcheck disable=SC2155
+    export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace "$backup_namespace" mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
     if [ "$open_flag" -eq 1 ]; then
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-      kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
     fi
     sleep 5
-    cmd=$(kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace 2>&1)
+    cmd=$(kubectl get pod -l app.kubernetes.io/name=mongodb -n "$backup_namespace" 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
       echo "Error in creating pod, please check security context."
       return 1
     fi
     # shellcheck disable=SC2016
     cmd='kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False'
-    wait_install_app 30 "$backup_namespace" "$cmd"
-    if kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+    wait_install_app 20 "$backup_namespace" "$cmd"
+    if kubectl get pod -l app.kubernetes.io/name=mongodb -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
       echo "Mongodb Application taking longer than usual to be in the 'Ready' state, exiting..."
-      echo "Retrying by changing volume permissions."
-      helm upgrade mongotest bitnami/mongodb --set volumePermissions.enabled=true --set auth.rootPassword="$MONGODB_ROOT_PASSWORD" -n $backup_namespace
-      wait_install_app 15 "$backup_namespace" "$cmd"
-      if kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-        echo "Failed to install Mongodb application."
-        return 1
-      fi
+      echo "Failed to install Mongodb application."
     fi
     echo "Requested application is Up and Running!"
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    yq eval -i '.spec.backupPlanComponents.helmReleases[0]="mongotest"' backupplan.yaml 1>> >(logit) 2>> >(logit)
+    yq eval -i '.spec.backupPlanComponents.helmReleases[0]="mongodb"' backupplan.yaml 1>> >(logit) 2>> >(logit)
+    rm initcontainer.yaml
     ;;
   5)
-    ## Install postgresql helm chart
+     ## Install postgresql helm chart
     #check if app is already installed with same name
     if helm list -n "$backup_namespace" | grep -w -q postgresql; then
       echo "Application exists."
@@ -2708,12 +2818,12 @@ EOM
       fi
       echo "Waiting for application to be in the 'Ready' state."
       if [ "$open_flag" -eq 1 ]; then
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       fi
       cmd="kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace 2>/dev/null | grep Running"
       wait_install 15 "$cmd"
-      if ! kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace 2>/dev/null | grep -q Running; then
+      if ! kubectl get pods -l app.kubernetes.io/name=postgresql -n "$backup_namespace" 2>/dev/null | grep -q Running; then
         echo "Application taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
@@ -2722,16 +2832,22 @@ EOM
       {
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
-        helm install postgresql bitnami/postgresql --set securityContext.enabled=True --set securityContext.runAsUser=0 --set volumePermissions.enabled=true -n $backup_namespace 1>> >(logit)
-        sleep 2
+	if [[ -s "$gcr_cred" ]]; then
+          #create gcr registry secret
+          kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
+          helm install postgresql bitnami/postgresql --set image.tag="17.5.0-debian-12-r20" --set volumePermissions.image.tag="12-debian-12-r49" --set volumePermissions.enabled=true --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.imagePullSecrets[0]=gcr-docker-secret1  --set image.pullSecrets[0]=gcr-docker-secret1 --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        else
+          helm install postgresql bitnami/postgresql --set securityContext.enabled=True --set securityContext.runAsUser=0 --set volumePermissions.enabled=true -n "$backup_namespace" 1>> >(logit)
+          sleep 2
+	fi
       } 2>> >(logit)
       if [ "$open_flag" -eq 1 ]; then
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
-        kubectl get sa -n $backup_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $backup_namespace 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       fi
       echo "Installing Application."
       sleep 10
-      cmd=$(kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace 2>&1)
+      cmd=$(kubectl get pods -l app.kubernetes.io/name=postgresql -n "$backup_namespace" 2>&1)
       if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
         echo "Error in creating pod, please check security context."
         return 1
@@ -2741,12 +2857,12 @@ EOM
       i=0
       sleep 5
       endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
-      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app.kubernetes.io/name=postgresql -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
         i=$(((i + 1) % 4))
         printf "\r %s" "${spin:$i:1}"
         sleep .1
       done
-      if kubectl get pods -l app.kubernetes.io/name=postgresql -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+      if kubectl get pods -l app.kubernetes.io/name=postgresql -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "Postgresql application taking longer than usual to be in the 'Ready' state, exiting..."
         return 1
       fi
@@ -2760,22 +2876,34 @@ EOM
     echo "Wrong choice."
     ;;
   esac
+  snap_func="n"
   #check if backupplan with same name already exists
-  if [[ $(kubectl get backupplan $bk_plan_name -n $backup_namespace 2>/dev/null) ]]; then
+  if [[ $(kubectl get backupplan "$bk_plan_name" -n "$backup_namespace" 2>/dev/null) ]]; then
     echo "Backupplan with same name already exists."
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
     fi
     #echo "Waiting for Backupplan to be in Available state"
   else
+    echo "there"
     #Applying backupplan manifest
-    {
-      yq eval -i '.metadata.name="'$bk_plan_name'"' backupplan.yaml
-      yq eval -i '.metadata.namespace="'$backup_namespace'"' backupplan.yaml
-      yq eval -i '.spec.backupNamespace="'$backup_namespace'"' backupplan.yaml
-      yq eval -i '.spec.backupConfig.target.name="'"$target_name"'"' backupplan.yaml
-      yq eval -i '.spec.backupConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
-    } 1>> >(logit) 2>> >(logit)
+     echo "here"
+     echo -e "Do you want to apply snapshot functionality?\n"
+     read -r -p "Select option: " snap_func
+     yq eval -i '.metadata.name="'"$bk_plan_name"'"' backupplan.yaml
+     yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
+     yq eval -i '.spec.backupConfig.target.name="'"$target_name"'"' backupplan.yaml
+     yq eval -i '.spec.backupConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
+     if [[ $snap_func == "Y" ]] || [[ $snap_func == "y" ]]; then
+        yq eval -i '.spec.snapshotConfig.target.name="'"$target_name"'"' backupplan.yaml
+        yq eval -i '.spec.snapshotConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
+	yq eval -i '.spec.snapshotConfig.schedulePolicy.snapshotPolicy.name="sample-schedule"' backupplan.yaml
+	yq eval -i '.spec.snapshotConfig.schedulePolicy.snapshotPolicy.namespace="default"' backupplan.yaml
+	yq eval -i '.spec.snapshotConfig.retentionPolicy.name="sample-policy"' backupplan.yaml
+	yq eval -i '.spec.snapshotConfig.retentionPolicy.namespace="default"' backupplan.yaml
+     fi
+
+
     echo "Creating backupplan..."
     cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
@@ -2795,16 +2923,33 @@ EOF
       echo "Erro while applying policy."
       return 1
     fi
-    if ! kubectl apply -f backupplan.yaml -n $backup_namespace; then
+    cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Policy
+metadata:
+  name: sample-schedule
+spec:
+  default: false
+  scheduleConfig:
+    schedule:
+    - "*/20 * * * *"
+  type: Schedule
+EOF
+    retcode=$?
+    if [ "$retcode" -ne 0 ]; then
+      echo "Erro while applying scheduling policy."
+      return 1
+    fi
+    if ! kubectl apply -f backupplan.yaml -n "$backup_namespace"; then
       echo "Backupplan creation failed."
       return 1
     fi
   fi
   echo "Waiting for backupplan to be Available to use..."
   cmd="kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Unavailable"
-  wait_install 15 "$cmd"
-  if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
-    if ! kubectl get backupplan $bk_plan_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
+  wait_install 20 "$cmd"
+  if ! kubectl get backupplan "$bk_plan_name" -n "$backup_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Available; then
+    if ! kubectl get backupplan "$bk_plan_name" -n "$backup_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -q Unavailable; then
       echo "Backupplan is in Unavailable state!"
       return 1
     else
@@ -2816,7 +2961,7 @@ EOF
     echo "Backupplan is in Available state."
   fi
   rm -f backupplan.yaml
-  if [[ $(kubectl get backup $backup_name -n $backup_namespace 2>> >(logit)) ]]; then
+  if [[ $(kubectl get backup "$backup_name" -n "$backup_namespace" 2>> >(logit)) ]]; then
     echo "Backup with same name already exists."
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
@@ -2843,10 +2988,47 @@ EOF
       return 1
     fi
   fi
+  if [[ $snap_func == "Y" ]] || [[ $snap_func == "y" ]]; then
+    if [[ $(kubectl get snapshot "$backup_name" -n "$backup_namespace" 2>> >(logit)) ]]; then
+    echo "Backup with same name already exists."
+    if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+      exit 1
+    fi
+    #echo "Waiting for Backup to be in Available state"
+    else
+      echo "Creating Snapshot.."
+      #Applying backup manifest
+      cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: snapshot
+metadata:
+  name: ${backup_name}
+  namespace: ${backup_namespace}
+spec:
+  backupPlan:
+    name: ${bk_plan_name}
+    namespace: ${backup_namespace}
+EOF
+      retcode=$?
+      if [ "$retcode" -ne 0 ]; then
+        echo "Error while creating snapshot."
+        return 1
+      fi
+    fi
+    echo "Waiting for snapshot to be available..."
+    cmd="kubectl get snapshot $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Failed"
+    wait_install 60 "$cmd"
+    if ! kubectl get snapshot "$backup_name" -n "$backup_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq Available; then
+      echo "snapshot Failed!"
+      return 1
+    else
+      echo "Snapshot is Available Now."
+    fi
+  fi
   echo "Waiting for backup to be available..."
   cmd="kubectl get backup $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Failed"
   wait_install 60 "$cmd"
-  if ! kubectl get backup $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq Available; then
+  if ! kubectl get backup "$backup_name" -n "$backup_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq Available; then
     echo "Backup Failed!"
     return 1
   else
@@ -2876,7 +3058,7 @@ EOF
     if [[ -z "$restore_name" ]]; then
       restore_name="trilio-$app-restore"
     fi
-    if [[ $(kubectl get restore $restore_name -n $restore_namespace 2>/dev/null) ]]; then
+    if [[ $(kubectl get restore "$restore_name" -n "$restore_namespace" 2>/dev/null) ]]; then
       echo "Restore with same name already exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
@@ -2888,7 +3070,7 @@ EOF
       if [[ "$app" == "transformation-postgresql" ]]; then
         kubectl get storageclass trans-storageclass 1>> >(logit) 2>> >(logit)
         retcode=$?
-        if [ "$retcode" -ne 0 ]; then
+        if [ "$retcode" -eq 0 ]; then
           echo "Storageclass trans-storageclass already exists, please delete it and try again."
           return 1
         fi
@@ -2920,7 +3102,6 @@ spec:
     target:
       name: ${target_name}
       namespace: ${target_namespace}
-  restoreNamespace: ${restore_namespace}
   transformComponents:
     helm:
       - release: postgresql
@@ -2928,7 +3109,28 @@ spec:
         set:
          - key: global.storageClass
            value: "trans-storageclass"
-  skipIfAlreadyExists: true
+  restoreFlags:
+    skipIfAlreadyExists: true
+EOF
+      elif [ "$open_flag" -eq 1 ]; then
+        cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Restore
+metadata:
+  name: ${restore_name}
+  namespace: ${restore_namespace}
+spec:
+  source:
+    type: Backup
+    backup:
+      namespace: ${backup_namespace}
+      name: ${backup_name}
+    target:
+      name: ${target_name}
+      namespace: ${target_namespace}
+  restoreFlags:
+    skipIfAlreadyExists: true
+    useOCPNamespaceUIDRange: true
 EOF
 
       else
@@ -2947,8 +3149,8 @@ spec:
     target:
       name: ${target_name}
       namespace: ${target_namespace}
-  restoreNamespace: ${restore_namespace}
-  skipIfAlreadyExists: true
+  restoreFlags:
+    skipIfAlreadyExists: true
 EOF
       fi
       retcode=$?
@@ -2960,7 +3162,7 @@ EOF
     echo "Waiting for the restore to complete..."
     cmd="kubectl get restore $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Completed -e Failed"
     wait_install 60 "$cmd"
-    if ! kubectl get restore $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq 'Completed'; then
+    if ! kubectl get restore "$restore_name" -n "$restore_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq 'Completed'; then
       echo "Restore Failed!"
       echo "It may be because some resource already exists, please check and try again!"
       return 1
@@ -2968,11 +3170,11 @@ EOF
       echo "Restore is Completed."
     fi
     if [ "$open_flag" -eq 1 ]; then
-      kubectl get sa -n $restore_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n $restore_namespace 1>> >(logit) 2>> >(logit)
-      kubectl get sa -n $restore_namespace | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n $restore_namespace 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n "$restore_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$restore_namespace" 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n "$restore_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$restore_namespace" 1>> >(logit) 2>> >(logit)
     fi
     if [[ $backup_way == "Operator_based" ]]; then
-      kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n $restore_namespace
+      kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n "$restore_namespace"
     fi
   fi
 }
@@ -3070,7 +3272,7 @@ main() {
     esac
     shift
   done
-  if [ ${Non_interact} ]; then
+  if [ "${Non_interact}" ]; then
     if [ ! -f "$input_config" ]; then
       echo "$input_config file not found!"
       exit 1
@@ -3116,13 +3318,13 @@ if [[ -z $ret ]]; then
   echo "Please install and check."
   return 1
 fi
-ret=$(pip3 --version 2>> >(logit))
+pip3 --version 2>> >(logit)
 ret_code=$?
 if [ "$ret_code" -ne 0 ]; then
   echo "This plugin requires pip3 to be installed. Please follow the README for steps."
   exit 1
 fi
-ret=$(pip3 install packaging 1>> >(logit) 2>> >(logit))
+pip3 install packaging 1>> >(logit) 2>> >(logit)
 ret_code=$?
 if [ "$ret_code" -ne 0 ]; then
   echo "The pip3 installation is failing. Please check permissions and try again."
