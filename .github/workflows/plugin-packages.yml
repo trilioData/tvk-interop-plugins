@@ -129,7 +129,7 @@ jobs:
         run: make test-tvk-quickstart-plugin-locally
 
       - name: Upload  Tvk-quickstart Plugin Packges to github artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: startsWith(github.ref, 'refs/tags/')
         with:
           name: tvk-quickstart
