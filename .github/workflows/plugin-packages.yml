@@ -102,14 +102,14 @@ jobs:
         run: make build-tvk-quickstart
 
       - name: Set up Kubeconfig
-      run: |
-        echo "${{ secrets.CLUSTER3_KUBECONFIG }}" | base64 --decode > /tmp/kubeconfig_clus3
+        run: |
+          echo "${{ secrets.CLUSTER3_KUBECONFIG }}" | base64 --decode > /tmp/kubeconfig_clus3
 
       - name: Authenticate and Connect to cluster
         if: (needs.pre-build.outputs.testquickstart == 'true') || startsWith(github.ref, 'refs/tags/')
         env:
           KUBECONFIG: /tmp/kubeconfig_clus3
-      
+
       - name: Update 'input_config'
         run: |
           echo "Updating 'tests/tvk-quickstart/input_config to run tvk-quickstart"
@@ -117,7 +117,7 @@ jobs:
           sed -i "s/^\(access_key\s*=\s*\).*$/\1\'$access_key\'/" tests/tvk-quickstart/input_config
           secret_key=${{ secrets.SECRETKEY }}
           sed -i "s/^\(secret_key\s*=\s*\).*$/\1\'$secret_key\'/" tests/tvk-quickstart/input_config
-      
+
       - name: Ensure Required Utilities Installed
         run: make install-required-utilities
 
@@ -134,8 +134,6 @@ jobs:
           path: |
             build/tvk-quickstart.tar.gz
             build/tvk-quickstart-sha256.txt
-
-
 
   # pre-release job determines whether to create release or not and sets job variables which will be used to decide
   # what packages(tvk-quickstart, tvk-cleanup) should be included in release
