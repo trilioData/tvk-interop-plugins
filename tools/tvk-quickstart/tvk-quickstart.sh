@@ -2885,9 +2885,7 @@ EOM
     fi
     #echo "Waiting for Backupplan to be in Available state"
   else
-    echo "there"
     #Applying backupplan manifest
-     echo "here"
      echo -e "Do you want to apply snapshot functionality?\n"
      read -r -p "Select option: " snap_func
      yq eval -i '.metadata.name="'"$bk_plan_name"'"' backupplan.yaml
