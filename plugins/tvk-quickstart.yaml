@@ -5,7 +5,7 @@ metadata:
 spec:
   homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/tvk-quickstart/README.md
   shortDescription: Plugin to Install/Configure/Test TVK
-  version: v1.2.0
+  version: v1.3.0
   caveats: |
     Curl and Git neeed to be installed on system for Krew index update to work properly
   platforms:
@@ -16,8 +16,8 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.2.0/tvk-quickstart.tar.gz
-    sha256: 248b200100c5fedd8ee1ba207024155a84d86a8b510b70cfab6c961d4d717705
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/v1.3.0/tvk-quickstart.tar.gz
+    sha256: a4b738abf67855ca4291266652f5e33a1ed3c7bb014bc678f9ca2a71ed9f1d8a
     bin: tvk-quickstart
     files:
     - from: tvk-quickstart/*

@@ -2,6 +2,7 @@
 
 set -e -o pipefail
 
+set -x
 if [[ -z "${TVK_QUICKSTART_VERSION}" ]]; then
   echo >&2 "TVK_QUICKSTART_VERSION (required) is not set"
   exit 1
@@ -25,7 +26,7 @@ mkdir -p "${build_dir}"
 cp "$tvk_quickstart_template_manifest" $build_dir/$tvk_quickstart_yaml
 tvk_quickstart_template_manifest=$build_dir/$tvk_quickstart_yaml
 
-repoURL=$(git config --get remote.origin.url)
+repoURL=$(git config --get remote.origin.url | sed 's/\.git$//')
 tvkquickstartSha256File="tvk-quickstart-sha256.txt"
 
 tvkquickstartSha256URI="$repoURL/releases/download/${TVK_QUICKSTART_VERSION}/$tvkquickstartSha256File"
