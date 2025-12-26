@@ -23,13 +23,13 @@ OS:
 - Preflight check:
 	Performs preflight checks to ensure that all requirements are satisfied.
 - **TVK Installation**:
-	**Installs TVK along with TVM and does License installation** 
+	**Installs TVK along with TVM and does License installation.Supports helm based installation** 
 - TVK Management Console Configuration:
         Even after above configuation, users has an option to choose from ['Loadbalancer','Nodeport','PortForwarding'] to access the console using tvk-quickstart plugin.
 - Target Creation:
 	Creates and validate the target where backups are stored. Users can create S3 (DigitalOCean Spaces / AWS S3) or NFS based target.  
-- Run Sample Tests of Backup and Restore:
-        Run sample tests for ['Label_based','Namespace_based','Operator_based','Helm_based'] applications. By default, 'Label_based' backup tests are run against a MySQL Database application, 'Namespace_based' tests against a Wordpress application, 'Operator_based' tests against MySQL Database operator application,'Helm_based' tests against a Mongo Database helm based application.
+- Run Sample Tests of Backup,snapshot and Restore:
+        Run sample tests for ['Label_based','Namespace_based','Operator_based','Helm_based'] applications. By default, 'Label_based' backup tests are run against a MySQL Database application, 'Namespace_based' tests against a Wordpress application, 'Operator_based' tests against MySQL Database operator application, for OLM it tests on datagrid operator,'Helm_based' tests against Prometheus  helm based application.
 - TVK uninstall:
 	Uninstalls TVK and its associated resources.
 

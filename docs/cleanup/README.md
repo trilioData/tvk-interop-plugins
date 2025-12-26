@@ -36,13 +36,13 @@ Please note the following:
 - Add TVK custom plugin index of krew:
 
   ```
-  kubectl krew index add tvk-plugins https://github.com/trilioData/tvk-plugins.git
+  kubectl krew index add tvk-plugins https://github.com/trilioData/tvk-interop-plugins.git
   ```
 
 - Installation:
 
   ```
-  kubectl krew install tvk-plugins/tvk-cleanup
+  kubectl krew install tvk-interop-plugin/tvk-cleanup
   ```  
 
 - Upgrade:
