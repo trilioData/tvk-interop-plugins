@@ -194,7 +194,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     outputs:
       create_release: true
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
