@@ -214,12 +214,6 @@ jobs:
         with:
           path: build
 
-      - name: Update GoReleaser Config for Release
-        run: hack/update-goreleaser-yaml.sh
-        env:
-          release_tvk-quickstart: 'true'
-          release_cleanup: 'true'
-
       - name: Release
         uses: ncipollo/release-action@v1
         with:
