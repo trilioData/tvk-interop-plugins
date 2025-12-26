@@ -944,7 +944,7 @@ configure_nodeport_for_tvkui() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$tvk_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
@@ -956,14 +956,14 @@ configure_nodeport_for_tvkui() {
     masterIngName="${masterIngName_2_7_0}"
   fi
   # shellcheck disable=SC1083
-  gateway=$(kubectl get pods --no-headers=true -n "$get_ns" 2>/dev/null | awk "/$ingressGateway/"{'print $1}')
+  gateway=$(kubectl get pods --no-headers=true -n "$tvk_ns" 2>/dev/null | awk "/$ingressGateway/"{'print $1}')
   if [[ -z "$gateway" ]]; then
     echo "Not able to find $ingressGateway resource, TVK UI configuration failed."
     return 1
   fi
-  node=$(kubectl get pods "$gateway" -n "$get_ns" -o jsonpath='{.spec.nodeName}' 2>> >(logit))
-  ip=$(kubectl get node "$node" -n "$get_ns" -o jsonpath='{.status.addresses[?(@.type=="ExternalIP")].address}' 2>> >(logit))
-  port=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' 2>> >(logit))
+  node=$(kubectl get pods "$gateway" -n "$tvk_ns" -o jsonpath='{.spec.nodeName}' 2>> >(logit))
+  ip=$(kubectl get node "$node" -n "$tvk_ns" -o jsonpath='{.status.addresses[?(@.type=="ExternalIP")].address}' 2>> >(logit))
+  port=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}' 2>> >(logit))
   vercomp "2.6.0" "$tvm_version"
   ret_val=$?
   if [[ $ret_val == 2 ]] || [[ $ret_val == 1 ]]; then
@@ -1000,18 +1000,18 @@ EOF
       return 1
     fi
   else
-    if ! kubectl patch ingress k8s-triliovault-ingress-master -n "$get_ns" -p '{"spec":{"rules":[{"host":"'"${tvkhost_name}"'"}]}}'; then
+    if ! kubectl patch ingress k8s-triliovault-ingress-master -n "$tvk_ns" -p '{"spec":{"rules":[{"host":"'"${tvkhost_name}"'"}]}}'; then
       echo "TVK UI configuration failed, please check ingress."
       return 1
     fi
-    if ! kubectl patch svc "$ingressGateway" -n "$get_ns" -p '{"spec": {"type": "NodePort"}}' 1>> >(logit) 2>> >(logit); then
+    if ! kubectl patch svc "$ingressGateway" -n "$tvk_ns" -p '{"spec": {"type": "NodePort"}}' 1>> >(logit) 2>> >(logit); then
       echo "TVK UI configuration failed, please check ingress."
       return 1
     fi
   fi
-  cmd="(kubectl get svc $ingressGateway -n $get_ns -o 'jsonpath={.spec.type}' | grep 'NodePort')"
+  cmd="(kubectl get svc $ingressGateway -n $tvk_ns -o 'jsonpath={.spec.type}' | grep 'NodePort')"
   wait_install 20 "$cmd"
-  kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.spec.type}' | grep -q 'NodePort'
+  kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.spec.type}' | grep -q 'NodePort'
   ret_code=$?
   if [[ "$retCode" -ne 0 ]]; then
     echo "Changing type of service for $ingressGateway is taking longer than usual."
@@ -1024,7 +1024,7 @@ EOF
 
   if [[ -z ${ip} ]] || [[ $ip == "none" ]]; then
     echo "Since the nodes are not public, we need use port forwarding."
-    echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
+    echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $tvk_ns 80:80 &"
     echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> $tvkhost_name' in /etc/hosts file. TVK management console traffic will be forwarded to your localhost IP via port 80."
     echo "After creating an entry, TVK UI can be accessed through - http://$tvkhost_name"
   else
@@ -1089,7 +1089,7 @@ configure_loadbalancer_for_tvkUI() {
   # Getting tvm version and setting the configs accordingly
   tvm_name=$(kubectl get tvm -A | awk '{print $2}' | sed -n 2p)
   tvk_ns=$(kubectl get tvm -A | awk '{print $1}' | sed -n 2p)
-  tvm_version=$(kubectl get TrilioVaultManager -n "$get_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+  tvm_version=$(kubectl get TrilioVaultManager -n "$tvk_ns" -o json | grep releaseVersion | grep -v "{}" | awk '{print$2}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
   vercomp "$tvm_version" "2.7.0"
   ret_ingress=$?
   if [[ $ret_ingress == 0 ]]; then
@@ -1136,23 +1136,23 @@ EOF
       return 1
     fi
   else
-    if ! kubectl patch svc "$ingressGateway" -n "$get_ns" -p '{"spec": {"type": "LoadBalancer"}}' 1>> >(logit) 2>> >(logit); then
+    if ! kubectl patch svc "$ingressGateway" -n "$tvk_ns" -p '{"spec": {"type": "LoadBalancer"}}' 1>> >(logit) 2>> >(logit); then
       echo "TVK UI configuration failed, please check ingress."
       return 1
     fi
   fi
   echo "Configuring UI... This may take some time!"
   sleep 10
-  cmd="kubectl get svc $ingressGateway -n $get_ns -o 'jsonpath={.status.loadBalancer}'"
+  cmd="kubectl get svc $ingressGateway -n $tvk_ns -o 'jsonpath={.status.loadBalancer}'"
   wait_install 20 "$cmd"
-  val_status=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.status.loadBalancer}')
+  val_status=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.status.loadBalancer}')
   if [[ $val_status == '{}' ]] || [[ $val_status == 'map[]' ]]; then
     echo "Loadbalancer taking time to get External IP"
     return 1
   fi
-  external_ip=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.status.loadBalancer.ingress[0].ip}' 2>> >(logit))
+  external_ip=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.status.loadBalancer.ingress[0].ip}' 2>> >(logit))
   if [[ -z "$external_ip" ]]; then
-    hostname=$(kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.status.loadBalancer.ingress[0].hostname}' 2>> >(logit))
+    hostname=$(kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.status.loadBalancer.ingress[0].hostname}' 2>> >(logit))
     if [[ -z "$hostname" ]]; then
       echo "ExternalIP is not set, please check configuration."
       return 1
@@ -1161,11 +1161,11 @@ EOF
     # Do what you want
   fi
   if [[ $ret_val != 2 ]] && [[ $ret_val != 1 ]]; then
-    kubectl patch ingress k8s-triliovault-ingress-master -n "$get_ns" -p '{"spec":{"rules":[{"host":"'"${tvkhost_name}.${domain}"'"}]}}' 1>> >(logit) 2>> >(logit)
+    kubectl patch ingress k8s-triliovault-ingress-master -n "$tvk_ns" -p '{"spec":{"rules":[{"host":"'"${tvkhost_name}.${domain}"'"}]}}' 1>> >(logit) 2>> >(logit)
   fi
-  cmd="(kubectl get svc $ingressGateway -n $get_ns -o 'jsonpath={.spec.type}' | grep 'LoadBalancer')"
+  cmd="(kubectl get svc $ingressGateway -n $tvk_ns -o 'jsonpath={.spec.type}' | grep 'LoadBalancer')"
   wait_install 20 "$cmd"
-  kubectl get svc "$ingressGateway" -n "$get_ns" -o 'jsonpath={.spec.type}' | grep -q 'LoadBalancer'
+  kubectl get svc "$ingressGateway" -n "$tvk_ns" -o 'jsonpath={.spec.type}' | grep -q 'LoadBalancer'
   ret_code=$?
   if [[ "$retCode" -ne 0 ]]; then
     echo "Changing the type of service for $ingressGateway is taking longer than usual."
@@ -2297,6 +2297,13 @@ sample_test() {
   if [ "$ret_code" -ne 0 ]; then
     exit 1
   fi
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+  ret_val=$?
+  open_flag=0
+  if [ "$ret_code" -eq 0 ]; then
+    open_flag=1
+  fi
+
   helm repo add stable https://charts.helm.sh/stable 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
   app=""
@@ -2321,16 +2328,7 @@ sample_test() {
       return 1
     fi
   fi
-  gcr_cred=""
-  echo -e "Please provide GCR cred json file if you wish to execute backup/snapshot scheduling and avoid docker pull limit issue\n"
-  echo "pre-req: you should have gcloud installed"
-  read -r -p "Enter file path: " gcr_cred
   #set -x
-  if [[ -s "$gcr_cred" ]]; then
-    gcloud auth login --cred-file="$gcr_cred"
-    gcloud auth configure-docker
-    docker login -u _json_key -p "$(cat "$gcr_cred")" http://us-central1-docker.pkg.dev
-  fi
   if [[ -z $backup_way ]]; then
     echo "Please provide a valid option, exiting..."
     return 1
@@ -2344,13 +2342,13 @@ sample_test() {
     ;;
   3)
     if [ "$open_flag" -eq 1 ]; then
-      app="operato-datagrid"
+      app="operator-datagrid"
     else
       app="operator-mysql"
     fi
     ;;
   4)
-    app="helm-mongodb"
+    app="helm-prometheus"
     ;;
   5)
     app="transformation-postgresql"
@@ -2365,9 +2363,17 @@ sample_test() {
     read -r -p "Target Namespace: " target_namespace
     read -r -p "Backupplan name (default - trilio-$app-testback): " bk_plan_name
     read -r -p "Backup Name (default - trilio-$app-testback): " backup_name
+    if [[ "$open_flag" -eq 1 ]] && [[ "$app" == "operator-datagrid" ]]; then
+    #  backup_namespace="openshift-operators"
+      echo "For OLM operator test,operator will get installed in openshift-operator"
+      echo "For custom resource, user can select the namespace name"
+    #else
+    fi
     read -r -p "Backup Namespace Name (default - trilio-$app-testback): " backup_namespace
+    #fi
     read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
+
   if [[ -z "$if_resource_exists_still_proceed" ]]; then
     if_resource_exists_still_proceed='y'
   fi
@@ -2388,13 +2394,6 @@ sample_test() {
   if [[ -z "$storage_class" ]]; then
     echo "No default storage class found, we need one to proceed!"
     return 1
-  fi
-  #Check if cluster is OCP
-  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
-  ret_val=$?
-  open_flag=0
-  if [ "$ret_code" -eq 0 ]; then
-    open_flag=1
   fi
 
   #Check if yq is installed
@@ -2455,13 +2454,8 @@ EOM
       fi
     else
       #set -x
-      if [[ -s "$gcr_cred" ]]; then
-        #create gcr registry secret
-	kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
-        helm install mysql-qa stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false --set imagePullSecrets[0].name=gcr-docker-secret1 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-      else
-        helm install mysql-qa stable/mysql --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-      fi
+      #create gcr registry secret
+        helm install mysql-qa stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       sleep 2
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
@@ -2501,18 +2495,12 @@ EOM
       fi
       echo "Waiting for application to be in the 'Ready' state."
     else
-      #Add bitnami helm repo
-      helm repo add bitnami https://charts.bitnami.com/bitnami 1>> >(logit) 2>> >(logit)
       echo "Installing mysql which will be used as underlying db for wordpress..."
       rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
-      if [[ -s "$gcr_cred" ]]; then
-        #create gcr registry secret
-        kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
-        helm install "mysql-$rand_name" stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false --set imagePullSecrets[0].name=gcr-docker-secret1 --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-      else
-	 helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-      fi
+      helm install "mysql-$rand_name" stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       #helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
+    fi
+      rand_name=$(helm get values my-wordpress -n "$backup_namespace" -o json | jq -r '.externalDatabase.host' | cut -d'-' -f2 | cut -d'.' -f1)
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
         kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
@@ -2539,8 +2527,7 @@ EOM
         echo "Wordpress underlying Mysql application is taking longer than usual to be in the 'Ready' state, exiting..."
         return 1
       fi
-      if [[ -s "$gcr_cred" ]]; then
-	cat >initcontainer.yaml <<-EOM
+      cat >initcontainer.yaml <<-EOM
 initContainers:
   - name: volume-permissions1
     image: us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/minideb:latest
@@ -2551,27 +2538,7 @@ initContainers:
       name: wordpress-data
       subPath: wordpress
 EOM
-        #create gcr registry secret
-        kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
-	helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-"$rand_name"."$backup_namespace".svc.cluster.local --set externalDatabase.user="trilio" --set externalDatabase.password="trilio" --set externalDatabase.database="my-database" --set externalDatabase.port=3306 --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.imagePullSecrets[0]=gcr-docker-secret1  --set image.pullSecrets[0]=gcr-docker-secret1 -f initcontainer.yaml  --set image.tag="6.8.2-debian-12-r2" --set volumePermissions.image.tag="12-debian-12-r49" --set metrics.image.tag="1.0.10-debian-12-r13" --set volumePermissions.enabled=true --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-      else
-        cat >initcontainer.yaml <<-EOM
-initContainers:
-  - name: volume-permissions1
-    image: bitnami/minideb
-    imagePullPolicy: Always
-    command: ['sh', '-c', 'chown 1001:1001 /bitnami/wordpress']
-    volumeMounts:
-    - mountPath: /bitnami/wordpress
-      name: wordpress-data
-      subPath: wordpress
-EOM
-      # shellcheck disable=SC2086
- 
-        helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set containerSecurityContext.allowPrivilegeEscalation=true --set externalDatabase.host=mysql-$rand_name.$backup_namespace.svc.cluster.local --set externalDatabase.user=trilio --set externalDatabase.password=trilio --set externalDatabase.database=my-database --set externalDatabase.port=3306 -f initcontainer.yaml --set volumePermissions.enabled=true -n $backup_namespace
-        echo "Installing Application"
-      fi
-    fi
+      helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-"$rand_name"."$backup_namespace".svc.cluster.local --set externalDatabase.user="trilio" --set externalDatabase.password="trilio" --set externalDatabase.database="my-database" --set externalDatabase.port=3306 --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop -f initcontainer.yaml --set image.tag="6.8.2-debian-12-r2" --set volumePermissions.image.tag="12-debian-12-r49" --set metrics.image.tag="1.0.10-debian-12-r13" --set volumePermissions.enabled=true --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
     if [ "$open_flag" -eq 1 ]; then
       kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
@@ -2601,26 +2568,49 @@ EOM
     ;;
   3)
     if [ "$open_flag" -eq 1 ]; then
-      if kubectl apply -f datagrid_subscription.yaml; then
+      ret_val=$(kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators)
+      if [[ -n $ret_val ]]; then
+        echo "Please delete all datagrid related operator and its resources before proceeding"
+        exit 1
+      fi
+      ret_val=$(kubectl apply -f datagrid_subscription.yaml -n openshift-operators)
+      echo "$ret_val"
+      if [[ $ret_val != "subscription.operators.coreos.com/datagrid created" ]]; then
         echo "Error while applying datagrid subscription yaml"
-	exit 1
+        exit 1
       fi
       echo "waiting for datagrid oprrator to be in ready state"
-      sleep 2
+      sleep 120
       if kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators  -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "infinispan-operator taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
-      if kubectl apply -f infi_cluster.yaml; then
+      if ! kubectl apply -f infi_cluster.yaml -n "$backup_namespace"; then
         echo "Error while applying infispan cluster yaml"
-	exit 1
+        exit 1
       fi
       echo "waiting for infispan cluster to be in ready state"
-      sleep 2
-      if kubectl get pod -l "rht.comp"="Data_Grid" -n openshift-operators -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+      sleep 30
+      if kubectl get pod -l "rht.comp"="Data_Grid" -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "Infispan operator taking longer than usual to be in the 'Ready' state, exiting..."
-	exit 1
+        exit 1
       fi
+      echo "Requested application is Up and Running!"
+      #Creating backupplan
+      {
+        uid=$(kubectl get operator datagrid.openshift-operators -o custom-columns=UID:.metadata.uid)
+        oper_id=$(echo "$uid" | awk '{print $2}')
+        yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml
+        yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
+        OPER_ID="$oper_id" yq eval -i '.spec.backupPlanComponents.operators[0].operatorId = env(OPER_ID)' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group="infinispan.org" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group style="double"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version="v1" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.version style="double"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind="Infinispan" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.kind style="double"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].objects[0]="example-infinispan" | .spec.backupPlanComponents.operators[0].customResources[0].objects style="double"' backupplan.yaml
+        yq eval -i '.spec.backupPlanComponents.operators[0].subscription.name="datagrid"' backupplan.yaml
+
+        yq eval -i '.spec.backupPlanComponents.operators[0].subscription.namespace="openshift-operators"' backupplan.yaml
+      } 1>> >(logit) 2>> >(logit)
     else
       if helm list -n "$backup_namespace" | grep -w -q mysql-operator 2>> >(logit); then
         echo "Application exists."
@@ -2717,7 +2707,7 @@ EOM
       fi
       echo "Requested application is Up and Running!"
       #Creating backupplan
-      { 
+      {
         yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml
         yq eval -i '.spec.backupPlanComponents.operators[0].operatorId="my-cluster"' backupplan.yaml
         yq eval -i '.spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group="mysql.presslabs.org" | .spec.backupPlanComponents.operators[0].customResources[0].groupVersionKind.group style="double"' backupplan.yaml
@@ -2732,83 +2722,39 @@ EOM
     fi
     ;;
   4)
-    if helm list -n "$backup_namespace" | grep -q -w mongodb; then
+    if helm list -n "$backup_namespace" | grep -q -w prometheus; then
       echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
       echo "Waiting for application to be in the 'Ready' state."
     else
-      {
-        helm repo add bitnami https://charts.bitnami.com/bitnami
-        helm repo update 1>> >(logit)
-	if [[ -s "$gcr_cred" ]]; then
-          cat >initcontainer.yaml <<-EOM
-initContainers:
-  - name: volume-permissions1
-    image: busybox
-      tag: 1.32
-    securityContext:
-      runAsUser: 0
-    command:
-      - sh
-      - -c
-      - chmod -R 777 /bitnami/mongodb; chown nobody:nobody /bitnami/mongodb
-    volumeMounts:
-      - name: datadir
-        mountPath: /bitnami/mongodb
-EOM
-          #create gcr registry secret
-          kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
-          helm install mongodb bitnami/mongodb --set image.tag="8.0.12-debian-12-r0" --set tls.tag="1.29.0-debian-12-r4" --set dnsCheck.image.tag="12-debian-12-r49" --set volumePermissions.image.tag="12-debian-12-r49" --set 12-debian-12-r49.image.tag="12-debian-12-r49" --set metrics.tag.image="0.45.0-debian-12-r5" --set volumePermissions.enabled=true --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.imagePullSecrets[0]=gcr-docker-secret1  --set image.pullSecrets[0]=gcr-docker-secret1 --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-        else
-          cat >initcontainer.yaml <<-EOM
-initContainers:
-  - name: volume-permissions1
-    image: busybox
-    securityContext:
-      runAsUser: 0
-    command:
-      - sh
-      - -c
-      - chmod -R 777 /bitnami/mongodb; chown nobody:nobody /bitnami/mongodb
-    volumeMounts:
-      - name: datadir
-        mountPath: /bitnami/mongodb
-EOM
-	  helm install mongodb bitnami/mongodb --set securityContext.enabled=True --set securityContext.runAsUser=0 -f initcontainer.yaml -n "$backup_namespace"
-	fi
-        # shellcheck disable=SC2155
-        export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace "$backup_namespace" mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
-      } 2>> >(logit)
+      helm install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --set nodeExporter.enabled=false -n "$backup_namespace" 2>> >(logit)
       echo "Installing App..."
     fi
-    #set -x
-    # shellcheck disable=SC2155
-    export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace "$backup_namespace" mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
     if [ "$open_flag" -eq 1 ]; then
       kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
     fi
     sleep 5
-    cmd=$(kubectl get pod -l app.kubernetes.io/name=mongodb -n "$backup_namespace" 2>&1)
+    cmd=$(kubectl get pod -l app.kubernetes.io/instance=prometheus -n "$backup_namespace" 2>&1)
     if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
       echo "Error in creating pod, please check security context."
       return 1
     fi
     # shellcheck disable=SC2016
-    cmd='kubectl get pod -l app.kubernetes.io/name=mongodb -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False'
+    cmd='kubectl get pod -l app.kubernetes.io/instance=prometheus -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False'
     wait_install_app 20 "$backup_namespace" "$cmd"
-    if kubectl get pod -l app.kubernetes.io/name=mongodb -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-      echo "Mongodb Application taking longer than usual to be in the 'Ready' state, exiting..."
-      echo "Failed to install Mongodb application."
+    if kubectl get pod -l app.kubernetes.io/instance=prometheus -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+      echo "Prometheus Application taking longer than usual to be in the 'Ready' state, exiting..."
+      echo "Failed to install prometheus application."
     fi
     echo "Requested application is Up and Running!"
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    yq eval -i '.spec.backupPlanComponents.helmReleases[0]="mongodb"' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    rm initcontainer.yaml
+    yq eval -i '.spec.backupPlanComponents.helmReleases[0]="prometheus"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
   5)
+    set -x
      ## Install postgresql helm chart
     #check if app is already installed with same name
     if helm list -n "$backup_namespace" | grep -w -q postgresql; then
@@ -2830,16 +2776,9 @@ EOM
     else
       echo "There should be only one storageclass with the 'default' label or else the installation will fail!"
       {
-        helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update 1>> >(logit)
-	if [[ -s "$gcr_cred" ]]; then
-          #create gcr registry secret
-          kubectl create secret docker-registry gcr-docker-secret1 --docker-server="us-central1-docker.pkg.dev" --docker-username="_json_key" --docker-password="$(cat "$gcr_cred")" --namespace "$backup_namespace" 1>> >(logit) 2>> >(logit)
-          helm install postgresql bitnami/postgresql --set image.tag="17.5.0-debian-12-r20" --set volumePermissions.image.tag="12-debian-12-r49" --set volumePermissions.enabled=true --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.imagePullSecrets[0]=gcr-docker-secret1  --set image.pullSecrets[0]=gcr-docker-secret1 --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-        else
-          helm install postgresql bitnami/postgresql --set securityContext.enabled=True --set securityContext.runAsUser=0 --set volumePermissions.enabled=true -n "$backup_namespace" 1>> >(logit)
-          sleep 2
-	fi
+        helm install postgresql bitnami/postgresql --set image.tag="17.5.0-debian-12-r20" --set volumePermissions.image.tag="12-debian-12-r49" --set volumePermissions.enabled=true --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+        sleep 2
       } 2>> >(logit)
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
@@ -2870,7 +2809,6 @@ EOM
     echo "Requested application is Up and Running!"
 
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
-    yq eval -i '.spec.backupPlanComponents.helmReleases[0]="postgresql"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
   *)
     echo "Wrong choice."
@@ -2887,7 +2825,7 @@ EOM
   else
     #Applying backupplan manifest
      echo -e "Do you want to apply snapshot functionality?\n"
-     read -r -p "Select option: " snap_func
+     read -r -p "Select option(y/n): " snap_func
      yq eval -i '.metadata.name="'"$bk_plan_name"'"' backupplan.yaml
      yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
      yq eval -i '.spec.backupConfig.target.name="'"$target_name"'"' backupplan.yaml
@@ -2959,7 +2897,7 @@ EOF
     echo "Backupplan is in Available state."
   fi
   rm -f backupplan.yaml
-  if [[ $(kubectl get backup "$backup_name" -n "$backup_namespace" 2>> >(logit)) ]]; then
+  if [[ $(kubectl get backups.triliovault.trilio.io "$backup_name" -n "$backup_namespace" 2>> >(logit)) ]]; then
     echo "Backup with same name already exists."
     if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
       exit 1
@@ -3024,9 +2962,9 @@ EOF
     fi
   fi
   echo "Waiting for backup to be available..."
-  cmd="kubectl get backup $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Failed"
+  cmd="kubectl get backups.triliovault.trilio.io $backup_name -n $backup_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Available -e Failed"
   wait_install 60 "$cmd"
-  if ! kubectl get backup "$backup_name" -n "$backup_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq Available; then
+  if ! kubectl get backups.triliovault.trilio.io "$backup_name" -n "$backup_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq Available; then
     echo "Backup Failed!"
     return 1
   else
@@ -3037,7 +2975,19 @@ EOF
   fi
   if [[ ${restore} == "Y" ]] || [[ ${restore} == "y" ]] || [[ ${restore} == "True" ]]; then
     if [[ -z ${input_config} ]]; then
-      read -r -p "Restore Namepsace (default - trilio-$app-restore): " restore_namespace
+      #if [ "$open_flag" -eq 1 ] && [ "$backup_way" -eq 3 ]; then
+      #  restore_namespace="openshift-operators"
+      # echo "Restore Namespace = openshift-operators"
+      #else
+      if [[ "$app" == helm-prometheus"" ]]; then
+        echo "Keeping restore namespace as same as backup restore(local charts are referred, So restore namespace should be same as bakup namespace)"
+        restore_namespace=$backup_namespace
+	echo "deleting existing resources from backup namespace"
+        helm uninstall prometheus -n "$backup_namespace"
+        kubectl delete pod,pvc,svc,deployment,statefulset,replicaset --all -n "$backup_namespace"
+      else
+        read -r -p "Restore Namepsace (default - trilio-$app-restore): " restore_namespace
+      fi
       read -r -p "Restore name (default - trilio-$app-restore): " restore_name
     fi
     if [[ -z "$restore_namespace" ]]; then
@@ -3056,13 +3006,19 @@ EOF
     if [[ -z "$restore_name" ]]; then
       restore_name="trilio-$app-restore"
     fi
-    if [[ $(kubectl get restore "$restore_name" -n "$restore_namespace" 2>/dev/null) ]]; then
+    if [[ $(kubectl get restores.triliovault.trilio.io "$restore_name" -n "$restore_namespace" 2>/dev/null) ]]; then
       echo "Restore with same name already exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
         exit 1
       fi
       echo "Waiting for Restore to be in Available state..."
     else
+      restore_type="backup"
+      kubectl get snapshot "$backup_name" -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      ret_code=$?
+      if [[ "$ret_code" -eq 0 ]]; then 
+	read -r -p "Which restore to perform? backup/snapshot(backup): " restore_type
+      fi
       echo "Creating restore..."
       #Applying restore manifest
       if [[ "$app" == "transformation-postgresql" ]]; then
@@ -3085,7 +3041,40 @@ EOF
         #echo "Removing 'default' label from trans-storageclass storageclass"
         kubectl patch storageclass trans-storageclass -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
         #kubectl patch storageclass $default_storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' 2>> >(logit)
-        cat <<EOF | kubectl apply -f - 1>> >(logit)
+        if [[ "$restore_type" == "snapshot" ]]; then
+          cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Restore
+metadata:
+  name: ${restore_name}
+  namespace: ${restore_namespace}
+spec:
+  source:
+    type: Snapshot
+    snapshot:
+      namespace: ${backup_namespace}
+      name: ${backup_name}
+    target:
+      name: ${target_name}
+      namespace: ${target_namespace}
+  transformComponents:
+    custom:
+    - jsonPatches:
+      - op: replace
+        path: /spec/storageClassName
+        value: trans-storageclass
+      resources:
+        groupVersionKind:
+          kind: PersistentVolumeClaim
+          version: v1
+        objects:
+        - data-postgresql-0
+      transformName: p1
+  restoreFlags:
+    skipIfAlreadyExists: true
+EOF
+                else
+          cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: Restore
 metadata:
@@ -3101,17 +3090,64 @@ spec:
       name: ${target_name}
       namespace: ${target_namespace}
   transformComponents:
-    helm:
-      - release: postgresql
-        transformName: t1
-        set:
-         - key: global.storageClass
-           value: "trans-storageclass"
+    custom:
+    - jsonPatches:
+      - op: replace
+        path: /spec/storageClassName
+        value: trans-storageclass
+      resources:
+        groupVersionKind:
+          kind: PersistentVolumeClaim
+          version: v1
+        objects:
+        - data-postgresql-0
+      transformName: p1
   restoreFlags:
     skipIfAlreadyExists: true
 EOF
-      elif [ "$open_flag" -eq 1 ]; then
-        cat <<EOF | kubectl apply -f - 1>> >(logit)
+        fi
+
+      elif [ "$open_flag" -eq 1 ] && [[ $app == "operator-datagrid" ]]; then
+        echo "Deleting backed up operator and restoring the operator in same namespace"
+        kubectl delete infinispans.infinispan.org example-infinispan -n "$backup_namespace"
+        kubectl delete crd backups.infinispan.org batches.infinispan.org caches.infinispan.org infinispans.infinispan.org restores.infinispan.org
+        inst_plan=$( kubectl get installplan -A | grep datagrid | awk '{print $2}')
+        kubectl delete installplan "$inst_plan" -n openshift-operators
+        kubectl delete subscription datagrid -n openshift-operators
+        kubectl delete  clusterserviceversions.operators.coreos.com datagrid-operator.v8.5.12 -n trilio-system
+        kubectl delete  clusterserviceversions.operators.coreos.com datagrid-operator.v8.5.12 -n openshift-operators
+        kubectl get ClusterServiceVersion -n openshift-operators  | grep datagrid-operator | awk '{print $1}' | xargs -I '{}' kubectl delete ClusterServiceVersion {} -n openshift-operators
+        kubectl delete operator datagrid.openshift-operators
+        kubectl delete pvc data-volume-example-infinispan-0 -n openshift-operators
+        kubectl delete pvc data-volume-example-infinispan-0 -n  "$backup_namespace"
+        if kubectl get operator datagrid.openshift-operators; then
+          echo "Error in deleting operator datagrid.openshift-operators, please delete and then retry restore"
+          exit 1
+        fi
+	if [[ $restore_type == "snapshot" ]]; then
+
+          cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Restore
+metadata:
+  name: ${restore_name}
+  namespace: ${restore_namespace}
+spec:
+  source:
+    type: Snapshot
+    snapshot:
+      namespace: ${backup_namespace}
+      name: ${backup_name}
+    target:
+      name: ${target_name}
+      namespace: ${target_namespace}
+  restoreFlags:
+    skipIfAlreadyExists: true
+    useOCPNamespaceUIDRange: true
+EOF
+
+        else
+          cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: Restore
 metadata:
@@ -3130,9 +3166,30 @@ spec:
     skipIfAlreadyExists: true
     useOCPNamespaceUIDRange: true
 EOF
-
+      fi
       else
-        cat <<EOF | kubectl apply -f - 1>> >(logit)
+        if [[ "$restore_type" == "snapshot" ]]; then
+          cat <<EOF | kubectl apply -f - 1>> >(logit)
+apiVersion: triliovault.trilio.io/v1
+kind: Restore
+metadata:
+  name: ${restore_name}
+  namespace: ${restore_namespace}
+spec:
+  source:
+    type: Snapshot
+    snapshot:
+      namespace: ${backup_namespace}
+      name : ${backup_name}
+    target:
+      name: ${target_name}
+      namespace: ${target_namespace}
+  restoreFlags:
+    skipIfAlreadyExists: true
+    retainHelmReleaseName: true
+EOF
+        else
+          cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: Restore
 metadata:
@@ -3150,6 +3207,7 @@ spec:
   restoreFlags:
     skipIfAlreadyExists: true
 EOF
+       fi
       fi
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
@@ -3158,9 +3216,9 @@ EOF
       fi
     fi
     echo "Waiting for the restore to complete..."
-    cmd="kubectl get restore $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Completed -e Failed"
+    cmd="kubectl get restores.triliovault.trilio.io $restore_name -n $restore_namespace -o 'jsonpath={.status.status}' 2>/dev/null | grep -e Completed -e Failed"
     wait_install 60 "$cmd"
-    if ! kubectl get restore "$restore_name" -n "$restore_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq 'Completed'; then
+    if ! kubectl get restores.triliovault.trilio.io "$restore_name" -n "$restore_namespace" -o 'jsonpath={.status.status}' 2>/dev/null | grep -wq 'Completed'; then
       echo "Restore Failed!"
       echo "It may be because some resource already exists, please check and try again!"
       return 1
@@ -3171,7 +3229,7 @@ EOF
       kubectl get sa -n "$restore_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$restore_namespace" 1>> >(logit) 2>> >(logit)
       kubectl get sa -n "$restore_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$restore_namespace" 1>> >(logit) 2>> >(logit)
     fi
-    if [[ $backup_way == "Operator_based" ]]; then
+    if [[ $backup_way == "Operator_based" ]] && [[ "$open_flag" -ne 1 ]]; then
       kubectl apply -f https://raw.githubusercontent.com/bitpoke/mysql-operator/master/examples/example-cluster-secret.yaml -n "$restore_namespace"
     fi
   fi

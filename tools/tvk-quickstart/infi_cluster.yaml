@@ -1,0 +1,41 @@
+apiVersion: infinispan.org/v1
+kind: Infinispan
+metadata:
+  name: example-infinispan
+  #namespace: openshift-operators
+  labels:
+    rht.comp: Data_Grid
+    rht.comp_ver: 8.5.5
+    rht.prod_name: Red_Hat_Runtimes
+    rht.prod_ver: 2025-Q3
+    rht.subcomp_t: application
+spec:
+  security:
+    endpointAuthentication: true
+    endpointSecretName: example-infinispan-generated-secret
+  container:
+    memory: 1Gi
+  scheduling:
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: infinispan-pod
+                  clusterName: example-infinispan
+                  infinispan_cr: example-infinispan
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+  service:
+    type: DataGrid
+  jmx: {}
+  configListener:
+    enabled: true
+    logging:
+      level: info
+  upgrades:
+    type: Shutdown
+  version: 8.5.5-1
+  replicas: 1
+
