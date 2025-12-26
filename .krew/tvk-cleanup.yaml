@@ -3,7 +3,7 @@ kind: Plugin
 metadata:
   name: tvk-cleanup
 spec:
-  homepage: https://github.com/trilioData/tvk-plugins/blob/main/docs/cleanup/README.md
+  homepage: https://github.com/trilioData/tvk-interop-plugins/blob/main/docs/cleanup/README.md
   shortDescription: TVK cleanup cleans up TVK resources from k8s cluster
   version: CLEANUP_VERSION
   caveats: |
@@ -16,7 +16,7 @@ spec:
         values:
         - darwin
         - linux
-    uri: https://github.com/trilioData/tvk-plugins/releases/download/CLEANUP_VERSION/cleanup.tar.gz
+    uri: https://github.com/trilioData/tvk-interop-plugins/releases/download/CLEANUP_VERSION/cleanup.tar.gz
     sha256: CLEANUP_TAR_CHECKSUM
     bin: cleanup
     files:
