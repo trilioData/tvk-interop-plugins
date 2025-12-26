@@ -25,8 +25,8 @@ jobs:
     outputs:
       quickstart: ${{ steps.filter.outputs.quickstart }}
       testquickstart: ${{ steps.filter.outputs.testquickstart }}
-      #cleanup: ${{ steps.filter.outputs.cleanup }}
-      #testCleanup: ${{ steps.filter.outputs.testCleanup }}
+      cleanup: ${{ steps.filter.outputs.cleanup }}
+      testCleanup: ${{ steps.filter.outputs.testCleanup }}
 
     steps:
       - name: Checkout
