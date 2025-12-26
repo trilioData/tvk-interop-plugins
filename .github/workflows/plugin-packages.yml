@@ -200,7 +200,7 @@ jobs:
         with:
           fetch-depth: 0
 
-  # release job creates and uploads release on github. Also, decides which package to include in release based on conditional constructs
+  # release job creates and uploads release on github. Also, decides which package to include in release based on conditional constructs.
   release:
     runs-on: ubuntu-latest
     needs: pre-release
