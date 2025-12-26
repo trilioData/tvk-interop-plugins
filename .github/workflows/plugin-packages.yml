@@ -218,7 +218,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           prerelease: true
-          #artifacts: "build/tvk-/tvk-oneclick-sha256.txt, build/tvk-oneclick/tvk-oneclick.tar.gz, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
+          #artifacts: "build/tvk-oneclick/tvk-oneclick.tar.gz, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore-sha256.txt, build/ocp_etcd_backup_restore/ocp-etcd-backup-restore.tar.gz, build/rke_etcd_backup_restore/rke-etcd-backup-restore-sha256.txt, build/rke_etcd_backup_restore/rke-etcd-backup-restore.tar.gz"
           artifacts: "build/tvk-quickstart/*, build/cleanup/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
