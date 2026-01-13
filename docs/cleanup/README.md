@@ -42,7 +42,7 @@ Please note the following:
 - Installation:
 
   ```
-  kubectl krew install tvk-interop-plugin/tvk-cleanup
+  kubectl krew install tvk-plugins/tvk-cleanup
   ```  
 
 - Upgrade:
