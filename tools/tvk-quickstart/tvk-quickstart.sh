@@ -5,7 +5,6 @@ masterIngName=k8s-triliovault-master
 masterIngName_2_7_0=k8s-triliovault
 ingressGateway=k8s-triliovault-ingress-gateway
 ingressGateway_2_7_0=k8s-triliovault-ingress-nginx-controller
-operatorSA=triliovault-operator
 tvkmanagerSA=k8s-triliovault
 tvkingressSA=k8s-triliovault-ingress-nginx-admission
 tvkingressSALater=k8s-triliovault-ingress-nginx
@@ -193,6 +192,7 @@ install_tvk() {
   kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
   ret_val=$?
   open_flag=0
+  upgrade_tvo=0
   if [ "$ret_code" -eq 0 ]; then
     open_flag=1
   fi
@@ -207,7 +207,7 @@ install_tvk() {
   helm repo add triliovault-operator-dev https://charts.k8strilio.net/trilio-dev/k8s-triliovault-operator
   helm repo update 1>> >(logit) 2>> >(logit)
   #latest_ver=$(helm search repo triliovault-operator -l --devel | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
-  latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator -l --devel | grep 'triliovault-operator-dev/k8s-triliovault-operator' | awk '{print $2}'| head -n 1)
+  latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator -l --devel | grep 'triliovault-operator-dev/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
   #latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator --versions --devel )
   if [[ -z ${input_config} ]]; then
     read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
@@ -227,8 +227,43 @@ install_tvk() {
   if [[ -z "$tvk_ns" ]]; then
     tvk_ns="default"
   fi
-  get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-  if [ -z "$get_ns" ]; then
+
+  if [ "$open_flag" -eq 1 ]; then
+    get_ns=$(kubectl get deployment -A 2>> >(logit) | grep k8s-triliovault-operator | awk '{print $1}')
+    if [ -n "$get_ns" ]; then
+      installed_ver=$(kubectl get tvm -A | sed -n '2p' | awk '{print $3}' | sed 's/[a-z-]//g')
+      # shellcheck disable=SC2001
+      new_ver=$(echo "$operator_version" | sed 's/[a-z-]//g')
+      vercomp "$new_ver" "$installed_ver"
+      retcode=$?
+      if [[ $retcode == 2 ]] || [[ $retcode == 1 ]]; then
+        echo "Upgrade cannot be performed. This may be because the requested version is the same as the currently installed version, or the installed version is already higher than the one specified."
+        exit 1
+      fi
+      upgrade_tvo=1
+    fi
+    export tvk_namespace=$tvk_ns
+    export ver=$operator_version
+    echo "$ver" | grep "\-rc" 1>> >(logit) 2>> >(logit)
+    retcode=$?
+    if [ "$retcode" -eq 0 ]; then
+      yq -i '.metadata.namespace="openshift-marketplace"' catalog_src.yaml
+      export cat_name="k8s-triliovault-manifest-$ver"
+      yq -i '.metadata.name=env(cat_name)' catalog_src.yaml
+      export cat_image="quay.io/triliovault/k8s-triliovault-catalog:$ver"
+      yq -i '.spec.image=env(cat_image)' catalog_src.yaml
+      kubectl apply -f catalog_src.yaml 2>> >(logit)
+      retcode=$?
+      if [ "$retcode" -ne 0 ]; then
+        echo "There was an error while applying tvk catalog_src"
+        return 1
+      fi
+      export sub_source=$cat_name
+      echo "waiting for catalog source to be healthy"
+      sleep 120
+    else
+      export sub_source="certified-operators"
+    fi
     #Create ns for installation, if not there.
     ret=$(kubectl get ns "$tvk_ns" 2>/dev/null)
     if [[ -z "$ret" ]]; then
@@ -239,72 +274,130 @@ install_tvk() {
     fi
     # Install triliovault operator
     echo "Installing Triliovault operator..."
-    helm install triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$tvk_ns" 2>> >(logit)
+    #export startingcsv="k8s-triliovault-stable.$ver"
+    yq -i '.spec.source=env(sub_source)' tvk-sub.yaml
+    #yq -i '.spec.startingCSV=env(startingcsv)' tvk-sub.yaml
+    channel=$(echo "$ver" | awk -F. '{print $1"."$2}')
+    export channelx="$channel.x"
+    yq -i '.spec.channel=env(channelx)' tvk-sub.yaml
+    yq -i '.metadata.namespace=env(tvk_namespace)' tvk-sub.yaml
+    kubectl apply -f operatorgrp.yaml 2>> >(logit)
+    sleep 10
+    kubectl apply -f tvk-sub.yaml 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
-      echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
+      echo "There was an error while applying tvk subscription"
       return 1
     fi
-    if [ "$open_flag" -eq 1 ]; then
-      cmd="kubectl get sa -n $tvk_ns | grep $operatorSA 2>> >(logit)"
-      wait_install 10 "$cmd"
-      kubectl get sa -n "$tvk_ns" | grep -q $operatorSA 2>> >(logit)
-      ret_code=$?
-      if [[ $ret_code == 0 ]]; then
-        kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
-        kubectl get sa -n "$tvk_ns" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$tvk_ns" 1>> >(logit) 2>> >(logit)
+    sleep 10
+    if [[ $upgrade_tvo == 1 ]]; then
+      echo "Waiting for operator to be in available state..Please wait"
+      sleep 60
+    fi
+    cmd="kubectl get pod -l app=k8s-triliovault-operator -n $tvk_ns -o 'jsonpath={.items[*].status.conditions[*].status}' | grep -v False"
+    wait_install 10 "$cmd"
+
+    if ! kubectl get pods -l app=k8s-triliovault-operator -n "$tvk_ns" 2>/dev/null | grep -q Running; then
+      if [[ $upgrade_tvo == 1 ]]; then
+        echo "Triliovault operator upgrade failed."
       else
-        echo "Something wrong when assigning privilege to the Trilio operator SA."
-        exit 1
+        echo "Triliovault operator installation failed."
+      fi
+      return 1
+    fi
+    echo "Triliovault operator is running."
+    if [[ $upgrade_tvo == 0 ]]; then
+      yq -i '.metadata.namespace=env(tvk_namespace)' tvm-sub.yaml
+      yq -i '.spec.trilioVaultAppVersion=env(ver)' tvm-sub.yaml
+      kubectl apply -f tvm-sub.yaml 2>> >(logit)
+      retcode=$?
+      if [ "$retcode" -ne 0 ]; then
+        echo "There was an error while applying TVM manifest"
+        return 1
       fi
     fi
-    get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-  else
-    tvk_ns="$get_ns"
-    echo "Triliovault operator is already installed!"
-    if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+    cmd="kubectl get pods -l app=k8s-triliovault-control-plane -n $tvk_ns -ojsonpath='{.items[*].status.conditions[?(@.type == \"ContainersReady\")].status}' 2>/dev/null | grep True"
+    wait_install 10 "$cmd"
+    kubectl get pods -l app=k8s-triliovault-control-plane -n "$tvk_ns" -ojsonpath='{.items[*].status.conditions[?(@.type == "ContainersReady")].status}' 2>/dev/null | grep -q True
+    ret_val1=$?
+    if [[ $ret_val1 != 0 ]]; then
+      echo "TVM installation failed."
       exit 1
-    fi
-    old_operator_version=$(helm list -n "$get_ns" | grep k8s-triliovault-operator | awk '{print $10}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
-    # shellcheck disable=SC2001
-    new_operator_version=$(echo "$operator_version" | sed 's/[a-z-]//g')
-    vercomp "$old_operator_version" "$new_operator_version"
-    #vercomp "$old_operator_version" "$operator_version"
-    ret_val=$?
-    if [[ $ret_val != 2 ]]; then
-      echo "Triliovault operator cannot be upgraded, please check the version number."
-      if [[ $ret_val == 1 ]]; then
-        echo "Triliovault operator is already at this version."
-        upgrade_tvo=1
-      fi
-      if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-        exit 1
-      fi
     else
-      upgrade_tvo=1
-      echo "Upgrading Triliovault operator."
-      # shellcheck disable=SC2206
-      semver=(${old_operator_version//./ })
-      major="${semver[0]}"
-      minor="${semver[1]}"
-      sub_ver=${major}.${minor}
-      if [[ $sub_ver == 2.0 ]]; then
-        helm plugin install https://github.com/trilioData/tvm-helm-plugins 1>> >(logit) 2>> >(logit)
-        rel_name=$(helm list | grep k8s-triliovault-operator | awk '{print $1}')
-        helm tvm-upgrade --release="$rel_name" --namespace="$get_ns" 2>> >(logit)
-        retcode=$?
-        if [ "$retcode" -ne 0 ]; then
-          echo "There was an error running 'helm tvm-upgrade', please resolve and try again." 2>> >(logit)
+      echo "TVM is up and running!"
+    fi
+    if [[ $upgrade_tvo == 0 ]]; then
+      install_license "$tvk_ns"
+    fi
+    return
+
+  else
+    get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
+    if [ -z "$get_ns" ]; then
+      #Create ns for installation, if not there.
+      ret=$(kubectl get ns "$tvk_ns" 2>/dev/null)
+      if [[ -z "$ret" ]]; then
+        if ! kubectl create ns "$tvk_ns" 2>> >(logit); then
+          echo "$tvk_ns namespace creation failed."
           return 1
         fi
       fi
-      helm upgrade triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
+      # Install triliovault operator
+      echo "Installing Triliovault operator..."
+      helm install triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$tvk_ns" 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
-        echo "There was an error while running 'helm upgrade', please resolve and try again." 2>> >(logit)
+        echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
         return 1
       fi
-      sleep 10
+      get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
+    else
+      tvk_ns="$get_ns"
+      echo "Triliovault operator is already installed!"
+      if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+        exit 1
+      fi
+      old_operator_version=$(helm list -n "$get_ns" | grep k8s-triliovault-operator | awk '{print $10}' | sed 's/[a-z-]//g' | sed -e 's/^"//' -e 's/",$//' -e 's/"$//')
+      # shellcheck disable=SC2001
+      new_operator_version=$(echo "$operator_version" | sed 's/[a-z-]//g')
+      vercomp "$old_operator_version" "$new_operator_version"
+      #vercomp "$old_operator_version" "$operator_version"
+      ret_val=$?
+      if [[ $ret_val != 2 ]]; then
+        echo "Triliovault operator cannot be upgraded, please check the version number."
+        if [[ $ret_val == 1 ]]; then
+          echo "Triliovault operator is already at this version."
+          upgrade_tvo=1
+        fi
+        if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+          exit 1
+        fi
+      else
+        upgrade_tvo=1
+        echo "Upgrading Triliovault operator."
+        # shellcheck disable=SC2206
+        semver=(${old_operator_version//./ })
+        major="${semver[0]}"
+        minor="${semver[1]}"
+        sub_ver=${major}.${minor}
+        if [[ $sub_ver == 2.0 ]]; then
+          helm plugin install https://github.com/trilioData/tvm-helm-plugins 1>> >(logit) 2>> >(logit)
+          rel_name=$(helm list | grep k8s-triliovault-operator | awk '{print $1}')
+          helm tvm-upgrade --release="$rel_name" --namespace="$get_ns" 2>> >(logit)
+          retcode=$?
+          if [ "$retcode" -ne 0 ]; then
+            echo "There was an error running 'helm tvm-upgrade', please resolve and try again." 2>> >(logit)
+            return 1
+          fi
+        fi
+        helm upgrade triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
+        retcode=$?
+        if [ "$retcode" -ne 0 ]; then
+          echo "There was an error while running 'helm upgrade', please resolve and try again." 2>> >(logit)
+          return 1
+        fi
+        sleep 10
+      fi
     fi
   fi
   cmd="kubectl get pod -l release=triliovault-operator -n $tvk_ns -o 'jsonpath={.items[*].status.conditions[*].status}' | grep -v False"
@@ -2051,10 +2144,10 @@ create_target() {
       else
         echo "Target with same name already exists."
         if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-	  exit 1
-	else
+          exit 1
+        else
           return 0
-	fi
+        fi
       fi
     fi
     if [[ -z "$thresholdCapacity" ]]; then
@@ -2308,7 +2401,7 @@ sample_test() {
   helm repo update 1>> >(logit) 2>> >(logit)
   app=""
   if [[ -z ${input_config} ]]; then
-    echo -e "Select an example\n1.Label based(MySQL)\n2.Namespace based(WordPress)\n3.Operator based(MySQL Operator)\n4.Helm based(MongoDB)\n5.Transformation(PostgreSQL)"
+    echo -e "Select an example\n1.Label based(MySQL)\n2.Namespace based(WordPress)\n3.Operator based(MySQL Operator)\n4.Helm based(Prometheus)\n5.Transformation(PostgreSQL)"
     read -r -p "Select option: " backup_way
   else
     if [[ $backup_way == "Label_based" ]]; then
@@ -2364,7 +2457,7 @@ sample_test() {
     read -r -p "Backupplan name (default - trilio-$app-testback): " bk_plan_name
     read -r -p "Backup Name (default - trilio-$app-testback): " backup_name
     if [[ "$open_flag" -eq 1 ]] && [[ "$app" == "operator-datagrid" ]]; then
-    #  backup_namespace="openshift-operators"
+      #  backup_namespace="openshift-operators"
       echo "For OLM operator test,operator will get installed in openshift-operator"
       echo "For custom resource, user can select the namespace name"
     #else
@@ -2455,7 +2548,7 @@ EOM
     else
       #set -x
       #create gcr registry secret
-        helm install mysql-qa stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      helm install mysql-qa stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       sleep 2
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
@@ -2488,6 +2581,7 @@ EOM
     yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.labelSelector[0].matchLabels.app="mysql-qa"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
   2)
+    rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
     if helm list -n "$backup_namespace" | grep -w -q my-wordpress 2>> >(logit); then
       echo "Application exists."
       if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
@@ -2496,38 +2590,37 @@ EOM
       echo "Waiting for application to be in the 'Ready' state."
     else
       echo "Installing mysql which will be used as underlying db for wordpress..."
-      rand_name=$(python3 -c "import random;import string;ran = ''.join(random.choices(string.ascii_lowercase + string.digits, k = 4));print (ran)")
       helm install "mysql-$rand_name" stable/mysql --set image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql" --set imageTag="latest" --set pullPolicy=IfNotPresent --set busybox.image="us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox" --set busybox.tag="1.32" --set testFramework.enabled=false --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       #helm install "mysql-$rand_name" stable/mysql --set mysqlRootPassword=trilio,mysqlUser=trilio,mysqlPassword=trilio,mysqlDatabase=my-database --set securityContext.enabled=True --set securityContext.runAsUser=0 -n $backup_namespace 1>> >(logit) 2>> >(logit)
     fi
-      rand_name=$(helm get values my-wordpress -n "$backup_namespace" -o json | jq -r '.externalDatabase.host' | cut -d'-' -f2 | cut -d'.' -f1)
-      if [ "$open_flag" -eq 1 ]; then
-        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-        kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-      fi
-      # shellcheck disable=SC2086
-      cmd=$(kubectl get pods -l app=mysql-$rand_name -n $backup_namespace 2>&1)
-      if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
-        echo "Error in creating pod, please check security context."
-        return 1
-      fi
-      runtime=20
-      spin='-\|/'
-      i=0
-      sleep 5
-      endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
-      # shellcheck disable=SC2086
-      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app=mysql-$rand_name -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
-        i=$(((i + 1) % 4))
-        printf "\r %s" "${spin:$i:1}"
-        sleep .1
-      done
-      # shellcheck disable=SC2086
-      if kubectl get pods -l app=mysql-$rand_name -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
-        echo "Wordpress underlying Mysql application is taking longer than usual to be in the 'Ready' state, exiting..."
-        return 1
-      fi
-      cat >initcontainer.yaml <<-EOM
+    #rand_name=$(helm get values my-wordpress -n "$backup_namespace" -o json | jq -r '.externalDatabase.host' | cut -d'-' -f2 | cut -d'.' -f1)
+    if [ "$open_flag" -eq 1 ]; then
+      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+    fi
+    # shellcheck disable=SC2086
+    cmd=$(kubectl get pods -l app=mysql-$rand_name -n $backup_namespace 2>&1)
+    if [[ $cmd == "No resources found in $backup_namespace namespace." ]]; then
+      echo "Error in creating pod, please check security context."
+      return 1
+    fi
+    runtime=20
+    spin='-\|/'
+    i=0
+    sleep 5
+    endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
+    # shellcheck disable=SC2086
+    while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pods -l app=mysql-$rand_name -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+      i=$(((i + 1) % 4))
+      printf "\r %s" "${spin:$i:1}"
+      sleep .1
+    done
+    # shellcheck disable=SC2086
+    if kubectl get pods -l app=mysql-$rand_name -n $backup_namespace -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+      echo "Wordpress underlying Mysql application is taking longer than usual to be in the 'Ready' state, exiting..."
+      return 1
+    fi
+    cat >initcontainer.yaml <<-EOM
 initContainers:
   - name: volume-permissions1
     image: us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/minideb:latest
@@ -2538,7 +2631,7 @@ initContainers:
       name: wordpress-data
       subPath: wordpress
 EOM
-      helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-"$rand_name"."$backup_namespace".svc.cluster.local --set externalDatabase.user="trilio" --set externalDatabase.password="trilio" --set externalDatabase.database="my-database" --set externalDatabase.port=3306 --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop -f initcontainer.yaml --set image.tag="6.8.2-debian-12-r2" --set volumePermissions.image.tag="12-debian-12-r49" --set metrics.image.tag="1.0.10-debian-12-r13" --set volumePermissions.enabled=true --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+    helm install my-wordpress bitnami/wordpress --set mariadb.enabled=false --set externalDatabase.host=mysql-"$rand_name"."$backup_namespace".svc.cluster.local --set externalDatabase.user="trilio" --set externalDatabase.password="trilio" --set externalDatabase.database="my-database" --set externalDatabase.port=3306 --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop -f initcontainer.yaml --set image.tag="6.8.2-debian-12-r2" --set volumePermissions.image.tag="12-debian-12-r49" --set metrics.image.tag="1.0.10-debian-12-r13" --set volumePermissions.enabled=true --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
     if [ "$open_flag" -eq 1 ]; then
       kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
@@ -2581,7 +2674,7 @@ EOM
       fi
       echo "waiting for datagrid oprrator to be in ready state"
       sleep 120
-      if kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators  -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
+      if kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "infinispan-operator taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
@@ -2754,8 +2847,7 @@ EOM
     yq eval -i '.spec.backupPlanComponents.helmReleases[0]="prometheus"' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
   5)
-    set -x
-     ## Install postgresql helm chart
+    ## Install postgresql helm chart
     #check if app is already installed with same name
     if helm list -n "$backup_namespace" | grep -w -q postgresql; then
       echo "Application exists."
@@ -2824,21 +2916,20 @@ EOM
     #echo "Waiting for Backupplan to be in Available state"
   else
     #Applying backupplan manifest
-     echo -e "Do you want to apply snapshot functionality?\n"
-     read -r -p "Select option(y/n): " snap_func
-     yq eval -i '.metadata.name="'"$bk_plan_name"'"' backupplan.yaml
-     yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
-     yq eval -i '.spec.backupConfig.target.name="'"$target_name"'"' backupplan.yaml
-     yq eval -i '.spec.backupConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
-     if [[ $snap_func == "Y" ]] || [[ $snap_func == "y" ]]; then
-        yq eval -i '.spec.snapshotConfig.target.name="'"$target_name"'"' backupplan.yaml
-        yq eval -i '.spec.snapshotConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
-	yq eval -i '.spec.snapshotConfig.schedulePolicy.snapshotPolicy.name="sample-schedule"' backupplan.yaml
-	yq eval -i '.spec.snapshotConfig.schedulePolicy.snapshotPolicy.namespace="default"' backupplan.yaml
-	yq eval -i '.spec.snapshotConfig.retentionPolicy.name="sample-policy"' backupplan.yaml
-	yq eval -i '.spec.snapshotConfig.retentionPolicy.namespace="default"' backupplan.yaml
-     fi
-
+    echo -e "Do you want to apply snapshot functionality?\n"
+    read -r -p "Select option(y/n): " snap_func
+    yq eval -i '.metadata.name="'"$bk_plan_name"'"' backupplan.yaml
+    yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
+    yq eval -i '.spec.backupConfig.target.name="'"$target_name"'"' backupplan.yaml
+    yq eval -i '.spec.backupConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
+    if [[ $snap_func == "Y" ]] || [[ $snap_func == "y" ]]; then
+      yq eval -i '.spec.snapshotConfig.target.name="'"$target_name"'"' backupplan.yaml
+      yq eval -i '.spec.snapshotConfig.target.namespace="'"$target_namespace"'"' backupplan.yaml
+      yq eval -i '.spec.snapshotConfig.schedulePolicy.snapshotPolicy.name="sample-schedule"' backupplan.yaml
+      yq eval -i '.spec.snapshotConfig.schedulePolicy.snapshotPolicy.namespace="default"' backupplan.yaml
+      yq eval -i '.spec.snapshotConfig.retentionPolicy.name="sample-policy"' backupplan.yaml
+      yq eval -i '.spec.snapshotConfig.retentionPolicy.namespace="default"' backupplan.yaml
+    fi
 
     echo "Creating backupplan..."
     cat <<EOF | kubectl apply -f - 1>> >(logit)
@@ -2926,10 +3017,10 @@ EOF
   fi
   if [[ $snap_func == "Y" ]] || [[ $snap_func == "y" ]]; then
     if [[ $(kubectl get snapshot "$backup_name" -n "$backup_namespace" 2>> >(logit)) ]]; then
-    echo "Backup with same name already exists."
-    if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
-      exit 1
-    fi
+      echo "Backup with same name already exists."
+      if [[ "$if_resource_exists_still_proceed" != "Y" ]] && [[ "$if_resource_exists_still_proceed" != "y" ]]; then
+        exit 1
+      fi
     #echo "Waiting for Backup to be in Available state"
     else
       echo "Creating Snapshot.."
@@ -2982,7 +3073,7 @@ EOF
       if [[ "$app" == helm-prometheus"" ]]; then
         echo "Keeping restore namespace as same as backup restore(local charts are referred, So restore namespace should be same as bakup namespace)"
         restore_namespace=$backup_namespace
-	echo "deleting existing resources from backup namespace"
+        echo "deleting existing resources from backup namespace"
         helm uninstall prometheus -n "$backup_namespace"
         kubectl delete pod,pvc,svc,deployment,statefulset,replicaset --all -n "$backup_namespace"
       else
@@ -3016,8 +3107,8 @@ EOF
       restore_type="backup"
       kubectl get snapshot "$backup_name" -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       ret_code=$?
-      if [[ "$ret_code" -eq 0 ]]; then 
-	read -r -p "Which restore to perform? backup/snapshot(backup): " restore_type
+      if [[ "$ret_code" -eq 0 ]]; then
+        read -r -p "Which restore to perform? backup/snapshot(backup): " restore_type
       fi
       echo "Creating restore..."
       #Applying restore manifest
@@ -3073,7 +3164,7 @@ spec:
   restoreFlags:
     skipIfAlreadyExists: true
 EOF
-                else
+        else
           cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
 kind: Restore
@@ -3111,20 +3202,20 @@ EOF
         echo "Deleting backed up operator and restoring the operator in same namespace"
         kubectl delete infinispans.infinispan.org example-infinispan -n "$backup_namespace"
         kubectl delete crd backups.infinispan.org batches.infinispan.org caches.infinispan.org infinispans.infinispan.org restores.infinispan.org
-        inst_plan=$( kubectl get installplan -A | grep datagrid | awk '{print $2}')
+        inst_plan=$(kubectl get installplan -A | grep datagrid | awk '{print $2}')
         kubectl delete installplan "$inst_plan" -n openshift-operators
         kubectl delete subscription datagrid -n openshift-operators
-        kubectl delete  clusterserviceversions.operators.coreos.com datagrid-operator.v8.5.12 -n trilio-system
-        kubectl delete  clusterserviceversions.operators.coreos.com datagrid-operator.v8.5.12 -n openshift-operators
-        kubectl get ClusterServiceVersion -n openshift-operators  | grep datagrid-operator | awk '{print $1}' | xargs -I '{}' kubectl delete ClusterServiceVersion {} -n openshift-operators
+        kubectl delete clusterserviceversions.operators.coreos.com datagrid-operator.v8.5.12 -n trilio-system
+        kubectl delete clusterserviceversions.operators.coreos.com datagrid-operator.v8.5.12 -n openshift-operators
+        kubectl get ClusterServiceVersion -n openshift-operators | grep datagrid-operator | awk '{print $1}' | xargs -I '{}' kubectl delete ClusterServiceVersion {} -n openshift-operators
         kubectl delete operator datagrid.openshift-operators
         kubectl delete pvc data-volume-example-infinispan-0 -n openshift-operators
-        kubectl delete pvc data-volume-example-infinispan-0 -n  "$backup_namespace"
+        kubectl delete pvc data-volume-example-infinispan-0 -n "$backup_namespace"
         if kubectl get operator datagrid.openshift-operators; then
           echo "Error in deleting operator datagrid.openshift-operators, please delete and then retry restore"
           exit 1
         fi
-	if [[ $restore_type == "snapshot" ]]; then
+        if [[ $restore_type == "snapshot" ]]; then
 
           cat <<EOF | kubectl apply -f - 1>> >(logit)
 apiVersion: triliovault.trilio.io/v1
@@ -3166,7 +3257,7 @@ spec:
     skipIfAlreadyExists: true
     useOCPNamespaceUIDRange: true
 EOF
-      fi
+        fi
       else
         if [[ "$restore_type" == "snapshot" ]]; then
           cat <<EOF | kubectl apply -f - 1>> >(logit)
@@ -3207,7 +3298,7 @@ spec:
   restoreFlags:
     skipIfAlreadyExists: true
 EOF
-       fi
+        fi
       fi
       retcode=$?
       if [ "$retcode" -ne 0 ]; then

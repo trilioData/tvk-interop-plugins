@@ -1,0 +1,22 @@
+apiVersion: triliovault.trilio.io/v1
+kind: TrilioVaultManager
+metadata:
+  name: triliovault-manager
+  namespace: trilio-system
+spec:
+  logConfig:
+    logLevel: Info
+  dataJobResources:
+    requests:
+      memory: 2Gi
+      cpu: '1'
+  metadataJobResources:
+    requests:
+      memory: 10Mi
+      cpu: 10m
+  componentConfiguration:
+    ingress-controller:
+      enabled: false
+  applicationScope: Cluster
+  tvkInstanceName: tvk-instance
+  trilioVaultAppVersion: 5.2.0
