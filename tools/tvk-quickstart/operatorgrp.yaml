@@ -1,0 +1,9 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  annotations:
+    olm.providedAPIs: TrilioVaultManager.v1.triliovault.trilio.io
+  name: trilio-system-bvwzl
+  namespace: trilio-system
+spec:
+  upgradeStrategy: Default
