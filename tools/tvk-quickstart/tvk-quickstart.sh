@@ -326,6 +326,7 @@ install_tvk() {
     else
       echo "TVM is up and running!"
     fi
+    sleep 20
     if [[ $upgrade_tvo == 0 ]]; then
       install_license "$tvk_ns"
     fi
@@ -2447,7 +2448,7 @@ sample_test() {
     app="transformation-postgresql"
     ;;
   6)
-    app="snapshot-feature"
+    app="vm-backup-restore"
     ;;
   esac
   if [[ -z ${input_config} ]]; then
@@ -2915,9 +2916,11 @@ EOM
     fi
     #echo "Waiting for Backupplan to be in Available state"
   else
+    if [[ -z ${input_config} ]]; then
+      echo -e "Do you want to apply snapshot functionality?\n"
+      read -r -p "Select option(y/n): " snap_func
+    fi
     #Applying backupplan manifest
-    echo -e "Do you want to apply snapshot functionality?\n"
-    read -r -p "Select option(y/n): " snap_func
     yq eval -i '.metadata.name="'"$bk_plan_name"'"' backupplan.yaml
     yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
     yq eval -i '.spec.backupConfig.target.name="'"$target_name"'"' backupplan.yaml
