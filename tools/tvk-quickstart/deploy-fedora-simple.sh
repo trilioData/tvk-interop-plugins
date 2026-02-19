@@ -173,9 +173,9 @@ set -x
 FILE_PATH="/home/${VM_USER}/file_test"
 REMOTE_CMD="dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 && sha256sum ${FILE_PATH}"
 
-file_exist=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "[ -e ${FILE_PATH} ] && echo 'exist' || echo 'does not exists'")
+file_exist=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "[ -e ${FILE_PATH} ] && return 0 || return 1")
 
-if [[ $file_exist == "exist" ]]; then
+if [[ $file_exist -eq 1 ]]; then
   CHECKSUM=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 > /dev/null 2>&1 && sha256sum ${FILE_PATH}"  | awk '{print $1}')
 else
   CHECKSUM=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "sha256sum ${FILE_PATH}"  | awk '{print $1}')
