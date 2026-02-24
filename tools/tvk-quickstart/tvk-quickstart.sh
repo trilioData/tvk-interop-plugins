@@ -245,6 +245,7 @@ install_tvk() {
     export tvk_namespace=$tvk_ns
     export ver=$operator_version
     echo "$ver" | grep "\-rc" 1>> >(logit) 2>> >(logit)
+    set -x
     retcode=$?
     if [ "$retcode" -eq 0 ]; then
       yq -i '.metadata.namespace="openshift-marketplace"' catalog_src.yaml
@@ -859,10 +860,15 @@ install_license() {
     pip3 install lxml
     pip3 install yaml
     pip3 install pyyaml
+    pip3 install jq
 
   } 1>> >(logit) 2>> >(logit)
   echo "Installing Freetrial license..."
-  cat <<EOF | python3
+  installed_ver=$(kubectl get tvm -A | sed -n '2p' | awk '{print $3}' | sed 's/[a-z-]//g')
+  vercomp "$installed_ver" "5.3.0"
+  retcode=$?
+  if [[ $retcode == 2 ]]; then
+    cat <<EOF | python3
 #!/usr/bin/python3
 from bs4 import BeautifulSoup
 import requests
@@ -887,6 +893,63 @@ if($flag == 1):
 print("creating license for "+ns)
 result = subprocess.check_output(apply_command.replace('kubectl', 'kubectl -n '+ns), shell=True)
 EOF
+  else
+    cat <<EOF | python3
+#!/usr/bin/python3
+from bs4 import BeautifulSoup
+import requests
+import sys
+import re
+import subprocess
+import os
+import yaml
+import jq
+import random
+import string
+ns = "$tvk_ns"
+headers = {'Content-type': 'application/x-www-form-urlencoded; charset=utf-8'}
+endpoint="https://license.trilio.io/8d92edd6-514d-4acd-90f6-694cb8d83336/0061K00000fwkma"
+command = "kubectl get namespace "+ns+" -o=jsonpath='{.metadata.uid}'"
+result = subprocess.check_output(command, shell=True)
+kubeid = result.decode("utf-8")
+data = "kubescope=clusterscoped&kubeuid={0}".format(kubeid)
+r = requests.post(endpoint, data=data, headers=headers)
+contents=r.content
+soup = BeautifulSoup(contents, 'lxml')
+apply_command = soup.body.find('div', attrs={'class':'yaml-content'}).text
+#print(type(apply_command))
+lines = apply_command.strip().split('\n')
+content_lines = lines[1:-1]
+
+# Join back into a single string
+processed_string = '\n'.join(content_lines)
+
+# Parse and convert to YAML
+data = yaml.safe_load(processed_string)
+yaml_output = yaml.dump(data)
+
+#print(yaml_output)
+
+jq_filter = '.spec.key'
+License_key = jq.compile(jq_filter).input_value(data).text()
+#print(License_key)
+letters = string.ascii_lowercase
+random_chars = random.choices(letters, k=3)
+ran_str="".join(random_chars)
+secret_cmd = "kubectl create secret generic tvk-license-{0} --from-literal=trilioLicense={1} -n {2}".format(ran_str, License_key, ns)
+result = subprocess.check_output(secret_cmd, shell=True)
+
+with open('license.yaml') as f:
+  doc = yaml.load(f, Loader=yaml.Loader)
+doc['spec']['secretRef']['name']="tvk-license-{0}".format(ran_str)
+
+with open('license.yaml', 'w') as f:
+    yaml.dump(doc, f)
+
+subprocess.run("kubectl apply -f license.yaml", shell=True, capture_output=True, text=True)
+EOF
+  
+  fi
   cmd="kubectl get license -n $tvk_ns 2>> >(logit) | awk '{print $2}' | sed -n 2p | grep Active"
   wait_install 5 "$cmd"
   ret=$(kubectl get license -n "$tvk_ns" 2>> >(logit) | grep -q Active)
@@ -2402,7 +2465,7 @@ sample_test() {
   helm repo update 1>> >(logit) 2>> >(logit)
   app=""
   if [[ -z ${input_config} ]]; then
-    echo -e "Select an example\n1.Label based(MySQL)\n2.Namespace based(WordPress)\n3.Operator based(MySQL Operator)\n4.Helm based(Prometheus)\n5.Transformation(PostgreSQL)"
+    echo -e "Select an example\n1.Label based(MySQL)\n2.Namespace based(WordPress)\n3.Operator based(MySQL Operator)\n4.Helm based(Prometheus)\n5.Transformation(PostgreSQL)\n6.VM Backup Restore"
     read -r -p "Select option: " backup_way
   else
     if [[ $backup_way == "Label_based" ]]; then
@@ -2415,7 +2478,7 @@ sample_test() {
       backup_way=4
     elif [[ $backup_way == "Transformation" ]]; then
       backup_way=5
-    elif [[ $backup_way == "Snapshot_Feature" ]]; then
+    elif [[ $backup_way == "VM_TEST" ]]; then
       backup_way=6
     else
       echo "The backup method is wrong/not defined."
@@ -2448,7 +2511,7 @@ sample_test() {
     app="transformation-postgresql"
     ;;
   6)
-    app="vm-backup-restore"
+    app="vm-test"
     ;;
   esac
   if [[ -z ${input_config} ]]; then
@@ -2903,6 +2966,50 @@ EOM
 
     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml 1>> >(logit) 2>> >(logit)
     ;;
+  6)
+    #Create VM
+    if [[ -z ${input_config} ]]; then
+      echo "Please provide input for the VM."
+      read -r -p "VM Name (default - fedora-tvk-quickstart): " vm_name
+      read -r -p "VM username (default - fedora): " vm_user
+      read -r -p "VM password (default - Fedora123!): " vm_pass
+    fi
+    if [[ -z "$vm_name" ]]; then
+      vm_name="fedora-tvk-quickstart"
+    fi
+    if [[ -z $vm_user ]]; then
+      vm_user="fedora"
+    fi
+    if [[ -z $vm_pass ]]; then
+      vm_pass="Fedora123!"
+    fi
+    #check if vm with same name is already present in the provided namespace and is up and running
+    kubectl get virtualmachineinstance "$vm_name" -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
+    ret_val=$?
+    if [[ $ret_val -eq 0 ]]; then
+      echo "Vm with same name is present in the $backup_namespace"
+      kubectl get virtualmachineinstance "$vm_name" -n "$backup_namespace" -o jsonpath="{.status.phase}" | grep Running 1>> >(logit) 2>> >(logit)
+      ret_val=$?
+      if [[ $ret_val -ne 0 ]]; then
+        echo "Vm is present but may not be in running state, please delete and try again"
+	exit 1
+      fi
+      vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
+    else 
+      vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True")
+    fi
+    if [[ "$vm_file_cksum" == "1" ]]; then
+      echo "Error in creating VM,please check logs"
+      exit 1
+    fi
+     yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml
+     yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
+     export vmbk_name="$vm_name" 
+     yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.gvkSelector[0].groupVersionKind.group="kubevirt.io"' backupplan.yaml
+     yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.gvkSelector[0].groupVersionKind.kind="VirtualMachine"' backupplan.yaml
+     yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.gvkSelector[0].groupVersionKind.version="v1"' backupplan.yaml
+     yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.gvkSelector[0].objects[0]=env(vmbk_name)' backupplan.yaml
+    ;;
   *)
     echo "Wrong choice."
     ;;
@@ -3318,6 +3425,16 @@ EOF
       return 1
     else
       echo "Restore is Completed."
+      if [ "$backup_way" -eq 6 ]; then
+        echo "file checksum at time of backup: $vm_file_cksum"
+	vm_file_cksum_res=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
+	echo "File checkdum after restore: $vm_file_cksum_res"
+	if [[ "$vm_file_cksum" == "$vm_file_cksum_res" ]]; then
+	  echo "VM backup restore works fine"
+	else
+	  echo "Restore is completed but file data verification failed"
+	fi
+      fi
     fi
     if [ "$open_flag" -eq 1 ]; then
       kubectl get sa -n "$restore_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$restore_namespace" 1>> >(logit) 2>> >(logit)
