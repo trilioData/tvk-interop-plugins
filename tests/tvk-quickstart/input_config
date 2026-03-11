@@ -100,10 +100,10 @@ target_name='tvk-target'
 target_namespace='trilio-system'
 
 #Specify NS server name/address for NFS type backup target creation
-nfs_server='34.66.17.160'
+nfs_server='<server address>'
 
 #Specify nfs_server and exported path(nfs_server:/expoerted_path) for for NFS type backup target creation
-nfs_path='34.66.17.160:/src/nfs/rhu'
+nfs_path='<server address>:<exported path>'
 
 # Specify more NFS options to be provided like: 'nfsvers=4' for NFS type backup target creation.
 nfs_options=
