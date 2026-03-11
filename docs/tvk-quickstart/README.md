@@ -222,6 +222,14 @@ kubectl tvk-quickstart -n
 	For Helm_based, Prometheus  application would be installed and sample backup/restore will be showcased.
         For Transformation, PostgreSQL application would get installed, backup would be taken and during restore, it will showcase how the transformation works.
         For VM_TEST, Provision a VM, place a file inside, perform a backup, then restore and confirm the file’s contents.VM backup restore currently works only on OCP, with prerequisites of virtualization operator installation and default network configuration.
+- **snap_func**
+	Specify whether or not snapshot should be taken. For enabling the snapshot function, value of this parameter should be 'Y'.
+- **vm_name**
+	When backup_way is set to VM_TEST, this parameter specifies the name of the VM that the user chooses to create. Default value - 'fedora-tvk-quickstart'.
+- **vm_pass**
+	When backup_way is set to VM_TEST, this parameter specifies the password for the VM that the user chooses to create. The default value is 'Fedora123'.
+- **vm_user**
+	When backup_way is set to VM_TEST, this parameter specifies the name of the VM user that the user chooses to create. The default value is 'fedora'.
 - **restore**:
 	Specify whether or not restore should be executed. Allowed values are one from the  [True, False] list.
 - **restore_name**:

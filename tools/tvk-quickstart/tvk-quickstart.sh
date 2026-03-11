@@ -193,7 +193,7 @@ install_tvk() {
   ret_val=$?
   open_flag=0
   upgrade_tvo=0
-  if [ "$ret_code" -eq 0 ]; then
+  if [ "$ret_val" -eq 0 ]; then
     open_flag=1
   fi
   helm repo add triliovault-operator http://charts.k8strilio.net/trilio-stable/k8s-triliovault-operator 1>> >(logit) 2>> >(logit)
@@ -238,7 +238,8 @@ install_tvk() {
       retcode=$?
       if [[ $retcode == 2 ]] || [[ $retcode == 1 ]]; then
         echo "Upgrade cannot be performed. This may be because the requested version is the same as the currently installed version, or the installed version is already higher than the one specified."
-        exit 1
+        install_license "$tvk_ns"
+	exit 1
       fi
       upgrade_tvo=1
     fi
@@ -295,10 +296,10 @@ install_tvk() {
       echo "Waiting for operator to be in available state..Please wait"
       sleep 60
     fi
-    cmd="kubectl get pod -l app=k8s-triliovault-operator -n $tvk_ns -o 'jsonpath={.items[*].status.conditions[*].status}' | grep -v False"
+    cmd=" kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A | grep -v False"
     wait_install 10 "$cmd"
 
-    if ! kubectl get pods -l app=k8s-triliovault-operator -n "$tvk_ns" 2>/dev/null | grep -q Running; then
+    if ! kubectl get pod --show-labels -n "$tvk_ns" | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null | grep -q Running; then
       if [[ $upgrade_tvo == 1 ]]; then
         echo "Triliovault operator upgrade failed."
       else
@@ -334,7 +335,7 @@ install_tvk() {
     return
 
   else
-    get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
+    get_ns=$(kubectl get deployments -A --show-labels | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>> >(logit) | awk '{print $1}')
     if [ -z "$get_ns" ]; then
       #Create ns for installation, if not there.
       ret=$(kubectl get ns "$tvk_ns" 2>/dev/null)
@@ -352,7 +353,7 @@ install_tvk() {
         echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
         return 1
       fi
-      get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
+      get_ns=$(kubectl get deployments -A --show-labels | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>> >(logit) | awk '{print $1}')
     else
       tvk_ns="$get_ns"
       echo "Triliovault operator is already installed!"
@@ -402,9 +403,9 @@ install_tvk() {
       fi
     fi
   fi
-  cmd="kubectl get pod -l release=triliovault-operator -n $tvk_ns -o 'jsonpath={.items[*].status.conditions[*].status}' | grep -v False"
+  cmd="kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A | grep -v False"
   wait_install 10 "$cmd"
-  if ! kubectl get pods -l release=triliovault-operator -n "$tvk_ns" 2>/dev/null | grep -q Running; then
+  if ! kubectl get pods --show-labels -n "$tvk_ns" | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null | grep -q Running; then
     if [[ $upgrade_tvo == 1 ]]; then
       echo "Triliovault operator upgrade failed."
     else
@@ -2457,7 +2458,7 @@ sample_test() {
   kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
   ret_val=$?
   open_flag=0
-  if [ "$ret_code" -eq 0 ]; then
+  if [ "$ret_val" -eq 0 ]; then
     open_flag=1
   fi
 
@@ -2997,6 +2998,7 @@ EOM
       vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
     else 
       vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True")
+      echo "Please find the VM access logs at /tmp/vm_quickstart_logs"
     fi
     if [[ "$vm_file_cksum" == "1" ]]; then
       echo "Error in creating VM,please check logs"
@@ -3069,7 +3071,7 @@ spec:
   default: false
   scheduleConfig:
     schedule:
-    - "*/20 * * * *"
+    - "* 10 * * *"
   type: Schedule
 EOF
     retcode=$?

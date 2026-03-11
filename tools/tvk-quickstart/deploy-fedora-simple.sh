@@ -142,7 +142,11 @@ EOF
   # Now wait for it to be ready
   oc wait --for=condition=Ready vmi/${VM_NAME} -n ${NAMESPACE} --timeout=600s
 
-
+  ret_val=$?
+  if [[ $ret_val -ne 0 ]]; then
+    echo "Vm creation Failed, please check logs at /tmp/vm_quickstart_logs"
+    exit 1
+  fi
   echo ""
   echo "=========================================="
   echo "✓ Fedora VM Ready!"
@@ -173,7 +177,7 @@ set -x
 FILE_PATH="/home/${VM_USER}/file_test"
 REMOTE_CMD="dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 && sha256sum ${FILE_PATH}"
 
-file_exist=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "[ -e ${FILE_PATH} ] && return 0 || return 1")
+file_exist=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "[ -e ${FILE_PATH} ] && echo 0 || echo 1")
 
 if [[ $file_exist -eq 1 ]]; then
   CHECKSUM=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 > /dev/null 2>&1 && sha256sum ${FILE_PATH}"  | awk '{print $1}')

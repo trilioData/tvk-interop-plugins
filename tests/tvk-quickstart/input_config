@@ -6,10 +6,10 @@ if_resource_exists_still_proceed='y'
 #[Preflight check parameters]
 
 #Whether or not preflight should be executed [True, False]
-PREFLIGHT=True
+PREFLIGHT=False
 
 #Whenthet plugin should proceed even if preflight checks fail.Allowedvalues=[Y,y,n,N]
-proceed_even_PREFLIGHT_fail='Y'
+proceed_even_PREFLIGHT_fail='N'
 
 #Specify storage class name to be used for pvc to be created,if not set default class would be considered.This paramere is also required for sample test.
 storage_class=
@@ -17,21 +17,21 @@ storage_class=
 #[TVK installation parameters]
 
 #Whether or not TVK should be installed [True, False]
-TVK_INSTALL=True
+TVK_INSTALL=False
 
 #Specify TVK operator version
-operator_version='2.9.3'
+operator_version='5.2.0'
 
 #Specify TVK Manager version
-triliovault_manager_version='2.9.3'
+triliovault_manager_version='5.2.0'
 
 #Specify namespace name in which TVK should get installed.
-tvk_ns='tvk'
+tvk_ns='trilio-system'
 
 #[UI configurations parameters]
 
 #Whether or not TVK UI should be configured [True, False]
-CONFIGURE_UI=True
+CONFIGURE_UI=False
 
 #Specify the way in which TVK UI should be configured['Loadbalancer','Nodeport','PortForwarding']
 ui_access_type='Loadbalancer'
@@ -44,12 +44,12 @@ tvkhost_name='tvkdemo.com'
 
 
 #Specify cluster name to get the kubeconfig for TVK UI. If not specified, cluster name is taken from current context.(specific for DigitalOcean clients)
-cluster_name='trilio-test2'
+cluster_name=''
 
 #[Target creation parameters]
 
 #Whether or not TVK Target should be created [True, False]
-TARGET=True
+TARGET=False
 
 #Specify vendor name for s3 bucket ['Digital_Ocean','Amazon_AWS', 'Readymade_Minio', 'GCP']
 vendor_type='GCP'
@@ -58,7 +58,7 @@ vendor_type='GCP'
 doctl_token='DO token'
 
 #Specify Target type ['NFS','S3']
-target_type='S3'
+target_type='NFS'
 
 #Specify details if a user wants to use readymade minio
 minio_server_namespace='minio'
@@ -97,13 +97,13 @@ bucket_name='tvk-interopci-bucket'
 target_name='tvk-target'
 
 #Specify Namespace name where the target should be created
-target_namespace='tvk'
+target_namespace='trilio-system'
 
 #Specify NS server name/address for NFS type backup target creation
-nfs_server=
+nfs_server='34.66.17.160'
 
-#Specify exported path for for NFS type backup target creation
-nfs_path=
+#Specify nfs_server and exported path(nfs_server:/expoerted_path) for for NFS type backup target creation
+nfs_path='34.66.17.160:/src/nfs/rhu'
 
 # Specify more NFS options to be provided like: 'nfsvers=4' for NFS type backup target creation.
 nfs_options=
@@ -123,25 +123,37 @@ SAMPLE_TEST=True
 csi_loghorn='Y'
 
 #Specify backup plan name
-bk_plan_name='trilio-test-operator'
+bk_plan_name=''
 
 #Specify backup name
-backup_name='trilio-test-operator'
+backup_name=''
 
 #Specify backup namespace[Note: currently backup plan and backup should be in same namespace]
-backup_namespace='trilio-test-backup'
+backup_namespace=''
 
-#Specify the way in which backup should be taken ['Label_based','Namespace_based','Operator_base','Helm_based','Transformation']
-backup_way='Label_based'
+#Specify the way in which backup should be taken ['Label_based','Namespace_based','Operator_base','Helm_based','Transformation','VM_TEST']
+backup_way='Namespace_based'
+
+#Specify whether Snapshot should be executed
+snap_func='Y'
+
+#Name of VM[Virtual Machine]
+vm_name='fedora-tvk-quickstart'
+
+#Password for VM[Virtual Machine]
+vm_pass='Fedora123'
+
+#User for Virtual Machine
+vm_user='fedora'
 
 #Whether or not restore should be performed [True, False]
 restore=True
 
 #Specify TVK restore name
-restore_name='trilio-test-operator'
+restore_name=''
 
 #Specify namespace in which restore should be performed
-restore_namespace='tvk-restore'
+restore_namespace=''
 
 #Whether TVK should be uninstalled [True, False]
 UNINSTALL=False
