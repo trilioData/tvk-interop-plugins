@@ -206,13 +206,13 @@ install_tvk() {
   #helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
   helm repo add triliovault-operator-dev https://charts.k8strilio.net/trilio-dev/k8s-triliovault-operator
   helm repo update 1>> >(logit) 2>> >(logit)
-  #latest_ver=$(helm search repo triliovault-operator -l --devel | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
-  latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator -l --devel | grep 'triliovault-operator-dev/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
+  latest_ver=$(helm search repo triliovault-operator -l --devel | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
+  #latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator -l --devel | grep 'triliovault-operator-dev/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
   #latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator --versions --devel )
   if [[ -z ${input_config} ]]; then
     read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
     read -r -p "Please provide the triliovault manager version (default - $latest_ver): " triliovault_manager_version
-    read -r -p "Namespace name in which TVK should be installed: (default - default): " tvk_ns
+    read -r -p "Namespace name in which TVK should be installed: (default - trilio-system): " tvk_ns
     read -r -p "Proceed even if resource exists y/n (default - y): " if_resource_exists_still_proceed
   fi
   if [[ -z "$if_resource_exists_still_proceed" ]]; then
@@ -225,7 +225,7 @@ install_tvk() {
     triliovault_manager_version=$latest_ver
   fi
   if [[ -z "$tvk_ns" ]]; then
-    tvk_ns="default"
+    tvk_ns="trilio-system"
   fi
 
   if [ "$open_flag" -eq 1 ]; then
@@ -246,7 +246,6 @@ install_tvk() {
     export tvk_namespace=$tvk_ns
     export ver=$operator_version
     echo "$ver" | grep "\-rc" 1>> >(logit) 2>> >(logit)
-    set -x
     retcode=$?
     if [ "$retcode" -eq 0 ]; then
       yq -i '.metadata.namespace="openshift-marketplace"' catalog_src.yaml
@@ -296,10 +295,13 @@ install_tvk() {
       echo "Waiting for operator to be in available state..Please wait"
       sleep 60
     fi
-    cmd=" kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A | grep -v False"
-    wait_install 10 "$cmd"
+    cmd='echo $(kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; \
+             kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A) | grep -v False'
+    wait_install 20 "$cmd"
 
-    if ! kubectl get pod --show-labels -n "$tvk_ns" | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null | grep -q Running; then
+    if ! kubectl get pod --show-labels -n "$tvk_ns" \
+  	| grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null \
+  	| grep -q Running; then
       if [[ $upgrade_tvo == 1 ]]; then
         echo "Triliovault operator upgrade failed."
       else
@@ -403,9 +405,12 @@ install_tvk() {
       fi
     fi
   fi
-  cmd="kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A | grep -v False"
+  cmd='echo $(kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; \
+             kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A) | grep -v False'
   wait_install 10 "$cmd"
-  if ! kubectl get pods --show-labels -n "$tvk_ns" | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null | grep -q Running; then
+  if ! kubectl get pod --show-labels -n "$tvk_ns" \
+        | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null \
+        | grep -q Running; then
     if [[ $upgrade_tvo == 1 ]]; then
       echo "Triliovault operator upgrade failed."
     else
@@ -869,87 +874,9 @@ install_license() {
   vercomp "$installed_ver" "5.3.0"
   retcode=$?
   if [[ $retcode == 2 ]]; then
-    cat <<EOF | python3
-#!/usr/bin/python3
-from bs4 import BeautifulSoup
-import requests
-import sys
-import re
-import subprocess
-import os
-ns = "$tvk_ns"
-headers = {'Content-type': 'application/x-www-form-urlencoded; charset=utf-8'}
-endpoint="https://license.trilio.io/8d92edd6-514d-4acd-90f6-694cb8d83336/0061K00000fwkma"
-command = "kubectl get namespace "+ns+" -o=jsonpath='{.metadata.uid}'"
-result = subprocess.check_output(command, shell=True)
-kubeid = result.decode("utf-8")
-data = "kubescope=clusterscoped&kubeuid={0}".format(kubeid)
-r = requests.post(endpoint, data=data, headers=headers)
-contents=r.content
-soup = BeautifulSoup(contents, 'lxml')
-apply_command = soup.body.find('div', attrs={'class':'yaml-content'}).text
-if($flag == 1):
-  s = re.compile("name: trilio-license",re.MULTILINE)
-  apply_command = re.sub(s, 'name: $ret', apply_command)
-print("creating license for "+ns)
-result = subprocess.check_output(apply_command.replace('kubectl', 'kubectl -n '+ns), shell=True)
-EOF
+    python3 install_license.py $tvk_ns "old"
   else
-    cat <<EOF | python3
-#!/usr/bin/python3
-from bs4 import BeautifulSoup
-import requests
-import sys
-import re
-import subprocess
-import os
-import yaml
-import jq
-import random
-import string
-ns = "$tvk_ns"
-headers = {'Content-type': 'application/x-www-form-urlencoded; charset=utf-8'}
-endpoint="https://license.trilio.io/8d92edd6-514d-4acd-90f6-694cb8d83336/0061K00000fwkma"
-command = "kubectl get namespace "+ns+" -o=jsonpath='{.metadata.uid}'"
-result = subprocess.check_output(command, shell=True)
-kubeid = result.decode("utf-8")
-data = "kubescope=clusterscoped&kubeuid={0}".format(kubeid)
-r = requests.post(endpoint, data=data, headers=headers)
-contents=r.content
-soup = BeautifulSoup(contents, 'lxml')
-apply_command = soup.body.find('div', attrs={'class':'yaml-content'}).text
-#print(type(apply_command))
-lines = apply_command.strip().split('\n')
-content_lines = lines[1:-1]
-
-# Join back into a single string
-processed_string = '\n'.join(content_lines)
-
-# Parse and convert to YAML
-data = yaml.safe_load(processed_string)
-yaml_output = yaml.dump(data)
-
-#print(yaml_output)
-
-jq_filter = '.spec.key'
-License_key = jq.compile(jq_filter).input_value(data).text()
-#print(License_key)
-letters = string.ascii_lowercase
-random_chars = random.choices(letters, k=3)
-ran_str="".join(random_chars)
-secret_cmd = "kubectl create secret generic tvk-license-{0} --from-literal=trilioLicense={1} -n {2}".format(ran_str, License_key, ns)
-result = subprocess.check_output(secret_cmd, shell=True)
-
-with open('license.yaml') as f:
-  doc = yaml.load(f, Loader=yaml.Loader)
-doc['spec']['secretRef']['name']="tvk-license-{0}".format(ran_str)
-
-with open('license.yaml', 'w') as f:
-    yaml.dump(doc, f)
-
-subprocess.run("kubectl apply -f license.yaml", shell=True, capture_output=True, text=True)
-EOF
-  
+    python3 install_license.py $tvk_ns "new" 
   fi
   cmd="kubectl get license -n $tvk_ns 2>> >(logit) | awk '{print $2}' | sed -n 2p | grep Active"
   wait_install 5 "$cmd"
