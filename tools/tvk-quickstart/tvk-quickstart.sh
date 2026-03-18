@@ -2922,13 +2922,44 @@ EOM
         echo "Vm is present but may not be in running state, please delete and try again"
 	exit 1
       fi
-      vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
+
+      #vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False") &
+      ./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False" >tmp.out &
+      pid=$!
+
+      # Spinner while waiting
+      spin='-\|/'
+      i=0
+      while kill -0 $pid 2>/dev/null; do
+        i=$(( (i+1) %4 ))
+        printf "\rWaiting for creating and getting checksum from VM... ${spin:$i:1}"
+        sleep 1
+      done
+
+      wait $pid
+      exit_code=$?
+      vm_file_cksum=$(<tmp.out)
     else 
-      vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True")
+      ./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True" >tmp.out &
+      #vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True") &
+      pid=$!
+      # Spinner while waiting
+      spin='-\|/'
+      i=0
+      while kill -0 $pid 2>/dev/null; do
+        i=$(( (i+1) %4 ))
+        printf "\rWaiting for creating VM... ${spin:$i:1}"
+        sleep 1
+      done
+
+      wait $pid
+      exit_code=$?
+      vm_file_cksum=$(<tmp.out)
       echo "Please find the VM access logs at /tmp/vm_quickstart_logs"
     fi
-    if [[ "$vm_file_cksum" == "1" ]]; then
-      echo "Error in creating VM,please check logs"
+    if [ $exit_code -ne 0 ]; then
+      echo "Error in creating VM"
+      cat /tmp/vm_quickstart_logs
       exit 1
     fi
      yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml

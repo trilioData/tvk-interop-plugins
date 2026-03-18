@@ -7,7 +7,7 @@ VM_USER=$3
 VM_PASSWORD=$4
 DEPLOY=$5
 
-KEY_PATH="$HOME/.ssh/$VM_NAME"
+KEY_PATH="$HOME/.ssh/${VM_NAME}_${NAMESPACE}"
 LOGFILE=/tmp/vm_quickstart_logs
 
 # Save original stdout to FD 3
@@ -18,7 +18,7 @@ exec >"$LOGFILE" 2>&1
 
 if [[ $DEPLOY == "True" ]]; then
   if [ -e "$KEY_PATH" ]; then
-    echo "key $KEY_PATH already exists. Please remove it and then try.Exiting script."
+    echo "key $KEY_PATH already exists. Please remove it and then try.Exiting script." 
     exit 1
   fi
 
@@ -135,16 +135,44 @@ EOF
   echo ""
   echo "Waiting for VM to be ready (2-3 minutes)..."
 
+
+  # Duration in seconds (2 minutes = 120 seconds)
+  DURATION=120
+
+  # Spinner characters
+  spin='-\|/'
+  i=0
+
+  end=$((SECONDS+DURATION))
+  while [ $SECONDS -lt $end ]; do
+    i=$(( (i+1) %4 ))
+    printf "\rWaiting...for VM pod to get created ${spin:$i:1}"
+    sleep 1
+  done
+
   # Simple: just wait 15 seconds for VMI to be created
-  echo "wait 8-10 min for VM to get created"
-  sleep 600
+  #echo "wait 8-10 min for VM to get created"
+  #sleep 600
 
   # Now wait for it to be ready
-  oc wait --for=condition=Ready vmi/${VM_NAME} -n ${NAMESPACE} --timeout=600s
 
+  # Run oc wait in the background
+  oc wait --for=condition=Ready vmi/${VM_NAME} -n ${NAMESPACE} --timeout=600s &
+  pid=$!
+
+  # Spinner while waiting
+  spin='-\|/'
+  i=0
+  while kill -0 $pid 2>/dev/null; do
+    i=$(( (i+1) %4 ))
+    printf "\rWaiting for VM to be Ready... ${spin:$i:1}"
+    sleep 1
+  done
+
+  wait $pid
   ret_val=$?
   if [[ $ret_val -ne 0 ]]; then
-    echo "Vm creation Failed, please check logs at /tmp/vm_quickstart_logs"
+    echo "Vm creation Failed, please check logs at /tmp/vm_quickstart_logs" 
     exit 1
   fi
   echo ""
@@ -161,7 +189,18 @@ EOF
 
 
   # Create a 20MB random file on the VM
-  sleep 40
+  DURATION=40
+
+  # Spinner characters
+  spin='-\|/'
+  i=0
+
+  end=$((SECONDS+DURATION))
+  while [ $SECONDS -lt $end ]; do
+    i=$(( (i+1) %4 ))
+    printf "\rWaiting...for VM pod to come up ${spin:$i:1}"
+    sleep 1
+  done
 fi
 
 
@@ -173,7 +212,6 @@ export DISPLAY=:0   # fake display to trigger askpass
 export SSH_ASKPASS_REQUIRE=force
 
 
-set -x
 FILE_PATH="/home/${VM_USER}/file_test"
 REMOTE_CMD="dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 && sha256sum ${FILE_PATH}"
 
