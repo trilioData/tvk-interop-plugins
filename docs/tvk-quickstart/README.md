@@ -29,7 +29,7 @@ OS:
 - Target Creation:
 	Creates and validate the target where backups are stored. Users can create S3 (DigitalOCean Spaces / AWS S3) or NFS based target.  
 - Run Sample Tests of Backup,snapshot and Restore:
-        Run sample tests for ['Label_based','Namespace_based','Operator_based','Helm_based'] applications. By default, 'Label_based' backup tests are run against a MySQL Database application, 'Namespace_based' tests against a Wordpress application, 'Operator_based' tests against MySQL Database operator application, for OLM it tests on datagrid operator,'Helm_based' tests against Prometheus  helm based application.
+        Run sample tests for ['Label_based','Namespace_based','Operator_based','Helm_based'] applications. By default, 'Label_based' backup tests are run against a MySQL Database application, 'Namespace_based' tests against a Wordpress application, 'Operator_based' tests against MySQL Database operator application, for OLM it tests on datagrid operator,'Helm_based' tests against Prometheus  helm based application, 'Transformation' is tested against Postgresql, 'VM_TEST' test against VM.
 - TVK uninstall:
 	Uninstalls TVK and its associated resources.
 
@@ -218,9 +218,18 @@ kubectl tvk-quickstart -n
 	Specify the way in which backup should be taken.Supported values  ['Label_based','Namespace_based','Operator_based','Helm_based', 'Transformation'].
 	For Label_based, MySQL application would be installed and sample backup/restore will be showcased.
 	For Namespace_based, Wordpress application would be installed and sample backup/restore will be showcased.
-	For Operator_based, MySQL operator  would be installed and sample backup/restore will be showcased.
-	For Helm_based, Mongodb  application would be installed and sample backup/restore will be showcased.
+	For Operator_based, MySQL operator(helm installed TVK) & datagrid operator(OCP environment) would be installed and sample backup/restore will be showcased.
+	For Helm_based, Prometheus  application would be installed and sample backup/restore will be showcased.
         For Transformation, PostgreSQL application would get installed, backup would be taken and during restore, it will showcase how the transformation works.
+        For VM_TEST, Provision a VM, place a file inside, perform a backup, then restore and confirm the file’s contents.VM backup restore currently works only on OCP, with prerequisites of virtualization operator installation and default network configuration.
+- **snap_func**
+	Specify whether or not snapshot should be taken. For enabling the snapshot function, value of this parameter should be 'Y'.
+- **vm_name**
+	When backup_way is set to VM_TEST, this parameter specifies the name of the VM that the user chooses to create. Default value - 'fedora-tvk-quickstart'.
+- **vm_pass**
+	When backup_way is set to VM_TEST, this parameter specifies the password for the VM that the user chooses to create. The default value is 'Fedora123'.
+- **vm_user**
+	When backup_way is set to VM_TEST, this parameter specifies the name of the VM user that the user chooses to create. The default value is 'fedora'.
 - **restore**:
 	Specify whether or not restore should be executed. Allowed values are one from the  [True, False] list.
 - **restore_name**:
