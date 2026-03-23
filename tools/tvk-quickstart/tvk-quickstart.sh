@@ -295,6 +295,7 @@ install_tvk() {
       echo "Waiting for operator to be in available state..Please wait"
       sleep 60
     fi
+    # shellcheck disable=SC2016
     cmd='echo $(kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; \
              kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A) | grep -v False'
     wait_install 20 "$cmd"
@@ -405,6 +406,7 @@ install_tvk() {
       fi
     fi
   fi
+  # shellcheck disable=SC2016
   cmd='echo $(kubectl get pod -l app=k8s-triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A ; \
              kubectl get pod -l release=triliovault-operator --no-headers -o jsonpath={.items[*].status.conditions[*].status} -A) | grep -v False'
   wait_install 10 "$cmd"
@@ -874,9 +876,9 @@ install_license() {
   vercomp "$installed_ver" "5.3.0"
   retcode=$?
   if [[ $retcode == 2 ]]; then
-    python3 install_license.py $tvk_ns "old"
+    python3 install_license.py "$tvk_ns" "old"
   else
-    python3 install_license.py $tvk_ns "new" 
+    python3 install_license.py "$tvk_ns" "new" 
   fi
   cmd="kubectl get license -n $tvk_ns 2>> >(logit) | awk '{print $2}' | sed -n 2p | grep Active"
   wait_install 5 "$cmd"
@@ -2932,6 +2934,7 @@ EOM
       i=0
       while kill -0 $pid 2>/dev/null; do
         i=$(( (i+1) %4 ))
+	# shellcheck disable=SC2059
         printf "\rWaiting for creating and getting checksum from VM... ${spin:$i:1}"
         sleep 1
       done
@@ -2948,6 +2951,7 @@ EOM
       i=0
       while kill -0 $pid 2>/dev/null; do
         i=$(( (i+1) %4 ))
+	# shellcheck disable=SC2059
         printf "\rWaiting for creating VM... ${spin:$i:1}"
         sleep 1
       done

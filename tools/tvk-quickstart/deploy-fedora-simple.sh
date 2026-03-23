@@ -24,8 +24,8 @@ if [[ $DEPLOY == "True" ]]; then
 
   echo "Generating SSH key pair..."
   ssh-keygen -t rsa -b 4096 -f "$KEY_PATH" -N ""
-  #PUB_KEY="${KEY_PATH}.pub"
-  export PUB_KEY="$(cat $KEY_PATH.pub)"
+  # shellcheck disable=SC2155
+  export PUB_KEY="$(cat "$KEY_PATH".pub)"
 
 
   echo "=========================================="
@@ -146,6 +146,7 @@ EOF
   end=$((SECONDS+DURATION))
   while [ $SECONDS -lt $end ]; do
     i=$(( (i+1) %4 ))
+    # shellcheck disable=SC2059
     printf "\rWaiting...for VM pod to get created ${spin:$i:1}"
     sleep 1
   done
@@ -157,7 +158,7 @@ EOF
   # Now wait for it to be ready
 
   # Run oc wait in the background
-  oc wait --for=condition=Ready vmi/${VM_NAME} -n ${NAMESPACE} --timeout=600s &
+  oc wait --for=condition=Ready vmi/"${VM_NAME}" -n "${NAMESPACE}" --timeout=600s &
   pid=$!
 
   # Spinner while waiting
@@ -165,6 +166,7 @@ EOF
   i=0
   while kill -0 $pid 2>/dev/null; do
     i=$(( (i+1) %4 ))
+    # shellcheck disable=SC2059
     printf "\rWaiting for VM to be Ready... ${spin:$i:1}"
     sleep 1
   done
@@ -198,6 +200,7 @@ EOF
   end=$((SECONDS+DURATION))
   while [ $SECONDS -lt $end ]; do
     i=$(( (i+1) %4 ))
+    # shellcheck disable=SC2059
     printf "\rWaiting...for VM pod to come up ${spin:$i:1}"
     sleep 1
   done
@@ -213,17 +216,18 @@ export SSH_ASKPASS_REQUIRE=force
 
 
 FILE_PATH="/home/${VM_USER}/file_test"
+# shellcheck disable=SC2034
 REMOTE_CMD="dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 && sha256sum ${FILE_PATH}"
 
-file_exist=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "[ -e ${FILE_PATH} ] && echo 0 || echo 1")
+file_exist=$(virtctl -n "${NAMESPACE}" ssh "${VM_USER}"@"${VM_NAME}" --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file="${KEY_PATH}" -c "[ -e ${FILE_PATH} ] && echo 0 || echo 1")
 
 if [[ $file_exist -eq 1 ]]; then
-  CHECKSUM=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 > /dev/null 2>&1 && sha256sum ${FILE_PATH}"  | awk '{print $1}')
+  CHECKSUM=$(virtctl -n "${NAMESPACE}" ssh "${VM_USER}"@"${VM_NAME}" --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file="${KEY_PATH}" -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 > /dev/null 2>&1 && sha256sum ${FILE_PATH}"  | awk '{print $1}')
 else
-  CHECKSUM=$(virtctl -n ${NAMESPACE} ssh ${VM_USER}@${VM_NAME} --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file=${KEY_PATH} -c "sha256sum ${FILE_PATH}"  | awk '{print $1}')
+  CHECKSUM=$(virtctl -n "${NAMESPACE}" ssh "${VM_USER}"@"${VM_NAME}" --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file="${KEY_PATH}" -c "sha256sum ${FILE_PATH}"  | awk '{print $1}')
 fi
 #CHECKSUM=$(virtctl ssh -i ${KEY_PATH} ${VM_USER}@${VM_NAME} -n ${NAMESPACE} "${REMOTE_CMD}" | awk '{print $1}')
 #CHECKSUM=$(virtctl ssh -i ${KEY_PATH} -l ${VM_USER} ${VM_NAME}.${NAMESPACE} -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 && sha256sum ${FILE_PATH}")
 
 #echo "SHA256 checksum of ${FILE_PATH} on VM ${VM_NAME}: ${CHECKSUM}"
-echo $CHECKSUM >&3
+echo "$CHECKSUM" >&3
