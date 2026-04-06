@@ -8,6 +8,19 @@ ingressGateway_2_7_0=k8s-triliovault-ingress-nginx-controller
 tvkmanagerSA=k8s-triliovault
 tvkingressSA=k8s-triliovault-ingress-nginx-admission
 tvkingressSALater=k8s-triliovault-ingress-nginx
+PLUGIN_PATH=$(readlink -f "$0")
+PLUGIN_DIR=$(dirname "$PLUGIN_PATH")
+
+# Supporting file reference
+
+CAT_SRC="$PLUGIN_DIR/catalog_src.yaml"
+TVK_SUB="$PLUGIN_DIR/tvk-sub.yaml"
+OPER_GRP="$PLUGIN_DIR/operatorgrp.yaml"
+TVM_SUB="$PLUGIN_DIR/tvm-sub.yaml"
+DATA_GRID="$PLUGIN_DIR/datagrid_subscription.yaml"
+INF_CLUS="$PLUGIN_DIR/infi_cluster.yaml"
+DEP_FED="$PLUGIN_DIR/deploy-fedora-simple.sh"
+INS_LIC="$PLUGIN_DIR/install_license.py"
 
 #This module is used to perform preflight check which checks if all the pre-requisites are satisfied before installing Triliovault for Kubernetes application in a Kubernetes cluster
 preflight_checks() {
@@ -248,14 +261,14 @@ install_tvk() {
     echo "$ver" | grep "\-rc" 1>> >(logit) 2>> >(logit)
     retcode=$?
     if [ "$retcode" -eq 0 ]; then
-      yq -i '.metadata.namespace="openshift-marketplace"' catalog_src.yaml
+      yq -i '.metadata.namespace="openshift-marketplace"' "$CAT_SRC"
       export cat_name="k8s-triliovault-manifest-$ver"
-      yq -i '.metadata.name=env(cat_name)' catalog_src.yaml
+      yq -i '.metadata.name=env(cat_name)' "$CAT_SRC"
       export cat_image="quay.io/triliovault/k8s-triliovault-catalog:$ver"
-      yq -i '.spec.image=env(cat_image)' catalog_src.yaml
-      kubectl apply -f catalog_src.yaml 2>> >(logit)
-      retcode=$?
-      if [ "$retcode" -ne 0 ]; then
+      yq -i '.spec.image=env(cat_image)' "$CAT_SRC"
+      kubectl apply -f "$CAT_SRC" 2>> >(logit)
+      retval=$?
+      if [ "$retval" -ne 0 ]; then
         echo "There was an error while applying tvk catalog_src"
         return 1
       fi
@@ -275,16 +288,19 @@ install_tvk() {
     fi
     # Install triliovault operator
     echo "Installing Triliovault operator..."
-    #export startingcsv="k8s-triliovault-stable.$ver"
-    yq -i '.spec.source=env(sub_source)' tvk-sub.yaml
-    #yq -i '.spec.startingCSV=env(startingcsv)' tvk-sub.yaml
+    if [ "$retcode" -ne 0 ]; then
+      export startingcsv="k8s-triliovault-stable.$ver"
+      yq -i '.spec.startingCSV=env(startingcsv)' "$TVK_SUB"
+    fi
+    yq -i '.spec.source=env(sub_source)' "$TVK_SUB"
     channel=$(echo "$ver" | awk -F. '{print $1"."$2}')
     export channelx="$channel.x"
-    yq -i '.spec.channel=env(channelx)' tvk-sub.yaml
-    yq -i '.metadata.namespace=env(tvk_namespace)' tvk-sub.yaml
-    kubectl apply -f operatorgrp.yaml 2>> >(logit)
+    yq -i '.spec.channel=env(channelx)' "$TVK_SUB"
+    yq -i '.metadata.namespace=env(tvk_namespace)' "$TVK_SUB"
+    kubectl delete operatorgroup --all -n "$tvk_ns"
+    kubectl apply -f "$OPER_GRP" 2>> >(logit)
     sleep 10
-    kubectl apply -f tvk-sub.yaml 2>> >(logit)
+    kubectl apply -f "$TVK_SUB" 2>> >(logit)
     retcode=$?
     if [ "$retcode" -ne 0 ]; then
       echo "There was an error while applying tvk subscription"
@@ -312,9 +328,9 @@ install_tvk() {
     fi
     echo "Triliovault operator is running."
     if [[ $upgrade_tvo == 0 ]]; then
-      yq -i '.metadata.namespace=env(tvk_namespace)' tvm-sub.yaml
-      yq -i '.spec.trilioVaultAppVersion=env(ver)' tvm-sub.yaml
-      kubectl apply -f tvm-sub.yaml 2>> >(logit)
+      yq -i '.metadata.namespace=env(tvk_namespace)' "$TVM_SUB"
+      yq -i '.spec.trilioVaultAppVersion=env(ver)' "$TVM_SUB"
+      kubectl apply -f "$TVM_SUB" 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
         echo "There was an error while applying TVM manifest"
@@ -876,9 +892,9 @@ install_license() {
   vercomp "$installed_ver" "5.3.0"
   retcode=$?
   if [[ $retcode == 2 ]]; then
-    python3 install_license.py "$tvk_ns" "old"
+    python3 "$INS_LIC" "$tvk_ns" "old"
   else
-    python3 install_license.py "$tvk_ns" "new" 
+    python3 "$INS_LIC" "$tvk_ns" "new" 
   fi
   cmd="kubectl get license -n $tvk_ns 2>> >(logit) | awk '{print $2}' | sed -n 2p | grep Active"
   wait_install 5 "$cmd"
@@ -2660,19 +2676,19 @@ EOM
         echo "Please delete all datagrid related operator and its resources before proceeding"
         exit 1
       fi
-      ret_val=$(kubectl apply -f datagrid_subscription.yaml -n openshift-operators)
+      ret_val=$(kubectl apply -f "$DATA_GRID" -n openshift-operators)
       echo "$ret_val"
       if [[ $ret_val != "subscription.operators.coreos.com/datagrid created" ]]; then
         echo "Error while applying datagrid subscription yaml"
         exit 1
       fi
-      echo "waiting for datagrid oprrator to be in ready state"
+      echo "waiting for datagrid operator to be in ready state"
       sleep 120
       if kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "infinispan-operator taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
       fi
-      if ! kubectl apply -f infi_cluster.yaml -n "$backup_namespace"; then
+      if ! kubectl apply -f "$INF_CLUS" -n "$backup_namespace"; then
         echo "Error while applying infispan cluster yaml"
         exit 1
       fi
@@ -2925,8 +2941,8 @@ EOM
 	exit 1
       fi
 
-      #vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False") &
-      ./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False" >tmp.out &
+      #vm_file_cksum=$(./$DEP_FED "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False") &
+      "$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False" >tmp.out &
       pid=$!
 
       # Spinner while waiting
@@ -2943,8 +2959,8 @@ EOM
       exit_code=$?
       vm_file_cksum=$(<tmp.out)
     else 
-      ./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True" >tmp.out &
-      #vm_file_cksum=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True") &
+      "$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True" >tmp.out &
+      #vm_file_cksum=$("$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True") &
       pid=$!
       # Spinner while waiting
       spin='-\|/'
@@ -3391,7 +3407,7 @@ EOF
       echo "Restore is Completed."
       if [ "$backup_way" -eq 6 ]; then
         echo "file checksum at time of backup: $vm_file_cksum"
-	vm_file_cksum_res=$(./deploy-fedora-simple.sh "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
+	vm_file_cksum_res=$("$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
 	echo "File checkdum after restore: $vm_file_cksum_res"
 	if [[ "$vm_file_cksum" == "$vm_file_cksum_res" ]]; then
 	  echo "VM backup restore works fine"

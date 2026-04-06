@@ -2,6 +2,7 @@ import requests
 import sys
 import subprocess
 import re
+import os
 from bs4 import BeautifulSoup
 
 def run_command(cmd):
@@ -21,6 +22,11 @@ def secret_exists(secret_name: str, namespace: str) -> bool:
         return True
     except subprocess.CalledProcessError:
         return False
+
+def get_plugin_dir():
+    exe_path = os.path.realpath(__file__)
+    return os.path.dirname(exe_path)
+
 
 def handle_option1(soup, namespace):
     # Find Option 1 header
@@ -68,7 +74,8 @@ def handle_option1(soup, namespace):
             continue
         target = match.group(1)
 
-        filename = "license.yaml"
+        plugin_dir = get_plugin_dir()
+        filename = os.path.join(plugin_dir, "license.yaml")
 
         if target == "-":
             # Inline YAML case
