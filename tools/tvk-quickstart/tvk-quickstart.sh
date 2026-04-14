@@ -145,11 +145,93 @@ tvk_uninstall() {
     fi
   fi
 
+  # OCP-specific pre-cleanup: delete TVK resources in correct dependency order before tvk-cleanup runs.
+  # Order matters: Backups/Restores must be deleted before BackupPlans, so the admission webhook
+  # does not block BackupPlan deletion AND backup data on the target is properly cleaned up first.
+  _ocp_detected=0
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>/dev/null 2>&1 && _ocp_detected=1
+  if [[ "$_ocp_detected" -eq 1 ]]; then
+    echo "OpenShift detected — deleting TVK resources in dependency order before tvk-cleanup..."
+
+    # Step 1: Delete all Restores across all namespaces
+    echo "Deleting all Restore objects..."
+    kubectl get restore -A --no-headers 2>/dev/null | awk '{print $1, $2}' | while read _ns _name; do
+      kubectl delete restore "$_name" -n "$_ns" --wait=false 2>/dev/null || true
+    done
+
+    # Step 2: Delete all Backups across all namespaces
+    echo "Deleting all Backup objects..."
+    kubectl get backup -A --no-headers 2>/dev/null | awk '{print $1, $2}' | while read _ns _name; do
+      kubectl delete backup "$_name" -n "$_ns" --wait=false 2>/dev/null || true
+    done
+
+    # Wait for Backup deletions to complete (metamover finalizers need time to clear)
+    echo "Waiting for Backup finalizers to clear (up to 120s)..."
+    for _i in $(seq 1 24); do
+      _remaining=$(kubectl get backup -A --no-headers 2>/dev/null | wc -l | tr -d ' ')
+      if [[ "$_remaining" -eq 0 ]]; then
+        echo "All Backups deleted."
+        break
+      fi
+      echo "  Still $_remaining Backup(s) remaining... ($_i/24)"
+      sleep 5
+    done
+
+    # Step 3: Now BackupPlans can be deleted without webhook blocking
+    echo "Deleting all BackupPlan objects..."
+    kubectl get backupplan -A --no-headers 2>/dev/null | awk '{print $1, $2}' | while read _ns _name; do
+      kubectl delete backupplan "$_name" -n "$_ns" --wait=false 2>/dev/null || true
+    done
+
+    # Step 4: Remove TVK admission webhook — nothing left that it needs to protect
+    echo "Removing TVK admission webhooks..."
+    kubectl delete validatingwebhookconfiguration tvk-validating-webhook-configuration 2>/dev/null || true
+    kubectl delete mutatingwebhookconfiguration tvk-mutating-webhook-configuration 2>/dev/null || true
+  fi
+
   # Run tvk-uninstall check
   check=$(kubectl tvk-cleanup -n -t -c -r | tee /dev/tty)
   ret_code=$?
   if [ "$ret_code" -ne 0 ]; then
     echo "Failed to run 'kubectl tvk-cleanup', please check if PATH variable for krew is set properly and then try again."
+  fi
+
+  # OCP-specific post-cleanup: remove OLM resources, SCC bindings, and test namespaces
+  if [[ "$_ocp_detected" -eq 1 ]]; then
+    echo "OpenShift detected — cleaning up OLM resources and SCC bindings..."
+
+    # Remove TVK OLM subscription and CSV from all relevant namespaces
+    for _ns in openshift-operators trilio-system; do
+      kubectl delete subscription triliovault-operator -n "$_ns" 2>/dev/null || true
+      kubectl get csv -n "$_ns" 2>/dev/null | grep -i trilio | awk '{print $1}' \
+        | xargs -r kubectl delete csv -n "$_ns" 2>/dev/null || true
+      kubectl get installplan -n "$_ns" 2>/dev/null | grep -i trilio | awk '{print $1}' \
+        | xargs -r kubectl delete installplan -n "$_ns" 2>/dev/null || true
+    done
+
+    # Remove datagrid (operator-datagrid test) OLM resources
+    kubectl delete subscription datagrid -n openshift-operators 2>/dev/null || true
+    kubectl get csv -n openshift-operators 2>/dev/null | grep -i datagrid | awk '{print $1}' \
+      | xargs -r kubectl delete csv -n openshift-operators 2>/dev/null || true
+    kubectl get installplan -n openshift-operators 2>/dev/null | grep -i datagrid | awk '{print $1}' \
+      | xargs -r kubectl delete installplan -n openshift-operators 2>/dev/null || true
+    kubectl delete operator datagrid.openshift-operators 2>/dev/null || true
+
+    # Remove SCC bindings added during install
+    oc adm policy remove-scc-from-group anyuid system:serviceaccounts:trilio-system 2>/dev/null || true
+    oc adm policy remove-cluster-role-from-group cluster-admin system:serviceaccounts:trilio-system 2>/dev/null || true
+
+    # Remove any lingering TVK CatalogSources
+    kubectl delete catalogsource trilio-catalog -n openshift-marketplace 2>/dev/null || true
+
+    # Force-delete all trilio test namespaces left behind
+    echo "Deleting remaining trilio test namespaces..."
+    for _ns in $(kubectl get ns --no-headers 2>/dev/null | awk '{print $1}' | grep '^trilio-'); do
+      echo "Deleting namespace $_ns..."
+      kubectl delete namespace "$_ns" --ignore-not-found --wait=false 2>/dev/null || true
+    done
+
+    echo "OCP OLM cleanup complete."
   fi
 }
 

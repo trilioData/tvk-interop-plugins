@@ -317,3 +317,17 @@ None of the fixes above run on vanilla Kubernetes. The non-OCP code paths are un
 | Label_based (MySQL) | ✅ Passing |
 | Helm_based | ✅ Passing (fixes #15–19) |
 | Operator_based (Datagrid) | ✅ Passing (fixes #20–21) |
+
+---
+
+## Fix #22 — OCP-aware `--uninstall-tvk` cleanup
+
+**File:** `tvk-quickstart.sh` — `tvk_uninstall()` function
+
+**Symptom:** Running `./tvk-quickstart.sh --uninstall-tvk` on OpenShift leaves behind OLM resources (Subscription, CSV, InstallPlan) and SCC bindings, requiring manual cleanup.
+
+**Fix:** Added an OCP detection block at the end of `tvk_uninstall()`. When OpenShift is detected (via `openshiftcontrollermanagers.operator.openshift.io` CRD), the cleanup additionally removes:
+- TVK Subscription, CSV, InstallPlan from `openshift-operators` and `trilio-system`
+- Datagrid Subscription, CSV, InstallPlan, and `operator` resource from `openshift-operators`
+- SCC bindings (`anyuid` group, `cluster-admin` role) from `trilio-system`
+- Any `trilio-catalog` CatalogSource from `openshift-marketplace`
