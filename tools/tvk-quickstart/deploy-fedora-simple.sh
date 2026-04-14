@@ -207,24 +207,38 @@ EOF
 fi
 
 
-echo "echo $VM_PASSWORD" > /tmp/askpass.sh
-chmod +x /tmp/askpass.sh
-# Set environment variables so ssh uses it
-export SSH_ASKPASS=/tmp/askpass.sh
-export DISPLAY=:0   # fake display to trigger askpass
-export SSH_ASKPASS_REQUIRE=force
-
-
 FILE_PATH="/home/${VM_USER}/file_test"
-# shellcheck disable=SC2034
-REMOTE_CMD="dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 && sha256sum ${FILE_PATH}"
 
-file_exist=$(virtctl -n "${NAMESPACE}" ssh "${VM_USER}"@"${VM_NAME}" --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file="${KEY_PATH}" -c "[ -e ${FILE_PATH} ] && echo 0 || echo 1")
+# SSH wrapper: uses virtctl port-forward + native ssh — works across all virtctl versions
+# Accepts -c "command" syntax (from virtctl ssh) and translates it for native ssh
+vssh() {
+  local remote_cmd=""
+  if [[ "$1" == "-c" ]]; then
+    remote_cmd="$2"
+  else
+    remote_cmd="$*"
+  fi
+  local local_port=22222
+  virtctl port-forward -n "${NAMESPACE}" "vm/${VM_NAME}" "${local_port}:22" >/dev/null 2>&1 &
+  local pf_pid=$!
+  sleep 3
+  ssh -i "${KEY_PATH}" \
+      -o StrictHostKeyChecking=no \
+      -o UserKnownHostsFile=/dev/null \
+      -o LogLevel=ERROR \
+      -p "${local_port}" \
+      "${VM_USER}@localhost" "${remote_cmd}"
+  local ret=$?
+  kill "${pf_pid}" 2>/dev/null
+  return $ret
+}
+
+file_exist=$(vssh -c "[ -e ${FILE_PATH} ] && echo 0 || echo 1")
 
 if [[ $file_exist -eq 1 ]]; then
-  CHECKSUM=$(virtctl -n "${NAMESPACE}" ssh "${VM_USER}"@"${VM_NAME}" --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file="${KEY_PATH}" -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 > /dev/null 2>&1 && sha256sum ${FILE_PATH}"  | awk '{print $1}')
+  CHECKSUM=$(vssh -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 > /dev/null 2>&1 && sha256sum ${FILE_PATH}" | awk '{print $1}')
 else
-  CHECKSUM=$(virtctl -n "${NAMESPACE}" ssh "${VM_USER}"@"${VM_NAME}" --local-ssh=true --local-ssh-opts="-o StrictHostKeyChecking=no" --local-ssh-opts="-o UserKnownHostsFile=/dev/null" --local-ssh-opts="-o LogLevel=ERROR" --identity-file="${KEY_PATH}" -c "sha256sum ${FILE_PATH}"  | awk '{print $1}')
+  CHECKSUM=$(vssh -c "sha256sum ${FILE_PATH}" | awk '{print $1}')
 fi
 #CHECKSUM=$(virtctl ssh -i ${KEY_PATH} ${VM_USER}@${VM_NAME} -n ${NAMESPACE} "${REMOTE_CMD}" | awk '{print $1}')
 #CHECKSUM=$(virtctl ssh -i ${KEY_PATH} -l ${VM_USER} ${VM_NAME}.${NAMESPACE} -c "dd if=/dev/urandom of=${FILE_PATH} bs=1M count=20 && sha256sum ${FILE_PATH}")

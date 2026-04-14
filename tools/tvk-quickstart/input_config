@@ -1,0 +1,51 @@
+if_resource_exists_still_proceed='y'
+
+# Preflight
+PREFLIGHT=True
+proceed_even_PREFLIGHT_fail='N'
+storage_class=ocs-storagecluster-ceph-rbd
+
+# TVK install
+TVK_INSTALL=True
+operator_version='5.3.0'
+triliovault_manager_version='5.3.0'
+tvk_ns='trilio-system'
+
+# UI
+CONFIGURE_UI=True
+ui_access_type='PortForwarding'
+domain=''
+tvkhost_name=''
+cluster_name=''
+
+# Target
+TARGET=True
+vendor_type=''
+doctl_token=''
+target_type='NFS'
+target_name='sa-lab-nfs-share1'
+target_namespace='trilio-system'
+nfs_server='172.22.5.250'
+nfs_path='/export/sa-lab-nfs-share1'
+nfs_options=
+thresholdCapacity='1Ti'
+
+# Sample tests
+# backup_way options: Label_based | Namespace_based | Operator_based | Helm_based | Transformation | VM_TEST
+SAMPLE_TEST=True
+csi_loghorn='N'
+bk_plan_name=''
+backup_name=''
+backup_namespace=''
+backup_way='Namespace_based'
+snap_func='Y'
+restore=True
+restore_name=''
+restore_namespace=''
+
+# VM_TEST parameters (used when backup_way='VM_TEST')
+vm_name='fedora-tvk-quickstart'
+vm_user='fedora'
+vm_pass='Fedora123!'
+
+UNINSTALL=False

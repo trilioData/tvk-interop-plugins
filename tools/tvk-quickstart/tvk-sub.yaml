@@ -7,5 +7,5 @@ spec:
   channel: 5.3.x
   installPlanApproval: Automatic
   name: k8s-triliovault
-  source: k8s-triliovault-manifest-5.3.0-rc.1
+  source: certified-operators
   sourceNamespace: openshift-marketplace
