@@ -10,6 +10,7 @@ This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 2. S3cmd. Install from [here](https://s3tools.org/s3cmd)
 3. yq(version >= 4). Information can be found @[here](https://github.com/mikefarah/yq) 
 4. oc, if running for OCP cluster - Install from here [here](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/)
+5. helm (version 3.x). Install or upgrade from [here](https://helm.sh/docs/intro/install/)
 
 **Supported OS and Architectures**:
 
