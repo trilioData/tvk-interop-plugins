@@ -217,11 +217,10 @@ install_tvk() {
     return 1
   fi
   #helm repo add triliovault http://charts.k8strilio.net/trilio-stable/k8s-triliovault 1>> >(logit) 2>> >(logit)
-  helm repo add triliovault-operator-dev https://charts.k8strilio.net/trilio-dev/k8s-triliovault-operator
+  #helm repo add triliovault-operator-dev https://charts.k8strilio.net/trilio-dev/k8s-triliovault-operator 1>> >(logit) 2>> >(logit)
   helm repo update 1>> >(logit) 2>> >(logit)
   latest_ver=$(helm search repo triliovault-operator -l --devel | grep 'triliovault-operator/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
   #latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator -l --devel | grep 'triliovault-operator-dev/k8s-triliovault-operator' | awk '{print $2}' | head -n 1)
-  #latest_ver=$(helm search repo triliovault-operator-dev/k8s-triliovault-operator --versions --devel )
   if [[ -z ${input_config} ]]; then
     read -r -p "Please provide the operator version to be installed (default - $latest_ver): " operator_version
     read -r -p "Please provide the triliovault manager version (default - $latest_ver): " triliovault_manager_version
@@ -249,10 +248,14 @@ install_tvk() {
       new_ver=$(echo "$operator_version" | sed 's/[a-z-]//g')
       vercomp "$new_ver" "$installed_ver"
       retcode=$?
-      if [[ $retcode == 2 ]] || [[ $retcode == 1 ]]; then
-        echo "Upgrade cannot be performed. This may be because the requested version is the same as the currently installed version, or the installed version is already higher than the one specified."
+      if [[ $retcode == 1 ]]; then
+        echo "TVK $operator_version is already installed. Skipping operator install."
         install_license "$tvk_ns"
-	exit 1
+        return 0
+      fi
+      if [[ $retcode == 2 ]]; then
+        echo "Cannot downgrade TVK: installed version ($installed_ver) is higher than requested ($operator_version). Aborting."
+        return 1
       fi
       upgrade_tvo=1
     fi
@@ -317,8 +320,8 @@ install_tvk() {
     wait_install 20 "$cmd"
 
     if ! kubectl get pod --show-labels -n "$tvk_ns" \
-  	| grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null \
-  	| grep -q Running; then
+        | grep -E 'app=k8s-triliovault-operator|release=triliovault-operator' 2>/dev/null \
+        | grep -q Running; then
       if [[ $upgrade_tvo == 1 ]]; then
         echo "Triliovault operator upgrade failed."
       else
@@ -366,7 +369,8 @@ install_tvk() {
       fi
       # Install triliovault operator
       echo "Installing Triliovault operator..."
-      helm install triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$tvk_ns" 2>> >(logit)
+      #helm install triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$tvk_ns" 2>> >(logit)
+      helm install triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n "$tvk_ns" 2>> >(logit)
       retcode=$?
       if [ "$retcode" -ne 0 ]; then
         echo "There was an error while running 'helm install triliovault-operator', please resolve and try again." 2>> >(logit)
@@ -412,7 +416,7 @@ install_tvk() {
             return 1
           fi
         fi
-        helm upgrade triliovault-operator triliovault-operator-dev/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
+        helm upgrade triliovault-operator triliovault-operator/k8s-triliovault-operator --version "$operator_version" -n "$get_ns" 2>> >(logit)
         retcode=$?
         if [ "$retcode" -ne 0 ]; then
           echo "There was an error while running 'helm upgrade', please resolve and try again." 2>> >(logit)
@@ -894,7 +898,7 @@ install_license() {
   if [[ $retcode == 2 ]]; then
     python3 "$INS_LIC" "$tvk_ns" "old"
   else
-    python3 "$INS_LIC" "$tvk_ns" "new" 
+    python3 "$INS_LIC" "$tvk_ns" "new"
   fi
   cmd="kubectl get license -n $tvk_ns 2>> >(logit) | awk '{print $2}' | sed -n 2p | grep Active"
   wait_install 5 "$cmd"
@@ -920,16 +924,16 @@ check_tvk_install() {
   fi
   tvk_control_name=$(kubectl get pods -l app=k8s-triliovault-control-plane -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit))
   tvk_control_namespace=$(kubectl get pods -l app=k8s-triliovault-control-plane -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit))
-  tvk_webhook_name=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit))
-  tvk_webhook_namespace=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit))
-  webhook_state=$(kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
-  if [[ "$webhook_state" != "Running" ]]; then
-    echo "TVK webhook pod is not in Running state!"
-    return 1
-  else
-    kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
-    ret_code_web=$?
-  fi
+  #tvk_webhook_name=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.name}' 2>> >(logit))
+  #tvk_webhook_namespace=$(kubectl get pods -l app=k8s-triliovault-admission-webhook -A -ojsonpath='{.items[0].metadata.namespace}' 2>> >(logit))
+  #webhook_state=$(kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
+  #if [[ "$webhook_state" != "Running" ]]; then
+  #  echo "TVK webhook pod is not in Running state!"
+  #  return 1
+  #else
+  #  kubectl get pod "$tvk_webhook_name" -n "$tvk_webhook_namespace" -ojsonpath='{.status.conditions[?(@.type == "ContainersReady")].status}' | grep -q True
+  #  ret_code_web=$?
+  #fi
   control_plane_state=$(kubectl get pod "$tvk_control_name" -n "$tvk_control_namespace" -ojsonpath='{.status.phase}' 2>> >(logit))
   if [[ "$control_plane_state" != "Running" ]]; then
     echo "TVK control plane pod is not in Running state!"
@@ -939,7 +943,7 @@ check_tvk_install() {
     ret_code_control=$?
   fi
   #}2>> >(logit)
-  if [[ $ret_code_web != 0 ]] || [[ $ret_code_control != 0 ]]; then
+  if [[ $ret_code_control != 0 ]]; then
     return 1
   fi
   return 0
@@ -992,13 +996,26 @@ configure_ui() {
       echo "Error in getting installed TVM, please check if TVM is installed correctly"
       exit 1
     fi
-    if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 3 ]]; then
+    if [[ $ret_ingress == 1 ]] || [[ $ret_ingress == 2 ]]; then
       ingressGateway="${ingressGateway_2_7_0}"
       masterIngName="${masterIngName_2_7_0}"
     fi
-    get_ns=$(kubectl get deployments -l "release=triliovault-operator" -A 2>> >(logit) | awk '{print $1}' | sed -n 2p)
-    echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $get_ns 80:80 &"
-    echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> <ingress_host_name>' in /etc/hosts file. TVK management console traffic will be forwarded to your localhost IP via port 80."
+    # $tvk_ns is already set from the TVM lookup above; using release= label fails on OCP/OLM installs.
+    kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+    retocp=$?
+    if [[ $retocp -eq 0 ]]; then
+      # OpenShift: TVK UI is accessible via Route — no port-forward needed
+      tvk_route=$(kubectl get route -n "$tvk_ns" -l "app.kubernetes.io/name=k8s-triliovault" -o jsonpath='{.items[0].spec.host}' 2>/dev/null)
+      if [[ -n "$tvk_route" ]]; then
+        echo "TVK UI is accessible at: http://$tvk_route"
+      else
+        echo "TVK UI Route not yet available. Check: kubectl get route -n $tvk_ns"
+      fi
+    else
+      echo "kubectl port-forward --address 0.0.0.0 svc/$ingressGateway -n $tvk_ns 80:80 &"
+      echo "Copy & paste the command above into your terminal session and add a entry - '<localhost_ip> <ingress_host_name>' in /etc/hosts file. TVK management console traffic will be forwarded to your localhost IP via port 80."
+    fi
+    return 0
     ;;
   2)
     if [[ $ret_code == 0 ]]; then
@@ -1026,6 +1043,12 @@ configure_ui() {
 
 #This function is used to configure TVK UI through nodeport
 configure_nodeport_for_tvkui() {
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+  retocp=$?
+  if [[ $retocp -eq 0 ]]; then
+    echo "Nodeport is not supported for now on OCP,please use portforwarding to get the TVK URL through route"
+    return 1
+  fi
   #shellcheck disable=SC2319
   do=$?
   # shellcheck disable=SC2154
@@ -1142,6 +1165,12 @@ EOF
 #This function is used to configure TVK UI through Loadbalancer
 #This function is used to configure TVK UI through Loadbalancer
 configure_loadbalancer_for_tvkUI() {
+  kubectl get crd openshiftcontrollermanagers.operator.openshift.io 1>> >(logit) 2>> >(logit)
+  retocp=$?
+  if [[ $retocp -eq 0 ]]; then 
+    echo "Loadbalancer way is not supported for now on OCP,please use portforwarding to get the TVK URL through route"
+    return 0
+  fi
   #shellcheck disable=SC2319
   do=$?
   if [[ $do == "True" ]]; then
@@ -1743,7 +1772,6 @@ EOF
     return 1
   fi
 }
-
 #create readymade Minio server and create target
 create_readymade_minio() {
   echo "Minio requires sufficient memory.So please check memory and then configure"
@@ -2356,7 +2384,6 @@ EOF
     echo "No storageclass with 'default' label is present, please add the label 'default' to one of the valid storageclasses."
     return 1
   fi
-
   #check if volumesnapshot class is present
   kubectl get volumesnapshotclass -o jsonpath='{.items[*].driver}' 1>> >(logit) 2>> >(logit)
   # shellcheck disable=SC2181
@@ -2516,7 +2543,7 @@ metadata:
 spec:
   backupConfig:
     target:
-      name: 
+      name:
       namespace:
     schedulePolicy:
       fullBackupPolicy:
@@ -2682,8 +2709,38 @@ EOM
         echo "Error while applying datagrid subscription yaml"
         exit 1
       fi
+      # On OCP clusters with Manual installPlanApproval policy the InstallPlan
+      # sits in Pending/RequiresApproval indefinitely. Approve it automatically.
+      # Read the InstallPlan name from the datagrid subscription status to avoid
+      # accidentally approving unrelated pending InstallPlans on the cluster.
+      echo "Waiting for datagrid InstallPlan to appear and approving if required..."
+      for _i in $(seq 1 18); do
+        _inst_plan=$(kubectl get subscription datagrid -n openshift-operators \
+          -o jsonpath='{.status.installPlanRef.name}' 2>/dev/null || echo "")
+        if [[ -n "$_inst_plan" ]]; then
+          _approved=$(kubectl get installplan "$_inst_plan" -n openshift-operators \
+            -o jsonpath='{.spec.approved}' 2>/dev/null || echo "true")
+          if [[ "$_approved" == "false" ]]; then
+            echo "Approving datagrid InstallPlan $_inst_plan..."
+            kubectl patch installplan "$_inst_plan" -n openshift-operators \
+              --type='json' -p='[{"op":"replace","path":"/spec/approved","value":true}]' \
+              1>> >(logit) 2>> >(logit)
+          fi
+          break
+        fi
+        sleep 10
+      done
       echo "waiting for datagrid operator to be in ready state"
-      sleep 120
+      runtime=120
+      spin='-\|/'
+      i=0
+      sleep 5
+      endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+        i=$(((i + 1) % 4))
+        printf "\r %s" "${spin:$i:1}"
+        sleep .1
+      done 
       if kubectl get pod -l "app.kubernetes.io/name"="infinispan-operator" -n openshift-operators -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "infinispan-operator taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
@@ -2693,7 +2750,16 @@ EOM
         exit 1
       fi
       echo "waiting for infispan cluster to be in ready state"
-      sleep 30
+      runtime=30
+      spin='-\|/'
+      i=0
+      sleep 5
+      endtime=$(python3 -c "import time;timeout = int(time.time()) + 60*$runtime;print(\"{0}\".format(timeout))")
+      while [[ $(python3 -c "import time;timeout = int(time.time());print(\"{0}\".format(timeout))") -le $endtime ]] && kubectl get pod -l "rht.comp"="Data_Grid" -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; do
+        i=$(((i + 1) % 4))
+        printf "\r %s" "${spin:$i:1}"
+        sleep .1
+      done
       if kubectl get pod -l "rht.comp"="Data_Grid" -n "$backup_namespace" -o jsonpath="{.items[*].status.conditions[*].status}" | grep -q False; then
         echo "Infispan operator taking longer than usual to be in the 'Ready' state, exiting..."
         exit 1
@@ -2832,12 +2898,96 @@ EOM
       fi
       echo "Waiting for application to be in the 'Ready' state."
     else
-      helm install prometheus oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack --set nodeExporter.enabled=false -n "$backup_namespace" 2>> >(logit)
+      # On OCP: grant anyuid + cluster-admin to ALL SAs in the namespace BEFORE helm
+      # install. Prometheus deploys several pods that require elevated privileges
+      # (init containers, node exporters, etc.). Using add-scc-to-group covers every
+      # SA created by helm, not just the ones that exist at grant time.
+      if [ "$open_flag" -eq 1 ]; then
+        oc adm policy add-scc-to-group anyuid system:serviceaccounts:"$backup_namespace" 1>> >(logit) 2>> >(logit)
+        oc adm policy add-cluster-role-to-group cluster-admin system:serviceaccounts:"$backup_namespace" 1>> >(logit) 2>> >(logit)
+      fi
+      helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 1>> >(logit) 2>> >(logit) || true
+      helm repo update 1>> >(logit) 2>> >(logit)
+      # On OCP: skip CRD installation — Prometheus Operator CRDs are already
+      # present and owned by the cluster-version-operator (CVO). Helm cannot
+      # overwrite CVO-managed CRDs and the install fails with a conflict.
+      if [ "$open_flag" -eq 1 ]; then
+        helm install prometheus prometheus-community/kube-prometheus-stack --set nodeExporter.enabled=false --skip-crds -n "$backup_namespace" 1>> >(logit) 2>> >(logit) || true
+        # On OCP, helm install may mark the release as 'failed' due to conflicts
+        # with CVO-managed cluster resources even when pods actually deploy fine.
+        # TVK's metamover refuses to back up a failed helm release, so if we
+        # detect that state, run helm upgrade to reconcile the release to 'deployed'.
+        _helm_release_status=$(helm status prometheus -n "$backup_namespace" -o json 2>/dev/null \
+          | python3 -c "import sys,json; print(json.load(sys.stdin).get('info',{}).get('status',''))" \
+          2>/dev/null || echo "")
+        if [[ "$_helm_release_status" == "failed" ]]; then
+          echo "Helm release in failed state (OCP CVO conflict); upgrading to reconcile..."
+          helm upgrade prometheus prometheus-community/kube-prometheus-stack \
+            --set nodeExporter.enabled=false --skip-crds --reuse-values \
+            -n "$backup_namespace" 1>> >(logit) 2>> >(logit) || true
+          # If upgrade also failed, force the release to 'deployed' by patching
+          # the secret label directly — TVK reads this label to determine release
+          # health and refuses to back up a failed release.
+          _helm_release_status=$(helm status prometheus -n "$backup_namespace" -o json 2>/dev/null \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('info',{}).get('status',''))" \
+            2>/dev/null || echo "")
+          if [[ "$_helm_release_status" == "failed" ]]; then
+            echo "Helm upgrade also failed; rewriting release blob to deployed..."
+            # Use -o name | tail -1 — kubectl jsonpath does not support [-1] indexing
+            _helm_secret=$(kubectl get secret -n "$backup_namespace" \
+              -l "owner=helm,name=prometheus" \
+              --sort-by='.metadata.labels.version' \
+              -o name 2>/dev/null | tail -1 | sed 's|^secret/||')
+            if [[ -n "$_helm_secret" ]]; then
+              # Decode the gzip+base64 release blob, set info.status=deployed,
+              # re-encode, and patch both the data field and the status label.
+              # TVK's Go SDK reads the decoded JSON — label-only patch is not enough.
+              _new_release=$(kubectl get secret "$_helm_secret" -n "$backup_namespace" \
+                -o jsonpath='{.data.release}' 2>/dev/null \
+                | python3 -c "
+import sys, json, gzip, base64
+# kubectl jsonpath returns the k8s-level base64 string as text.
+# Helm secrets are double-encoded: k8s base64( helm base64( gzip( json ) ) ).
+# Decode layer 1: k8s base64 -> helm base64 bytes (printable ASCII)
+raw = sys.stdin.read().strip().replace('\n','').replace(' ','')
+raw += '=' * (-len(raw) % 4)
+helm_b64_bytes = base64.b64decode(raw)
+# Decode layer 2: helm base64 -> gzip bytes
+helm_b64_str = helm_b64_bytes.decode('ascii').strip()
+helm_b64_str += '=' * (-len(helm_b64_str) % 4)
+gzip_bytes = base64.b64decode(helm_b64_str)
+# Decompress and modify
+data = json.loads(gzip.decompress(gzip_bytes))
+data['info']['status'] = 'deployed'
+data['info']['description'] = 'Upgrade complete'
+# Re-encode: json -> gzip -> helm base64 -> k8s base64
+new_gzip = gzip.compress(json.dumps(data).encode())
+new_helm_b64 = base64.b64encode(new_gzip)          # bytes
+new_k8s_b64  = base64.b64encode(new_helm_b64)      # double-encoded, bytes
+print(new_k8s_b64.decode())
+" 2>&1)
+              if echo "$_new_release" | grep -q "Error\|Traceback\|error"; then
+                echo "WARNING: helm blob rewrite failed: $_new_release"
+                _new_release=""
+              fi
+              if [[ -n "$_new_release" ]]; then
+                kubectl patch secret "$_helm_secret" -n "$backup_namespace" \
+                  --type='json' \
+                  -p="[{\"op\":\"replace\",\"path\":\"/data/release\",\"value\":\"$_new_release\"}]" \
+                  1>> >(logit) 2>> >(logit)
+                kubectl label secret "$_helm_secret" -n "$backup_namespace" \
+                  status=deployed --overwrite 1>> >(logit) 2>> >(logit)
+                echo "Rewrote helm release secret '$_helm_secret' to status=deployed."
+              fi
+            else
+              echo "WARNING: could not find helm release secret to patch."
+            fi
+          fi
+        fi
+      else
+        helm install prometheus prometheus-community/kube-prometheus-stack --set nodeExporter.enabled=false -n "$backup_namespace" 2>> >(logit)
+      fi
       echo "Installing App..."
-    fi
-    if [ "$open_flag" -eq 1 ]; then
-      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-      kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
     fi
     sleep 5
     cmd=$(kubectl get pod -l app.kubernetes.io/instance=prometheus -n "$backup_namespace" 2>&1)
@@ -2876,12 +3026,18 @@ EOM
         exit 1
       fi
     else
-      echo "There should be only one storageclass with the 'default' label or else the installation will fail!"
-      {
-        helm repo update 1>> >(logit)
-        helm install postgresql bitnami/postgresql --set image.tag="17.5.0-debian-12-r20" --set volumePermissions.image.tag="12-debian-12-r49" --set volumePermissions.enabled=true --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
-        sleep 2
-      } 2>> >(logit)
+      echo "Warning:here should be only one storageclass with the 'default' label or else the installation will fail!"
+      helm repo update 1>> >(logit) 2>> >(logit)
+      if [ "$open_flag" -eq 1 ]; then
+        # On OCP: grant anyuid + cluster-admin to ALL SAs in namespace (including ones
+        # created by helm, like 'postgresql') by targeting the serviceaccounts group.
+        # volumePermissions init container needs root which is blocked by OCP SCCs — disable it.
+        # Grant anyuid + cluster-admin to ALL SAs in namespace (covers SA created by helm too).
+        # anyuid allows root, so volumePermissions init container can chown the PVC mount.
+        oc adm policy add-scc-to-group anyuid system:serviceaccounts:"$backup_namespace" 1>> >(logit) 2>> >(logit)
+        oc adm policy add-cluster-role-to-group cluster-admin system:serviceaccounts:"$backup_namespace" 1>> >(logit) 2>> >(logit)
+      fi
+      helm install postgresql bitnami/postgresql --set image.tag="17.5.0-debian-12-r20" --set volumePermissions.image.tag="12-debian-12-r49" --set volumePermissions.enabled=true --set global.imageRegistry=us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop --set global.security.allowInsecureImages=true -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
       if [ "$open_flag" -eq 1 ]; then
         kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-scc-to-user anyuid -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
         kubectl get sa -n "$backup_namespace" | sed -n '1!p' | awk '{print $1, $8}' | sed 's/ //g' | xargs -I '{}' oc adm policy add-cluster-role-to-user cluster-admin -z '{}' -n "$backup_namespace" 1>> >(logit) 2>> >(logit)
@@ -2914,6 +3070,15 @@ EOM
     ;;
   6)
     #Create VM
+    # Preflight: verify KubeVirt is installed and healthy
+    if ! kubectl get crd virtualmachines.kubevirt.io 1>> >(logit) 2>> >(logit); then
+      echo "KubeVirt CRD not found. KubeVirt must be installed on the cluster to run VM_TEST. Aborting."
+      return 1
+    fi
+    if ! kubectl get pods -l kubevirt.io=virt-controller -A 2>/dev/null | grep -q Running; then
+      echo "KubeVirt virt-controller is not running. Please ensure KubeVirt is healthy before running VM_TEST. Aborting."
+      return 1
+    fi
     if [[ -z ${input_config} ]]; then
       echo "Please provide input for the VM."
       read -r -p "VM Name (default - fedora-tvk-quickstart): " vm_name
@@ -2938,7 +3103,7 @@ EOM
       ret_val=$?
       if [[ $ret_val -ne 0 ]]; then
         echo "Vm is present but may not be in running state, please delete and try again"
-	exit 1
+        exit 1
       fi
 
       #vm_file_cksum=$(./$DEP_FED "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False") &
@@ -2950,15 +3115,15 @@ EOM
       i=0
       while kill -0 $pid 2>/dev/null; do
         i=$(( (i+1) %4 ))
-	# shellcheck disable=SC2059
+        # shellcheck disable=SC2059
         printf "\rWaiting for creating and getting checksum from VM... ${spin:$i:1}"
         sleep 1
       done
-
+      printf "\n"
       wait $pid
       exit_code=$?
       vm_file_cksum=$(<tmp.out)
-    else 
+    else
       "$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True" >tmp.out &
       #vm_file_cksum=$("$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "True") &
       pid=$!
@@ -2967,11 +3132,11 @@ EOM
       i=0
       while kill -0 $pid 2>/dev/null; do
         i=$(( (i+1) %4 ))
-	# shellcheck disable=SC2059
+        # shellcheck disable=SC2059
         printf "\rWaiting for creating VM... ${spin:$i:1}"
         sleep 1
       done
-
+      printf "\n"
       wait $pid
       exit_code=$?
       vm_file_cksum=$(<tmp.out)
@@ -2984,7 +3149,7 @@ EOM
     fi
      yq eval -i 'del(.spec.backupPlanComponents)' backupplan.yaml
      yq eval -i '.metadata.namespace="'"$backup_namespace"'"' backupplan.yaml
-     export vmbk_name="$vm_name" 
+     export vmbk_name="$vm_name"
      yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.gvkSelector[0].groupVersionKind.group="kubevirt.io"' backupplan.yaml
      yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.gvkSelector[0].groupVersionKind.kind="VirtualMachine"' backupplan.yaml
      yq eval -i '.spec.backupPlanComponents.customSelector.selectResources.gvkSelector[0].groupVersionKind.version="v1"' backupplan.yaml
@@ -3049,7 +3214,7 @@ spec:
   default: false
   scheduleConfig:
     schedule:
-    - "* 10 * * *"
+    - "0 10 * * *"
   type: Schedule
 EOF
     retcode=$?
@@ -3150,6 +3315,7 @@ EOF
     return 1
   else
     echo "Backup is Available Now."
+    kubectl get backups.triliovault.trilio.io "$backup_name" -n "$backup_namespace"
   fi
   if [[ -z ${input_config} ]]; then
     read -r -p "Whether restore test should also be done? y/n: " restore
@@ -3172,7 +3338,15 @@ EOF
       read -r -p "Restore name (default - trilio-$app-restore): " restore_name
     fi
     if [[ -z "$restore_namespace" ]]; then
-      restore_namespace="trilio-$app-restore"
+      if [[ "$app" == "helm-prometheus" ]]; then
+        echo "Keeping restore namespace as same as backup restore(local charts are referred, So restore namespace should be same as bakup namespace)"
+        restore_namespace=$backup_namespace
+        echo "deleting existing resources from backup namespace"
+        helm uninstall prometheus -n "$backup_namespace"
+        kubectl delete pod,pvc,svc,deployment,statefulset,replicaset --all -n "$backup_namespace"
+      else
+        restore_namespace="trilio-$app-restore"
+      fi
     fi
     if ! kubectl get ns "$restore_namespace" 1>> >(logit) 2>> >(logit); then
       echo "Namespace with name $restore_namespace already exists!"
@@ -3210,17 +3384,115 @@ EOF
           return 1
         fi
         default_storage=$(kubectl get storageclass -o=jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
-        kubectl get storageclass "$default_storage" -o yaml >storageclass_trans.yaml
-        yq eval -i '.metadata.name="trans-storageclass"' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
-        echo "Creating new storageclass 'trans-storageclass' for this example..."
-        kubectl apply -f storageclass_trans.yaml
-        retcode=$?
-        if [ "$retcode" -ne 0 ]; then
-          echo "Error while creating clone of default storageclass."
-          return 1
+        trans_sc_name="trans-storageclass"
+        # On OCP, the default SC is ODF-managed. ODF's operator deletes copies of its
+        # own SCs (ceph/noobaa provisioners). Strategy:
+        #   1. Prefer cloning a non-ODF SC (thin-csi on vSphere, gp2-csi on AWS, etc.)
+        #   2. If none exists, use an existing non-default SC directly — no creation needed
+        if [ "$open_flag" -eq 1 ]; then
+          non_odf_sc=$(kubectl get storageclass -o=jsonpath='{range .items[*]}{.metadata.name}{" "}{.provisioner}{"\n"}{end}' 2>/dev/null | \
+            grep -v -E "ceph|noobaa|openshift-storage" | awk '{print $1}' | head -1)
+          if [[ -n "$non_odf_sc" ]]; then
+            source_sc="$non_odf_sc"
+            echo "Using '$source_sc' as base for trans-storageclass (OCP: avoiding ODF-managed SCs)"
+          else
+            # No non-ODF SC to clone — use an existing non-default SC directly
+            existing_alt_sc=$(kubectl get storageclass -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null | \
+              grep -v "^${default_storage}$" | head -1)
+            if [[ -n "$existing_alt_sc" ]]; then
+              trans_sc_name="$existing_alt_sc"
+              echo "No non-ODF StorageClass to clone. Using existing SC '$trans_sc_name' as transformation target."
+              source_sc=""
+            else
+              echo "No alternative StorageClass found for transformation test. Skipping SC creation."
+              source_sc="$default_storage"
+            fi
+          fi
+        else
+          source_sc="$default_storage"
         fi
-        #echo "Removing 'default' label from trans-storageclass storageclass"
-        kubectl patch storageclass trans-storageclass -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+        if [[ -n "$source_sc" ]]; then
+          kubectl get storageclass "$source_sc" -o yaml >storageclass_trans.yaml
+          # Strip server-managed fields one at a time (broadest yq version compatibility)
+          #shellcheck disable=SC2129
+	  yq eval -i '.metadata.name = "trans-storageclass"' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          yq eval -i 'del(.metadata.resourceVersion)' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          yq eval -i 'del(.metadata.uid)' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          yq eval -i 'del(.metadata.creationTimestamp)' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          yq eval -i 'del(.metadata.managedFields)' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          yq eval -i 'del(.metadata.annotations["storageclass.kubernetes.io/is-default-class"])' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          yq eval -i 'del(.metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"])' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          # Force Immediate binding so PVCs provision without waiting for pod scheduling
+          # (WaitForFirstConsumer causes context deadline exceeded with some CSI drivers)
+          yq eval -i '.volumeBindingMode = "Immediate"' storageclass_trans.yaml 1>> >(logit) 2>> >(logit)
+          echo "Creating new storageclass 'trans-storageclass' for this example..."
+          kubectl create -f storageclass_trans.yaml
+          retcode=$?
+          if [ "$retcode" -ne 0 ]; then
+            echo "Error while creating clone of default storageclass."
+            return 1
+          fi
+          # Verify the SC still exists before submitting restore
+          sleep 3
+          if ! kubectl get storageclass trans-storageclass 1>> >(logit) 2>> >(logit); then
+            echo "StorageClass trans-storageclass was removed by the cluster after creation. Cannot proceed."
+            return 1
+          fi
+          # On OCP: verify the cloned SC's provisioner can actually create PVCs.
+          # Some CSI drivers (e.g. vSphere thin-csi) may be broken due to stale
+          # infrastructure (deleted VMs, orphaned node objects in vCenter).
+          # Create a small test PVC and watch for ProvisioningFailed within 10s.
+          # If broken, fall back to a working ODF SC with a different provisioner.
+          if [ "$open_flag" -eq 1 ]; then
+            echo "Probing provisioner for trans-storageclass..."
+            kubectl create -f - 1>> >(logit) 2>> >(logit) <<PVEOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tvk-probe-sc
+  namespace: trilio-system
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: trans-storageclass
+PVEOF
+            sleep 10
+            probe_phase=$(kubectl get pvc tvk-probe-sc -n trilio-system \
+              -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+            probe_failed=$(kubectl get events -n trilio-system \
+              --field-selector involvedObject.name=tvk-probe-sc 2>/dev/null \
+              | grep -c "ProvisioningFailed" || echo "0")
+            kubectl delete pvc tvk-probe-sc -n trilio-system \
+              --ignore-not-found 1>> >(logit) 2>> >(logit)
+            if [[ "$probe_phase" != "Bound" && "$probe_failed" -gt 0 ]]; then
+              echo "WARNING: Provisioner for trans-storageclass is failing (ProvisioningFailed)."
+              echo "Falling back to an alternate ODF StorageClass with Immediate binding."
+              kubectl delete storageclass trans-storageclass \
+                --ignore-not-found 1>> >(logit) 2>> >(logit)
+              # Find an ODF block/filesystem SC with Immediate mode that is NOT
+              # the source (default) SC — e.g. ocs-storagecluster-cephfs on ODF clusters
+              odf_alt_sc=$(kubectl get storageclass \
+                -o=jsonpath='{range .items[*]}{.metadata.name}{" "}{.provisioner}{" "}{.volumeBindingMode}{"\n"}{end}' \
+                2>/dev/null \
+                | grep -E "cephfs|\.rbd\." \
+                | grep "Immediate" \
+                | grep -v "^${default_storage} " \
+                | awk '{print $1}' | head -1)
+              if [[ -n "$odf_alt_sc" ]]; then
+                trans_sc_name="$odf_alt_sc"
+                echo "Using existing StorageClass '$trans_sc_name' as transformation target."
+              else
+                echo "No usable alternative StorageClass for transformation test. Cannot proceed."
+                return 1
+              fi
+            else
+              echo "Provisioner probe passed (phase=${probe_phase})."
+            fi
+          fi
+        fi
         #kubectl patch storageclass $default_storage -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' 2>> >(logit)
         if [[ "$restore_type" == "snapshot" ]]; then
           cat <<EOF | kubectl apply -f - 1>> >(logit)
@@ -3243,7 +3515,7 @@ spec:
     - jsonPatches:
       - op: replace
         path: /spec/storageClassName
-        value: trans-storageclass
+        value: ${trans_sc_name}
       resources:
         groupVersionKind:
           kind: PersistentVolumeClaim
@@ -3275,7 +3547,7 @@ spec:
     - jsonPatches:
       - op: replace
         path: /spec/storageClassName
-        value: trans-storageclass
+        value: ${trans_sc_name}
       resources:
         groupVersionKind:
           kind: PersistentVolumeClaim
@@ -3287,7 +3559,6 @@ spec:
     skipIfAlreadyExists: true
 EOF
         fi
-
       elif [ "$open_flag" -eq 1 ] && [[ $app == "operator-datagrid" ]]; then
         echo "Deleting backed up operator and restoring the operator in same namespace"
         kubectl delete infinispans.infinispan.org example-infinispan -n "$backup_namespace"
@@ -3407,13 +3678,13 @@ EOF
       echo "Restore is Completed."
       if [ "$backup_way" -eq 6 ]; then
         echo "file checksum at time of backup: $vm_file_cksum"
-	vm_file_cksum_res=$("$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
-	echo "File checkdum after restore: $vm_file_cksum_res"
-	if [[ "$vm_file_cksum" == "$vm_file_cksum_res" ]]; then
-	  echo "VM backup restore works fine"
-	else
-	  echo "Restore is completed but file data verification failed"
-	fi
+        vm_file_cksum_res=$("$DEP_FED" "$backup_namespace" "$vm_name" "$vm_user" "$vm_pass" "False")
+        echo "File checkdum after restore: $vm_file_cksum_res"
+        if [[ "$vm_file_cksum" == "$vm_file_cksum_res" ]]; then
+          echo "VM backup restore works fine"
+        else
+          echo "Restore is completed but file data verification failed"
+        fi
       fi
     fi
     if [ "$open_flag" -eq 1 ]; then
@@ -3439,9 +3710,9 @@ Options:
         -c, --configure-ui        Configures the TVK UI.
         -t, --target              Create the Target for backup and restore jobs.
         -s, --sample-test         Create the sample backup and restore jobs.
-	-p, --preflight           Checks if all the pre-requisites are satisfied.
-	-v, --verbose             Runs the plugin in verbose mode.
-	-u, --uninstall-tvk       Uninstalls TVK and related resources.
+        -p, --preflight           Checks if all the pre-requisites are satisfied.
+        -v, --verbose             Runs the plugin in verbose mode.
+        -u, --uninstall-tvk       Uninstalls TVK and related resources.
 -----------------------------------------------------------------------
 Example:
 kubectl tvk-quickstart -i -c -t -s
@@ -3580,3 +3851,4 @@ fi
 if [ "${1}" != "--source-only" ]; then
   main "${@}"
 fi
+

@@ -10,6 +10,8 @@ This plugin is tested on OCP,RKE,GKE,DO kubernetes clusters.
 2. S3cmd. Install from [here](https://s3tools.org/s3cmd)
 3. yq(version >= 4). Information can be found @[here](https://github.com/mikefarah/yq) 
 4. oc, if running for OCP cluster - Install from here [here](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/)
+5. virtctl [here](https://kubevirt.io/user-guide/user_workloads/virtctl_client_tool/#download-the-virtctl-client-tool)
+6. helm (version 3.x). Install or upgrade from [here](https://helm.sh/docs/intro/install/)
 
 **Supported OS and Architectures**:
 
@@ -29,7 +31,7 @@ OS:
 - Target Creation:
 	Creates and validate the target where backups are stored. Users can create S3 (DigitalOCean Spaces / AWS S3) or NFS based target.  
 - Run Sample Tests of Backup,snapshot and Restore:
-        Run sample tests for ['Label_based','Namespace_based','Operator_based','Helm_based'] applications. By default, 'Label_based' backup tests are run against a MySQL Database application, 'Namespace_based' tests against a Wordpress application, 'Operator_based' tests against MySQL Database operator application, for OLM it tests on datagrid operator,'Helm_based' tests against Prometheus  helm based application, 'Transformation' is tested against Postgresql, 'VM_TEST' test against VM.
+        Run sample tests for ['Label_based','Namespace_based','Operator_based','Helm_based','VM_TEST'] applications. By default, 'Label_based' backup tests are run against a MySQL Database application, 'Namespace_based' tests against a Wordpress application, 'Operator_based' tests against MySQL Database operator application, for OLM it tests on datagrid operator,'Helm_based' tests against Prometheus  helm based application, 'Transformation' is tested against Postgresql, 'VM_TEST' test against VM.
 - TVK uninstall:
 	Uninstalls TVK and its associated resources.
 
@@ -196,8 +198,6 @@ kubectl tvk-quickstart -n
 	Specify the name for the target that needs to be created.
 - **target_namespace**:
 	Specify the namespace name in which target should be created in. User should have permission to create/modify/access the namespace.
-- **nfs_server**:
-	The server Ip address or the fully qualified nfs server name. This paramere is required when 'target_type == NFS'
 - **nfs_path**:
 	Specify the exported path which can be mounted for target creation. This paramere is required when 'target_type == NFS'
 - **nfs_options**:

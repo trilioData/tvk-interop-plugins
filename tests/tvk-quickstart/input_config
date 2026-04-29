@@ -17,13 +17,13 @@ storage_class=
 #[TVK installation parameters]
 
 #Whether or not TVK should be installed [True, False]
-TVK_INSTALL=False
+TVK_INSTALL=True
 
 #Specify TVK operator version
-operator_version='5.2.0'
+operator_version='5.3.1'
 
 #Specify TVK Manager version
-triliovault_manager_version='5.2.0'
+triliovault_manager_version='5.3.1'
 
 #Specify namespace name in which TVK should get installed.
 tvk_ns='trilio-system'
@@ -99,9 +99,6 @@ target_name='tvk-target'
 #Specify Namespace name where the target should be created
 target_namespace='trilio-system'
 
-#Specify NS server name/address for NFS type backup target creation
-nfs_server='34.66.17.160'
-
 #Specify nfs_server and exported path(nfs_server:/expoerted_path) for for NFS type backup target creation
 nfs_path='34.66.17.160:/src/nfs/rhu'
 
@@ -131,7 +128,7 @@ backup_name=''
 #Specify backup namespace[Note: currently backup plan and backup should be in same namespace]
 backup_namespace=''
 
-#Specify the way in which backup should be taken ['Label_based','Namespace_based','Operator_base','Helm_based','Transformation','VM_TEST']
+#Specify the way in which backup should be taken ['Label_based','Namespace_based','Operator_based','Helm_based','Transformation','VM_TEST']
 backup_way='Namespace_based'
 
 #Specify whether Snapshot should be executed
