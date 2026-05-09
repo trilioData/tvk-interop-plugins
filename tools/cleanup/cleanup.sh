@@ -48,6 +48,10 @@ delete_tvk_op() {
   local exit_status=0
   if [[ $(check_if_ocp) == "True" ]]; then
     echo "This is OCP Cluster"
+
+    # Setting up TVM namespace to be used for ConfigMap/Secret deletion
+    tvm_ns="openshift-operators"
+
     # Delete k8s-triliovault operator
     if (kubectl get subscription -A 2>/dev/null | grep k8s-triliovault); then
       echo "Uninstalling k8s-triliovault operator"
@@ -99,16 +103,6 @@ delete_tvk_op() {
   # For Upstream OR in case if TVK installed on OCP using "helm"
   # Delete Triliovault-manager and Triliovault-operator using helm/label
   if (helm list -A | grep -v REVISION | grep triliovault >/dev/null 2>&1); then
-    echo "Uninstalling Trilivault-manager"
-    tvm=$(helm list -A | grep -v REVISION | grep triliovault-v | awk '{print $1}')
-    tvm_ns=$(helm list -A | grep -v REVISION | grep triliovault-v | awk '{print $2}')
-    if [ -n "${tvm}" ]; then
-      helm uninstall "${tvm}" -n "${tvm_ns}"
-      retValue=$?
-      if [ "${retValue}" -ne 0 ]; then
-        exit_status=1
-      fi
-    fi
     echo "Uninstalling Trilivault-operator"
     tvo=$(helm list -A | grep -v REVISION | grep triliovault-o | awk '{print $1}')
     tvo_ns=$(helm list -A | grep -v REVISION | grep triliovault-o | awk '{print $2}')
@@ -119,7 +113,40 @@ delete_tvk_op() {
         exit_status=1
       fi
     fi
+    echo "Uninstalling Trilivault-manager"
+    tvm=$(helm list -A | grep -v REVISION | grep k8s-triliovault- | awk '{print $1}')
+    tvm_ns=$(helm list -A | grep -v REVISION | grep k8s-triliovault- | awk '{print $2}')
+    if [ -n "${tvm}" ]; then
+      helm uninstall "${tvm}" -n "${tvm_ns}"
+      retValue=$?
+      if [ "${retValue}" -ne 0 ]; then
+        exit_status=1
+      fi
+    fi
   fi
+
+  # Delete ConfigMaps created by k8s-triliovault
+  for cm_name in $(kubectl get configmap -n "${tvm_ns}" --no-headers 2>/dev/null | grep k8s-triliovault | awk '{print $1}' | uniq); do
+    # Delete
+    echo "kubectl delete configmap ${cm_name} -n ${tvm_ns} "
+    kubectl delete configmap "${cm_name}" -n "${tvm_ns}"
+    retValue=$?
+    if [ "${retValue}" -ne 0 ]; then
+      exit_status=1
+    fi
+  done
+
+  # Delete Secrets created by k8s-triliovault
+  for sec_name in $(kubectl get secret -n "${tvm_ns}" --no-headers 2>/dev/null | grep k8s-triliovault | awk '{print $1}' | uniq); do
+    # Delete
+    echo "kubectl delete secret ${sec_name} -n ${tvm_ns} "
+    kubectl delete secret "${sec_name}" -n "${tvm_ns}"
+    retValue=$?
+    if [ "${retValue}" -ne 0 ]; then
+      exit_status=1
+    fi
+  done
+
   return ${exit_status}
 }
 
