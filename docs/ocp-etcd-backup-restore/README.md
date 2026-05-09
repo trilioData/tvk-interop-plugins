@@ -27,7 +27,7 @@ The plugin helps the user to perform ETCD backup and restore of OCP clusters. If
 * Please do not switch of any node in cluster while restore is in progress and do not abort restore task in between, else you may loose cluster accessibility
 
 
-### Plugin Pre-reqs:
+## Plugin Pre-reqs:
 1. krew - kubectl-plugin manager. Install from [here](https://krew.sigs.k8s.io/docs/user-guide/setup/install/).
 2. kubectl kubernetes command-line tool. Install from [here](https://kubernetes.io/docs/tasks/tools/install-kubectl/).
 3. Triliovault for kubernetes and TVK target. Install from [here](https://docs.trilio.io/kubernetes/use-triliovault/installing-triliovault/)
@@ -77,10 +77,10 @@ If the krew plugin manager is not an option, you may still install the ocp-etcd-
        --ocp-cluster-user OCP_CLUSTER_USER --ocp-cluster-pass OCP_CLUSTER_PASS
        [-p] [--log-location LOG_LOC]
 
-Flags:
+Arguments/Flags:
 
-| Flag                      | Argument Details
-| :---------------------------- |:-------------:
+| Flag                          | Argument Details
+| :---------------------------- |:-------------
 | -backup                       | Flag to notify the plugin to perform a backup.
 | -restore                      | Flag to notify the plugin to perform a restore.
 | --target-name                 | The name of a single datastore on which ETCD backup is to be stored. The target should be s3 and created in same namespace in which TVK resides and it should be available. This argument is mandatory if -backup flag is provided.
