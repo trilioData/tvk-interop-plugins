@@ -3348,6 +3348,7 @@ EOF
         restore_namespace="trilio-$app-restore"
       fi
     fi
+    #If $restore_namespace is  not empty
     if [[ "$app" == "helm-prometheus" ]]; then
       echo "Keeping restore namespace as same as backup restore(local charts are referred, So restore namespace should be same as bakup namespace)"
       restore_namespace=$backup_namespace
