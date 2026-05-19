@@ -3326,7 +3326,7 @@ EOF
       #  restore_namespace="openshift-operators"
       # echo "Restore Namespace = openshift-operators"
       #else
-      if [[ "$app" == helm-prometheus"" ]]; then
+      if [[ "$app" == "helm-prometheus" ]]; then
         echo "Keeping restore namespace as same as backup restore(local charts are referred, So restore namespace should be same as bakup namespace)"
         restore_namespace=$backup_namespace
         echo "deleting existing resources from backup namespace"
@@ -3347,6 +3347,12 @@ EOF
       else
         restore_namespace="trilio-$app-restore"
       fi
+    fi
+    if [[ "$app" == "helm-prometheus" ]]; then
+      echo "Keeping restore namespace as same as backup restore(local charts are referred, So restore namespace should be same as bakup namespace)"
+      restore_namespace=$backup_namespace
+      helm uninstall prometheus -n "$backup_namespace"
+      kubectl delete pod,pvc,svc,deployment,statefulset,replicaset --all -n "$backup_namespace"
     fi
     if ! kubectl get ns "$restore_namespace" 1>> >(logit) 2>> >(logit); then
       echo "Namespace with name $restore_namespace already exists!"
