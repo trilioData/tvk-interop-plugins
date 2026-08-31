@@ -1,0 +1,107 @@
+# Example config file — pass with: pytest --config-file config/example-config.yaml
+cluster:
+  cluster_type: ocp
+  trilio_url: https://trilio-system.apps.<your-cluster>/#/login
+  console_url: https://console-openshift-console.apps.<your-cluster>
+  username: kubeadmin
+  password: "<CLUSTER_PASSWORD>"
+  kubeconfig: ""
+
+target:
+  name: auto-target
+  # Which target to create: objectstore (S3 / object store) or nfs
+  type: nfs   # objectstore | s3 | nfs
+  vendor: AWS         # ObjectStore vendor dropdown: AWS (default) | Ceph | MinIO | ...
+  s3_url: https://s3.amazonaws.com
+  bucket: qa-manual-s3
+  region: us-east-1
+  access_key: ""      # or env TVK_S3_ACCESS_KEY      # or set env TVK_S3_ACCESS_KEY
+  secret_key: ""      # or env TVK_S3_SECRET_KEY      # or set env TVK_S3_SECRET_KEY
+  nfs_path: 34.66.17.160:/src/nfs/new-rhu
+  # Namespace to create the target in. Empty = app namespace (integrated);
+  # set explicitly for standalone target runs.
+  namespace: ""
+  # Turn ON 'Enable Browsing' at target creation (needed for restore
+  # transforms). Keep false normally; the helm_transform test forces it on.
+  enable_browsing: false
+
+app:
+  namespace: tvk-test-app
+  helm_chart: bitnami/mysql
+  release_name: tvk-demo-app
+
+# MySQL helm chart for Helm-transformation tests (installed via helm CLI).
+helm_app:
+  release_name: mysql-qa
+  chart: stable/mysql
+  repo_name: stable
+  repo_url: https://charts.helm.sh/stable
+  image: us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/mysql
+  image_tag: latest
+  busybox_image: us-central1-docker.pkg.dev/tvk-solutions-330321/tvk-interop/busybox
+  busybox_tag: "1.32"
+  label: app=mysql-qa
+  if_exists_proceed: true
+  # anyuid SCC + cluster-admin grants need cluster-admin; false = install
+  # without admin (no 'oc adm policy' steps)
+  openshift: false
+  ready_timeout_s: 1200
+
+# Namespace the backup plan protects. Leave empty to use the auto-created
+# demo-app namespace (tvk-test-app-<suffix>). Set to an EXISTING namespace
+# when running the backup-plan test standalone. No suffix is appended.
+backup_namespace: ""
+# Existing target / scheduling policy to use when the auto-created ones aren't
+# present (e.g. running the backup-plan test standalone). Leave empty to use
+# the auto-created resources. No suffix is appended.
+backup_target: ""
+backup_scheduling_policy: ""
+# Backup plan to trigger a backup from. Leave empty to use the plan created in
+# this run; set to an EXISTING plan name for standalone backup runs.
+backup_from_plan: ""
+# Backup to check the status of in the UI. Leave empty to use the backup
+# created in this run; set to an EXISTING backup name for standalone runs.
+backup_check_name: ""
+backupplan_name: auto-backupplan
+backup_name: auto-backup
+restore_name: auto-restore
+restore_namespace: tvk-restore-ns
+# Restore transformation (Helm / Custom backups only). Enable + set the type.
+transform_enabled: false
+transform_type: ""            # helm | custom
+transform_name: "auto-transform"
+# Helm transform: paste the modified chart-values YAML (Restore Flags ->
+# enable transform -> Transform Name -> values editor)
+transform_helm_values: |
+  resources:
+    requests:
+      cpu: "150m"
+# Optional post-restore verification of a changed Deployment field
+transform_verify_kind: ""     # e.g. Deployment
+transform_verify_name: ""     # resource name in the restore namespace
+transform_verify_expected: ""
+# Custom: GVKO + operation + path + value
+transform_cr_group: ""        # e.g. apps
+transform_cr_version: ""      # e.g. v1
+transform_cr_kind: ""         # e.g. Deployment
+transform_cr_object: ""       # resource name
+transform_operation: "Replace"
+transform_path: ""            # e.g. /spec/replicas
+transform_value: ""           # e.g. "2"
+# Plan to restore from (its latest backup). Leave empty to use this run's plan;
+# set to an EXISTING plan for standalone restore runs.
+restore_from_plan: ""
+# Namespace to select in the restore wizard. Leave empty to pick the first
+# available option.
+restore_target_namespace: ""
+# Restore to check the status of in the UI. Leave empty to use the restore
+# created in this run; set to an EXISTING restore name for standalone runs.
+restore_check_name: ""
+policy_name: auto-retention-policy
+# Namespace for the scheduling policy. Leave empty to use the same namespace
+# as the other resources (app namespace / backup_namespace). Set for standalone
+# policy runs.
+policy_namespace: ""
+# If true, delete all resources created in the run (target, policy, backup
+# plan, backup, restore, secret, namespaces). If false, cleanup is skipped.
+cleanup_enabled: false
