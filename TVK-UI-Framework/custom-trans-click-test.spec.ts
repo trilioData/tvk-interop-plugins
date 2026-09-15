@@ -1,0 +1,61 @@
+import { test, expect } from '@playwright/test';
+
+test.use({
+  ignoreHTTPSErrors: true
+});
+
+test('test', async ({ page }) => {
+  await page.goto('https://trilio-system.apps.<your-cluster>/#/login');
+  await page.getByRole('button', { name: 'Openshift Sign-in via' }).click();
+  await page.getByRole('textbox', { name: 'Username' }).click();
+  await page.getByRole('textbox', { name: 'Username' }).fill('kubeadmin');
+  await page.getByRole('textbox', { name: 'Username' }).press('Tab');
+  await page.getByRole('textbox', { name: 'Password' }).fill('');
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.goto('https://trilio-system.apps.<your-cluster>/#/cluster-management/list');
+  await page.getByRole('link', { name: 'Backup & Recovery' }).click();
+  await page.getByRole('link', { name: 'Backup Plans' }).click();
+  await page.getByRole('columnheader', { name: 'Type', description: 'Toggle Sort By', exact: true }).click();
+  await page.locator('tr:nth-child(10) > td:nth-child(12) > span > span > .backupplan-list-row-action > .dropdown > .batch-all > .action-toggle-button').click();
+  await page.getByRole('button', { name: 'View Backup & Restore Summary' }).click();
+  await page.getByText('Available(1)').click();
+  await page.getByRole('button', { name: 'Restore' }).click();
+  await page.getByRole('textbox', { name: 'Name' }).click();
+  await page.getByRole('textbox', { name: 'Name' }).fill('test-rest');
+  await page.getByText('Select Namespace').click();
+  await page.getByText('es-hook-test', { exact: true }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByText('Add Transform Components').click();
+  await page.getByTestId('restore-wizard-container').getByRole('textbox', { name: 'Search' }).click();
+  await page.getByTestId('restore-wizard-container').getByRole('textbox', { name: 'Search' }).fill('pers');
+  await page.getByRole('cell', { name: 'PersistentVolumeClaim' }).click();
+  await page.locator('.c-pointer.fg-primary.add-transform-icon > path').click();
+  await page.getByRole('textbox', { name: 'Transform Name' }).click();
+  await page.getByRole('textbox', { name: 'Transform Name' }).fill('test-trans1');
+  await page.getByText('Select...').click();
+  await page.locator('#react-select-17-input').fill('storag');
+  await page.getByText('/spec/storageClassName', { exact: true }).click();
+  await page.getByRole('textbox', { name: 'Value' }).click();
+  await page.getByRole('textbox', { name: 'Value' }).fill('""');
+  await page.getByRole('textbox', { name: 'Value' }).press('ArrowLeft');
+  await page.getByRole('textbox', { name: 'Value' }).fill('"trans-storageclass"');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await page.getByRole('button', { name: 'Apply' }).press('Insert');
+  await page.getByTestId('restore-wizard-container').getByRole('textbox', { name: 'Search' }).fill('pers');
+  await page.locator('div').filter({ hasText: /^Select\.\.\.$/ }).nth(2).click();
+  await page.locator('#react-select-22-input').fill('stora');
+  await page.getByText('/spec/storageClassName', { exact: true }).click();
+  await page.locator('div').filter({ hasText: /^\/spec\/storageClassName$/ }).nth(1).click();
+  await page.locator('div').filter({ hasText: /^\/spec\/storageClassName$/ }).nth(1).click();
+  await page.locator('#react-select-22-input').dblclick();
+  await page.locator('#react-select-22-option-18').click();
+  await page.locator('div').filter({ hasText: /^\/spec\/storageClassName$/ }).nth(1).click();
+  await page.locator('div').filter({ hasText: /^\/spec\/storageClassName$/ }).nth(1).click();
+  await page.locator('div').filter({ hasText: /^\/spec\/storageClassName$/ }).nth(1).click();
+  await page.locator('#react-select-22-option-18').click();
+  await page.locator('div').filter({ hasText: /^\/spec\/storageClassName$/ }).nth(1).click();
+  await page.locator('div').filter({ hasText: /^\/spec\/storageClassName$/ }).nth(1).click();
+  await page.locator('.c-pointer.fg-light-gray.icon-lg > path').click();
+});

@@ -1,0 +1,58 @@
+[
+  {
+    "op": "add",
+    "path": "/spec/storageDeviceSets/-",
+    "value": {
+      "name": "ocs-deviceset-localblock-150",
+      "count": 1,
+      "replica": 3,
+      "portable": false,
+      "config": {},
+      "placement": {},
+      "preparePlacement": {},
+      "resources": {},
+      "dataPVCTemplate": {
+        "metadata": {},
+        "spec": {
+          "accessModes": ["ReadWriteOnce"],
+          "resources": {
+            "requests": {
+              "storage": "150Gi"
+            }
+          },
+          "storageClassName": "localblock-150",
+          "volumeMode": "Block"
+        },
+        "status": {}
+      }
+    }
+  },
+  {
+    "op": "add",
+    "path": "/spec/storageDeviceSets/-",
+    "value": {
+      "name": "ocs-deviceset-localblock-125",
+      "count": 1,
+      "replica": 3,
+      "portable": false,
+      "config": {},
+      "placement": {},
+      "preparePlacement": {},
+      "resources": {},
+      "dataPVCTemplate": {
+        "metadata": {},
+        "spec": {
+          "accessModes": ["ReadWriteOnce"],
+          "resources": {
+            "requests": {
+              "storage": "125Gi"
+            }
+          },
+          "storageClassName": "localblock-125",
+          "volumeMode": "Block"
+        },
+        "status": {}
+      }
+    }
+  }
+]

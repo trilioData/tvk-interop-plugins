@@ -1,0 +1,37 @@
+# Replica-1 CephBlockPool pinned to the 'localdisk' device class (OSDs 9-14,
+# the 825 GiB of raw local disks) plus a StorageClass that consumes it.
+# Existing thin-csi-backed pools target device class 'ssd' and are untouched.
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: ocs-storagecluster-cephblockpool-localdisk
+  namespace: openshift-storage
+spec:
+  deviceClass: localdisk
+  failureDomain: host
+  replicated:
+    size: 1
+    # size < 2 is rejected unless this is explicitly disabled.
+    requireSafeReplicaSize: false
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ocs-storagecluster-ceph-rbd-localdisk
+provisioner: openshift-storage.rbd.csi.ceph.com
+parameters:
+  clusterID: openshift-storage
+  pool: ocs-storagecluster-cephblockpool-localdisk
+  imageFormat: "2"
+  imageFeatures: layering,deep-flatten,exclusive-lock,object-map,fast-diff
+  csi.storage.k8s.io/fstype: ext4
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: openshift-storage
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: openshift-storage
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: openshift-storage
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: Immediate

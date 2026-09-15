@@ -1,0 +1,51 @@
+# Two LocalVolumeSets so each ODF deviceSet gets uniformly-sized OSDs.
+# Size windows are deliberately tight so they can never match the running
+# 100Gi ceph_bluestore OSD disks, the 199Gi root partition, or the 0Gi nbd devices.
+---
+apiVersion: local.storage.openshift.io/v1alpha1
+kind: LocalVolumeSet
+metadata:
+  name: localblock-150
+  namespace: openshift-local-storage
+spec:
+  nodeSelector:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+              - ocp-cluster2-rzfkh-worker-0-vhd4m
+              - ocp-cluster2-rzfkh-worker-0-xkdsd
+              - ocp-cluster2-rzfkh-worker-0-dgbk2
+  storageClassName: localblock-150
+  volumeMode: Block
+  maxDeviceCount: 1
+  deviceInclusionSpec:
+    deviceTypes:
+      - disk
+    minSize: 140Gi
+    maxSize: 160Gi
+---
+apiVersion: local.storage.openshift.io/v1alpha1
+kind: LocalVolumeSet
+metadata:
+  name: localblock-125
+  namespace: openshift-local-storage
+spec:
+  nodeSelector:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+              - ocp-cluster2-rzfkh-worker-0-vhd4m
+              - ocp-cluster2-rzfkh-worker-0-xkdsd
+              - ocp-cluster2-rzfkh-worker-0-dgbk2
+  storageClassName: localblock-125
+  volumeMode: Block
+  maxDeviceCount: 1
+  deviceInclusionSpec:
+    deviceTypes:
+      - disk
+    minSize: 120Gi
+    maxSize: 130Gi

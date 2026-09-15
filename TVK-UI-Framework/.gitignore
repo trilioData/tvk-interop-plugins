@@ -1,0 +1,31 @@
+# ---- secrets: never commit ------------------------------------------------
+# Real cluster configs carry kubeadmin passwords and S3 keys. Only the
+# sanitised template (config/example-config.yaml) is tracked.
+config/*-config.yaml
+!config/example-config.yaml
+*.kubeconfig
+kubeconfig
+.env
+
+# ---- test output ---------------------------------------------------------
+screenshots/
+explore/
+*.log
+report.html
+*-report.html
+*-report-standalone.html
+collect.log
+
+# ---- vendored tooling (oc.exe is 103MB, over GitHub's 100MB limit) -------
+oc/
+oc.zip
+
+# ---- python -------------------------------------------------------------
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+
+# ---- reference files ----------------------------------------------------
+create_storage_class.txt
