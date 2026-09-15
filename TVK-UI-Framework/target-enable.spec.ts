@@ -22,7 +22,7 @@ test('test', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Export' }).click();
   await page.getByRole('textbox', { name: 'Export' }).fill('');
   await page.getByRole('textbox', { name: 'Export' }).click();
-  await page.getByRole('textbox', { name: 'Export' }).fill('34.66.17.160:/src/nfs/new-rhu');
+  await page.getByRole('textbox', { name: 'Export' }).fill('<nfs_serve_ip>:/src/nfs/new-rhu');
   await page.getByRole('textbox', { name: 'Export' }).press('ControlOrMeta+c');
   await page.goto('https://trilio-system.apps.<your-cluster>/#/login');
 });

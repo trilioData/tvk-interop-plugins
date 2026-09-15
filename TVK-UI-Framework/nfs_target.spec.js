@@ -22,7 +22,7 @@ test('test', async ({ page }) => {
   await page.getByTestId('form-wizard-children').getByText('tvk-test-app-q3w', { exact: true }).click();
   await page.getByRole('textbox', { name: 'Export' }).click();
   await page.getByRole('textbox', { name: 'Export' }).click();
-  await page.getByRole('textbox', { name: 'Export' }).fill('34.66.17.160:/src/nfs/new-rhu');
+  await page.getByRole('textbox', { name: 'Export' }).fill('<nfs_serve_ip>:/src/nfs/new-rhu');
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('textbox', { name: 'What would be the name of' }).click();
   await page.getByRole('textbox', { name: 'What would be the name of' }).fill('nfs-test');
