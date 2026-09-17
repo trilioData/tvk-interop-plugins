@@ -20,7 +20,7 @@ target:
   region: us-east-1
   access_key: ""      # or env TVK_S3_ACCESS_KEY      # or set env TVK_S3_ACCESS_KEY
   secret_key: ""      # or env TVK_S3_SECRET_KEY      # or set env TVK_S3_SECRET_KEY
-  nfs_path: 34.66.17.160:/src/nfs/new-rhu
+  nfs_path: <nfs_serve_ip>:/src/nfs/new-rhu
   # Namespace to create the target in. Empty = app namespace (integrated);
   # set explicitly for standalone target runs.
   namespace: ""

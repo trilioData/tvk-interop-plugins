@@ -101,8 +101,16 @@ def test_create_backupplan(logged_in_page, cfg):
 
 @pytest.mark.run(order=6)
 @pytest.mark.backup
-def test_trigger_backup(logged_in_page, cfg):
+def test_trigger_backup(logged_in_page, kube, cfg):
+    # Trigger the backup via the UI
     BackupPlansPage(logged_in_page, cfg).trigger_backup()
+    # Wait for completion via the Backup CR (reliable, 45-min timeout)
+    ns = cfg.backup_namespace or cfg.app.namespace
+    kube.wait_for_backup(ns, cfg.backup_name, timeout_s=2700)
+    # Close the STATUS LOG popup once the backup is done, so it doesn't block
+    # the next step
+    BackupPlansPage(logged_in_page, cfg)._close_status_popup()
+
 
 @pytest.mark.run(order=7)
 @pytest.mark.backup_status

@@ -405,6 +405,14 @@ class BackupPlansPage(BasePage):
         self.shot("backup-triggered")
         self._wait_backup_done()
 
+        # The backup is now triggered. Completion is verified via the
+        # Kubernetes API (Backup CR), so just close the STATUS LOG popup
+        # best-effort and return — don't block on the UI.
+        try:
+            self._close_status_popup()
+        except Exception as e:
+            print(f"[backup] status popup close was not clean ({e}) — continuing")
+
     def _wait_backup_done(self):
         """Poll the backup STATUS LOG popup until the backup reaches
         'Available' (completed) or the operation timeout elapses, then close
