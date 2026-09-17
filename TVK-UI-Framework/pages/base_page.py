@@ -161,13 +161,24 @@ class BasePage:
         p.wait_for_timeout(500)
         self.shot(f"{shot_name}-selected")
 
+    def _wait_dropdown_loading(self, timeout_ms: int = 30000):
+        """If the react-select shows Loading, wait until it is gone."""
+        p = self.page
+        for loc in (
+            p.get_by_text(re.compile(r"^\s*Loading", re.I)),
+            p.locator("[class*='loadingIndicator'], [class*='-loading']"),
+        ):
+            try:
+                if loc.first.is_visible(timeout=800):
+                    loc.first.wait_for(state="hidden", timeout=timeout_ms)
+                    return
+            except Exception:
+                continue
+
     def select_react_dropdown(self, placeholder_regex: str, option_text: str,
                               type_filter: str | None = None, shot_name: str = "dropdown"):
-        """Select an option in a react-select control (the pattern used across
-        the Trilio wizards). placeholder_regex is the EXACT placeholder text
-        of the closed control, e.g. r'^Select Namespace$', r'^Select$',
-        r'^Select Option$'. If type_filter is given, it is typed into the
-        search box to filter before picking the option."""
+        """Open this dropdown only, wait if Loading, type into the focused
+        input (not another Select on the form), then click the option."""
         p = self.page
         container = p.locator("div").filter(
             has_text=re.compile(placeholder_regex)).nth(1)
@@ -175,19 +186,23 @@ class BasePage:
             container.click()
         except Exception:
             p.get_by_text(re.compile(placeholder_regex.strip("^$"), re.I)).last.click()
-        p.wait_for_timeout(600)
+        p.wait_for_timeout(400)
+        self._wait_dropdown_loading()
 
         if type_filter:
+            # The control we just opened owns the last react-select input.
             rs = p.locator("input[id^='react-select'][id$='-input']").last
             try:
                 if rs.is_visible(timeout=2000):
                     rs.fill(type_filter)
                     p.wait_for_timeout(800)
+                else:
+                    p.keyboard.type(type_filter, delay=50)
+                    p.wait_for_timeout(800)
             except Exception:
                 p.keyboard.type(type_filter, delay=50)
                 p.wait_for_timeout(800)
 
-        # Options render inside the wizard's form-wizard-children container
         option = p.get_by_test_id("form-wizard-children").get_by_text(
             option_text, exact=True)
         try:
@@ -195,7 +210,10 @@ class BasePage:
                 option = p.get_by_text(option_text, exact=True).last
         except Exception:
             option = p.get_by_text(option_text, exact=True).last
-        option.click()
+        try:
+            option.click(timeout=8000)
+        except Exception:
+            p.keyboard.press("Enter")
         p.wait_for_timeout(500)
         self.shot(shot_name)
 

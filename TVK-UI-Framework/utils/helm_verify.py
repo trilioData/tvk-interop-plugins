@@ -1,6 +1,5 @@
 """Strict CR-status waits for the helm-transform flow — kept separate from
-kube_client's wait_for_backup/wait_for_restore so the existing flows are
-untouched.
+kube_client's wait_for_restore so the existing flows are untouched.
 
 Unlike the shared helpers, these match the EXACT resource name and never fall
 back to 'latest' (which caused false positives by matching unrelated

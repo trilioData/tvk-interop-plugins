@@ -101,6 +101,12 @@ class KubeClient:
             self.api_client = client.ApiClient()
             self._token = None
             return
+        if self.cfg.cluster.cluster_type in ("master", "credentials_db") or not self.cfg.cluster.console_url:
+            raise RuntimeError(
+                "No kubeconfig set. cluster_type "
+                f"'{self.cfg.cluster.cluster_type}' cannot derive an OpenShift "
+                "API from the manager URL. Set cluster.kubeconfig (or --kubeconfig) "
+                "to the managed cluster so app/helm/restore CR waits can run.")
         # Username/password -> bearer token (OCP)
         token = self._get_ocp_token()
         self._token = token
@@ -263,61 +269,6 @@ users:
         """Pull the phase string out of a TVK CR status block."""
         st = obj.get("status") or {}
         return str(st.get("status") or st.get("phase") or "").strip()
-
-    def wait_for_backup(self, namespace: str, backup_name: str | None = None,
-                        timeout_s: int = 2700, poll_s: int = 20) -> dict:
-        """Poll the 'backups.triliovault.trilio.io' CR until it reaches
-        Available/Completed, raising on Failed or timeout (default 45 min).
-
-        If backup_name is given, that CR is tracked; otherwise the most
-        recently created backup in the namespace is used. Returns the CR.
-        """
-        version = self._tvk_version()
-        plural = "backups"
-        done = {"available", "completed", "succeeded"}
-        failed = {"failed", "error"}
-        deadline = time.time() + timeout_s
-        print(f"[kube] Polling {plural}.{self.TVK_GROUP}/{version} in '{namespace}' "
-              f"(timeout {timeout_s}s) for backup "
-              f"'{backup_name or '<latest>'}'...")
-
-        while time.time() < deadline:
-            try:
-                resp = self.custom.list_namespaced_custom_object(
-                    self.TVK_GROUP, version, namespace, plural)
-                items = resp.get("items", [])
-            except ApiException as e:
-                print(f"[kube] list backups failed ({e.status}) — retrying")
-                items = []
-
-            target = None
-            if backup_name:
-                target = next((i for i in items
-                               if i.get("metadata", {}).get("name") == backup_name), None)
-            if target is None and items:
-                target = sorted(
-                    items,
-                    key=lambda i: i.get("metadata", {}).get("creationTimestamp", ""))[-1]
-
-            if target is not None:
-                name = target.get("metadata", {}).get("name", "?")
-                status = self._cr_status(target)
-                remaining = int(deadline - time.time())
-                print(f"[kube] backup '{name}' status={status or '<none>'} "
-                      f"({remaining}s left)")
-                if status.lower() in done:
-                    print(f"[kube] backup '{name}' completed: {status}")
-                    return target
-                if status.lower() in failed:
-                    raise AssertionError(f"Backup '{name}' failed with status '{status}'")
-            else:
-                print(f"[kube] no backups found in '{namespace}' yet — waiting")
-
-            time.sleep(poll_s)
-
-        raise TimeoutError(
-            f"Backup '{backup_name or '<latest>'}' in '{namespace}' did not "
-            f"complete within {timeout_s}s")
 
     def delete_custom(self, plural: str, name: str, namespace: str):
         """Delete a namespaced TVK custom resource (ignore-not-found)."""
