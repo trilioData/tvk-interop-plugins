@@ -5,6 +5,8 @@ config/*-config.yaml
 !config/example-config.yaml
 *.kubeconfig
 kubeconfig
+credentials.db
+testData/credentials.db
 .env
 
 # ---- test output ---------------------------------------------------------

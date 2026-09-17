@@ -1,0 +1,68 @@
+apiVersion: cassandra.datastax.com/v1beta1
+kind: CassandraDatacenter
+metadata:
+  name: dc1
+spec:
+  clusterName: cassandra
+  serverType: cassandra
+  serverVersion: "4.0.1"
+
+  # Avoid cr.dtsx.io / cr.k8ssandra.io (Docker Hub proxies) which hit
+  # unauthenticated pull rate limits. k8ssandra images come from GHCR.
+  # cass-config-builder is only published on Docker Hub; authenticated
+  # pulls are configured by install-operator.sh when DOCKERHUB_* is set.
+  serverImage: ghcr.io/k8ssandra/cass-management-api:4.0.1-ubi
+  configBuilderImage: docker.io/datastax/cass-config-builder:1.0-ubi8
+  systemLoggerImage: ghcr.io/k8ssandra/system-logger:v1.21.1
+
+  managementApiAuth:
+    insecure: {}
+
+  size: 1
+
+  # Give the single node enough heap and write time to ingest ~10 GB.
+  resources:
+    requests:
+      memory: 3Gi
+      cpu: "500m"
+    limits:
+      memory: 4Gi
+      cpu: "2"
+
+  config:
+    cassandra-yaml:
+      write_request_timeout_in_ms: 20000
+    jvm-server-options:
+      initial_heap_size: 2G
+      max_heap_size: 2G
+
+  storageConfig:
+    cassandraDataVolumeClaimSpec:
+      #storageClassName:   # filled by install-operator.sh when STORAGE_CLASS is set
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 120Gi
+
+  podTemplateSpec:
+    spec:
+      volumes:
+        - name: app-secret
+          secret:
+            secretName: cassandra-app-secret
+
+        - name: app-config
+          configMap:
+            name: cassandra-config
+
+      containers:
+        - name: cassandra
+          volumeMounts:
+            - name: app-secret
+              mountPath: /opt/app-secret
+              readOnly: true
+
+            - name: app-config
+              mountPath: /opt/app-config
+              readOnly: true

@@ -1,4 +1,6 @@
-# Example config file — pass with: pytest --config-file config/example-config.yaml
+# Generic OpenShift config. Copy and fill <your-cluster> + password.
+#   pytest --tvk-config config/example-config.yaml
+# For qa-manual / master.k8strilio.net use config/qa-manual-config.yaml instead.
 cluster:
   cluster_type: ocp
   trilio_url: https://trilio-system.apps.<your-cluster>/#/login
@@ -6,6 +8,7 @@ cluster:
   username: kubeadmin
   password: "<CLUSTER_PASSWORD>"
   kubeconfig: ""
+  credentials_db: ""
 
 target:
   name: auto-target
@@ -46,6 +49,20 @@ helm_app:
   # without admin (no 'oc adm policy' steps)
   openshift: false
   ready_timeout_s: 1200
+
+# Cassandra operator flow (pytest -m cassandra). Namespace is not suffixed.
+cassandra:
+  namespace: cass-oper-ns
+  operator_namespace: openshift-operators
+  dc_name: dc1
+  # Empty = cluster default StorageClass. Set only to pin a class (e.g. csi-gce-pd-tru).
+  storage_class: ""
+  operator_name: cass-operator
+  target_size_mb: 500
+  if_exists_proceed: true
+  openshift: true
+  ready_timeout_s: 1200
+  insert_timeout_s: 3600
 
 # Namespace the backup plan protects. Leave empty to use the auto-created
 # demo-app namespace (tvk-test-app-<suffix>). Set to an EXISTING namespace

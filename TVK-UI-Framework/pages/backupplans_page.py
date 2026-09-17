@@ -403,6 +403,7 @@ class BackupPlansPage(BasePage):
                 btn.click()
         settle(p)
         self.shot("backup-triggered")
+        self._wait_backup_done()
 
         # The backup is now triggered. Completion is verified via the
         # Kubernetes API (Backup CR), so just close the STATUS LOG popup

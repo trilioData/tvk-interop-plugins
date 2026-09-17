@@ -30,13 +30,16 @@ class HelmBackupPlanPage(BasePage):
         p.wait_for_timeout(1200)
         self.shot("helmbp-application")
 
-        # Namespace (react-select), Name, Target (react-select 'Select')
+        # Same as backupplans_page: Namespace (filter prefix), Name, Target (Select, no type)
         self.select_react_dropdown(r"^Select Namespace$", namespace,
                                    type_filter=namespace[:5],
                                    shot_name="helmbp-namespace")
         name_box = p.get_by_role("textbox", name=re.compile(r"^\s*Name", re.I)).first
+        if not name_box.is_visible(timeout=2000):
+            name_box = p.get_by_placeholder(re.compile(r"name", re.I)).first
         name_box.click()
         name_box.fill(plan_name)
+        self.shot("helmbp-name-filled")
         self.select_react_dropdown(r"^Select$", target, shot_name="helmbp-target")
 
         # Next -> component selection

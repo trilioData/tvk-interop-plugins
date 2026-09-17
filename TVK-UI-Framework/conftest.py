@@ -24,9 +24,12 @@ def pytest_addoption(parser):
     g.addoption("--console-url", default=None, help="Cluster console URL (OCP web console)")
     g.addoption("--username", default=None, help="Cluster username")
     g.addoption("--password", default=None, help="Cluster password")
-    g.addoption("--cluster-type", default=None, choices=["ocp", "vanilla", "eks", "gke", "aks"],
+    g.addoption("--cluster-type", default=None,
+                choices=["ocp", "vanilla", "eks", "gke", "aks", "master", "credentials_db"],
                 help="Kubernetes cluster flavour (drives the login strategy)")
     g.addoption("--kubeconfig", default=None, help="Path to kubeconfig for CLI operations")
+    g.addoption("--credentials-db", default=None,
+                help="Path to credentials.db (cluster_type=master)")
     g.addoption("--tvk-config", default=None, help="YAML file overriding any config value")
     # target options
     g.addoption("--target-type", default=None, choices=["s3", "nfs"])
@@ -65,6 +68,13 @@ def cfg(request) -> FrameworkConfig:
     if opt("--password"):      c.cluster.password = opt("--password")
     if opt("--cluster-type"):  c.cluster.cluster_type = opt("--cluster-type")
     if opt("--kubeconfig"):    c.cluster.kubeconfig = opt("--kubeconfig")
+    if opt("--credentials-db"): c.cluster.credentials_db = opt("--credentials-db")
+
+    # Resolve a relative credentials.db against the framework root (this file's parent)
+    if c.cluster.credentials_db and not os.path.isabs(c.cluster.credentials_db):
+        root = os.path.dirname(os.path.abspath(__file__))
+        c.cluster.credentials_db = os.path.normpath(
+            os.path.join(root, c.cluster.credentials_db))
     if opt("--target-type"):   c.target.type = opt("--target-type")
     if opt("--s3-bucket"):     c.target.bucket = opt("--s3-bucket")
     if opt("--s3-url"):        c.target.s3_url = opt("--s3-url")
@@ -122,7 +132,11 @@ def dashboard(logged_in_page, cfg) -> DashboardPage:
 # Tests that are self-contained flows, not part of the main ordered E2E
 # chain. They must be selected explicitly (e.g. `-m helm_transform`) and
 # never run just because someone did a bare `pytest` / `-m "not cleanup"`.
-STANDALONE_ONLY_MARKERS = {"target_browsing", "helm_transform", "custom_transform"}
+STANDALONE_ONLY_MARKERS = {
+    "target_browsing", "helm_transform", "custom_transform",
+    "cassandra", "cassandra_app", "cassandra_backupplan",
+    "cassandra_application_backupplan", "cassandra_backup",
+}
 
 
 def pytest_collection_modifyitems(config, items):
