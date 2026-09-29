@@ -5,8 +5,18 @@ set -e
 NAMESPACE="${NAMESPACE:-cass-oper-ns}"
 OPERATOR_NAMESPACE="${OPERATOR_NAMESPACE:-openshift-operators}"
 DC_NAME="${DC_NAME:-dc1}"
+CLUSTER_NAME="${CLUSTER_NAME:-cassandra}"
 STORAGE_CLASS="${STORAGE_CLASS:-}"
 PULL_SECRET_NAME="${PULL_SECRET_NAME:-dockerhub-pull}"
+IF_EXISTS_PROCEED="${IF_EXISTS_PROCEED:-true}"
+SKIP_DATACENTER="${SKIP_DATACENTER:-false}"
+
+_if_exists_proceed() {
+  case "${IF_EXISTS_PROCEED}" in
+    true|TRUE|True|1|yes|YES) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 echo "=================================================="
 echo "Creating namespace if it doesn't exist"
@@ -45,33 +55,51 @@ echo "=================================================="
 echo "Installing Cassandra Operator"
 echo "=================================================="
 
-oc apply -f subscription.yaml
-
-echo "=================================================="
-echo "Waiting for Operator CSV"
-echo "=================================================="
-
-CSV=""
-for i in {1..60}; do
-  CSV=$(oc get csv -n ${OPERATOR_NAMESPACE} --no-headers 2>/dev/null | grep cass-operator | awk '{print $1}' || true)
-
-  if [ ! -z "$CSV" ]; then
-    PHASE=$(oc get csv ${CSV} -n ${OPERATOR_NAMESPACE} -o jsonpath='{.status.phase}')
-    echo "CSV=${CSV} PHASE=${PHASE}"
-
-    if [ "${PHASE}" == "Succeeded" ]; then
-      echo "Operator installation completed"
-      break
-    fi
+_csv_ok=false
+CSV=$(oc get csv -n ${OPERATOR_NAMESPACE} --no-headers 2>/dev/null | grep cass-operator | awk '{print $1}' || true)
+PHASE=""
+if [ -n "$CSV" ]; then
+  PHASE=$(oc get csv ${CSV} -n ${OPERATOR_NAMESPACE} -o jsonpath='{.status.phase}' 2>/dev/null || true)
+fi
+if [ "${PHASE}" == "Succeeded" ]; then
+  if _if_exists_proceed; then
+    echo "cass-operator already Succeeded — skipping install (IF_EXISTS_PROCEED=${IF_EXISTS_PROCEED})"
+    _csv_ok=true
+  else
+    echo "ERROR: cass-operator already installed and IF_EXISTS_PROCEED=false" >&2
+    exit 1
   fi
+fi
 
-  sleep 10
-done
+if [ "${_csv_ok}" != "true" ]; then
+  oc apply -f subscription.yaml
 
-if [ -z "${CSV}" ] || [ "${PHASE}" != "Succeeded" ]; then
-  echo "ERROR: cass-operator CSV did not reach Succeeded" >&2
-  oc get csv -n ${OPERATOR_NAMESPACE} || true
-  exit 1
+  echo "=================================================="
+  echo "Waiting for Operator CSV"
+  echo "=================================================="
+
+  CSV=""
+  for i in {1..60}; do
+    CSV=$(oc get csv -n ${OPERATOR_NAMESPACE} --no-headers 2>/dev/null | grep cass-operator | awk '{print $1}' || true)
+
+    if [ ! -z "$CSV" ]; then
+      PHASE=$(oc get csv ${CSV} -n ${OPERATOR_NAMESPACE} -o jsonpath='{.status.phase}')
+      echo "CSV=${CSV} PHASE=${PHASE}"
+
+      if [ "${PHASE}" == "Succeeded" ]; then
+        echo "Operator installation completed"
+        break
+      fi
+    fi
+
+    sleep 10
+  done
+
+  if [ -z "${CSV}" ] || [ "${PHASE}" != "Succeeded" ]; then
+    echo "ERROR: cass-operator CSV did not reach Succeeded" >&2
+    oc get csv -n ${OPERATOR_NAMESPACE} || true
+    exit 1
+  fi
 fi
 
 echo "=================================================="
@@ -79,6 +107,14 @@ echo "Verifying Cassandra CRDs"
 echo "=================================================="
 
 oc get crd | grep cassandra
+
+if [ "${SKIP_DATACENTER}" = "true" ] || [ "${SKIP_DATACENTER}" = "1" ]; then
+  echo "SKIP_DATACENTER=${SKIP_DATACENTER} — operator only, not creating DC/secret"
+  echo "=================================================="
+  echo "SUCCESS (operator only)"
+  echo "=================================================="
+  exit 0
+fi
 
 echo "=================================================="
 echo "Creating Secret and ConfigMap"
@@ -90,15 +126,26 @@ echo "=================================================="
 echo "Creating CassandraDatacenter"
 echo "=================================================="
 
-_dc_yaml=$(sed "s/^  name: dc1$/  name: ${DC_NAME}/" cassandra-datacenter.yaml)
-if [ -n "${STORAGE_CLASS}" ]; then
-  echo "Using storageClassName=${STORAGE_CLASS}"
-  _dc_yaml=$(printf '%s\n' "${_dc_yaml}" | sed \
-    "s|^[[:space:]]*#*storageClassName:.*|      storageClassName: ${STORAGE_CLASS}|")
+if oc get cassandradatacenter "${DC_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+  if _if_exists_proceed; then
+    echo "CassandraDatacenter ${DC_NAME} already exists — skipping apply (IF_EXISTS_PROCEED=${IF_EXISTS_PROCEED})"
+  else
+    echo "ERROR: CassandraDatacenter ${DC_NAME} already exists and IF_EXISTS_PROCEED=false" >&2
+    exit 1
+  fi
 else
-  echo "STORAGE_CLASS unset — using the cluster default StorageClass"
+  _dc_yaml=$(sed -e "s/^  name: dc1$/  name: ${DC_NAME}/" \
+                 -e "s/^  clusterName: cassandra$/  clusterName: ${CLUSTER_NAME}/" \
+                 cassandra-datacenter.yaml)
+  if [ -n "${STORAGE_CLASS}" ]; then
+    echo "Using storageClassName=${STORAGE_CLASS}"
+    _dc_yaml=$(printf '%s\n' "${_dc_yaml}" | sed \
+      "s|^[[:space:]]*#*storageClassName:.*|      storageClassName: ${STORAGE_CLASS}|")
+  else
+    echo "STORAGE_CLASS unset — using the cluster default StorageClass"
+  fi
+  printf '%s\n' "${_dc_yaml}" | oc apply -f - -n "${NAMESPACE}"
 fi
-printf '%s\n' "${_dc_yaml}" | oc apply -f - -n "${NAMESPACE}"
 
 echo "=================================================="
 echo "Waiting for Cassandra Pod"

@@ -225,9 +225,12 @@ class CassandraBackupPlanPage(BasePage):
         SpecificObject -> name -> Apply."""
         p = self.page
         try:
-            p.get_by_text(re.compile(r"^\s*Search\s*$", re.I)).last.click()
+            p.get_by_placeholder(re.compile(r"^\s*Search\s*$", re.I)).last.click()
         except Exception:
-            p.locator("div").filter(has_text=re.compile(r"^\s*Search\s*$")).nth(1).click()
+            try:
+                p.get_by_text(re.compile(r"^\s*Search\s*$", re.I)).last.click()
+            except Exception:
+                p.locator("div").filter(has_text=re.compile(r"^\s*Search\s*$")).nth(1).click()
         p.wait_for_timeout(400)
         rs = p.locator("input[id^='react-select'][id$='-input']").last
         try:
@@ -445,18 +448,11 @@ class CassandraBackupPlanPage(BasePage):
         """Leave the modal open. Poll it until Available or Failed."""
         p = self.page
         deadline = time.time() + timeout_s
-        saw_progress = False
         fail_pat = re.compile(r"\b(Failed|Error)\b", re.I)
         while time.time() < deadline:
             panel = self._status_log_panel()
             try:
-                if panel.get_by_text(re.compile(r"In\s*Progress", re.I)).first.is_visible(
-                        timeout=800):
-                    saw_progress = True
-            except Exception:
-                pass
-            try:
-                if saw_progress and panel.get_by_text(fail_pat).first.is_visible(timeout=800):
+                if panel.get_by_text(fail_pat).first.is_visible(timeout=800):
                     self.shot("cass-backup-failed")
                     raise AssertionError(
                         "Backup reported Failed on STATUS LOG — see "
@@ -465,7 +461,7 @@ class CassandraBackupPlanPage(BasePage):
                 raise
             except Exception:
                 pass
-            if saw_progress and self._backup_finished():
+            if self._backup_finished():
                 self.shot("cass-backup-complete-popup")
                 print("[cassandra] STATUS LOG shows Available")
                 return

@@ -1,8 +1,7 @@
 """Backups page object.
 
 Note: this Trilio UI has no separate 'Backups' nav item — backups live under
-their Backup Plan (and their progress is shown in the STATUS LOG popup, which
-BackupPlansPage._wait_backup_done already polls to completion). So these
+their Backup Plan (progress is shown in the STATUS LOG popup). So these
 methods work off the Backup Plans page rather than a non-existent section.
 """
 import re

@@ -16,11 +16,11 @@ target:
   type: nfs   # objectstore | s3 | nfs
   vendor: AWS         # ObjectStore vendor dropdown: AWS (default) | Ceph | MinIO | ...
   s3_url: https://s3.amazonaws.com
-  bucket: qa-manual-s3
+  bucket: <s3_bucket>
   region: us-east-1
   access_key: ""      # or env TVK_S3_ACCESS_KEY      # or set env TVK_S3_ACCESS_KEY
   secret_key: ""      # or env TVK_S3_SECRET_KEY      # or set env TVK_S3_SECRET_KEY
-  nfs_path: <nfs_serve_ip>:/src/nfs/new-rhu
+  nfs_path: <nfs_server_ip>:/src/nfs/new-rhu
   # Namespace to create the target in. Empty = app namespace (integrated);
   # set explicitly for standalone target runs.
   namespace: ""
@@ -55,9 +55,11 @@ cassandra:
   namespace: cass-oper-ns
   operator_namespace: openshift-operators
   dc_name: dc1
+  cluster_name: cassandra
   # Empty = cluster default StorageClass. Set only to pin a class (e.g. csi-gce-pd-tru).
   storage_class: ""
   operator_name: cass-operator
+  pull_secret_name: dockerhub-pull
   target_size_mb: 500
   if_exists_proceed: true
   openshift: true

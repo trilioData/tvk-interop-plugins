@@ -8,6 +8,7 @@ Run example:
 """
 import os
 import random
+import re
 import string
 
 import pytest
@@ -41,6 +42,8 @@ def pytest_addoption(parser):
     g.addoption("--nfs-path", default=None)
     # app options
     g.addoption("--app-namespace", default=None)
+    g.addoption("--restore-from-plan", default=None,
+                help="Existing backup plan name for a later standalone restore")
 
 
 @pytest.fixture(scope="session")
@@ -83,6 +86,8 @@ def cfg(request) -> FrameworkConfig:
     if opt("--s3-secret-key"): c.target.secret_key = opt("--s3-secret-key")
     if opt("--nfs-path"):      c.target.nfs_path = opt("--nfs-path")
     if opt("--app-namespace"): c.app.namespace = opt("--app-namespace")
+    if opt("--restore-from-plan"):
+        c.restore_from_plan = opt("--restore-from-plan")
 
     # Unique run suffix: every created resource gets '-<3 random chars>' so
     # names stay readable but never collide across runs
@@ -136,17 +141,27 @@ STANDALONE_ONLY_MARKERS = {
     "target_browsing", "helm_transform", "custom_transform",
     "cassandra", "cassandra_app", "cassandra_backupplan",
     "cassandra_application_backupplan", "cassandra_backup",
+    "cassandra_restore",
 }
+
+_MARKER_TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def standalone_markers_requested(expr: str) -> set[str]:
+    """Whole-token standalone markers from a pytest -m expression.
+
+    'cassandra_app' must not also match 'cassandra'; substring checks did.
+    """
+    return set(_MARKER_TOKEN.findall(expr or "")) & STANDALONE_ONLY_MARKERS
 
 
 def pytest_collection_modifyitems(config, items):
-    requested = config.getoption("-m") or ""
-    explicitly_requested = {m for m in STANDALONE_ONLY_MARKERS if m in requested}
+    requested = standalone_markers_requested(config.getoption("-m") or "")
     skip_standalone = pytest.mark.skip(
         reason="standalone-only test — select explicitly, e.g. -m helm_transform")
     for item in items:
         item_markers = {m.name for m in item.iter_markers()}
-        if item_markers & STANDALONE_ONLY_MARKERS and not (item_markers & explicitly_requested):
+        if item_markers & STANDALONE_ONLY_MARKERS and not (item_markers & requested):
             item.add_marker(skip_standalone)
 
 

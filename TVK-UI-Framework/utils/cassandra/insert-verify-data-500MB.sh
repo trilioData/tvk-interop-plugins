@@ -80,8 +80,14 @@ _table_live_bytes() {
   stats="$(_cass_exec nodetool tablestats "${KEYSPACE}.${TABLE}" 2>/dev/null || true)"
   live_total="$(echo "${stats}" | awk '
     /Space used \(live\):/ {
-      gsub(/,/, "", $NF)
-      sum += $NF
+      value = $4
+       unit = $5
+       gsub(/,/, "", value)
+       if (unit == "KiB") value *= 1024
+       else if (unit == "MiB") value *= 1024 * 1024
+       else if (unit == "GiB") value *= 1024 * 1024 * 1024
+       else if (unit == "TiB") value *= 1024 * 1024 * 1024 * 1024
+       sum += value
     }
     END { printf "%.0f", sum }
   ')"
@@ -279,6 +285,10 @@ verify_data() {
 }
 
 if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
-  insert_data || exit 1
-  verify_data || exit 1
+  if [[ "${VERIFY_ONLY:-}" == "true" || "${VERIFY_ONLY:-}" == "1" ]]; then
+    verify_data || exit 1
+  else
+    insert_data || exit 1
+    verify_data || exit 1
+  fi
 fi

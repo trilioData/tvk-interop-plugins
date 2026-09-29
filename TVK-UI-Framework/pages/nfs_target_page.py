@@ -18,25 +18,6 @@ class NFSTargetPage(BasePage):
         from pages.dashboard_page import DashboardPage
         DashboardPage(self.page, self.cfg).goto_section("targets")
 
-    def _react_select(self, placeholder_regex: str, option_text: str,
-                      type_filter: str | None = None):
-        p = self.page
-        p.get_by_text(re.compile(placeholder_regex)).last.click()
-        p.wait_for_timeout(600)
-        if type_filter:
-            rs = p.locator("input[id^='react-select'][id$='-input']").last
-            try:
-                if rs.is_visible(timeout=1500):
-                    rs.fill(type_filter[:12])
-                    p.wait_for_timeout(800)
-            except Exception:
-                pass
-        opt = p.get_by_test_id("form-wizard-children").get_by_text(option_text, exact=True)
-        if not opt.is_visible(timeout=2000):
-            opt = p.get_by_text(option_text, exact=True).last
-        opt.click()
-        p.wait_for_timeout(500)
-
     def create_target(self):
         t = self.cfg.target
         p = self.page
@@ -50,8 +31,8 @@ class NFSTargetPage(BasePage):
         self.shot("nfs-target-create-form")
 
         # 1. Namespace (react-select)
-        self._react_select(r"^Select Namespace$", ns, type_filter=ns)
-        self.shot("nfs-target-namespace-selected")
+        self.select_react_dropdown(r"^Select Namespace$", ns, type_filter=ns,
+                                   shot_name="nfs-target-namespace-selected")
 
         # 2. NFS is the default vendor tab -> Export* = nfs_path
         p.get_by_role("textbox", name=re.compile(r"^Export", re.I)).fill(t.nfs_path)

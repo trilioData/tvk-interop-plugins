@@ -177,8 +177,8 @@ class BasePage:
 
     def select_react_dropdown(self, placeholder_regex: str, option_text: str,
                               type_filter: str | None = None, shot_name: str = "dropdown"):
-        """Open this dropdown only, wait if Loading, type into the focused
-        input (not another Select on the form), then click the option."""
+        """Open this dropdown, wait if Loading, type to filter, then pick the
+        menu option (not the typed text in the input)."""
         p = self.page
         container = p.locator("div").filter(
             has_text=re.compile(placeholder_regex)).nth(1)
@@ -189,31 +189,33 @@ class BasePage:
         p.wait_for_timeout(400)
         self._wait_dropdown_loading()
 
-        if type_filter:
-            # The control we just opened owns the last react-select input.
+        typed = type_filter or option_text
+        if typed:
             rs = p.locator("input[id^='react-select'][id$='-input']").last
             try:
                 if rs.is_visible(timeout=2000):
-                    rs.fill(type_filter)
+                    rs.fill(typed)
                     p.wait_for_timeout(800)
                 else:
-                    p.keyboard.type(type_filter, delay=50)
+                    p.keyboard.type(typed, delay=50)
                     p.wait_for_timeout(800)
             except Exception:
-                p.keyboard.type(type_filter, delay=50)
+                p.keyboard.type(typed, delay=50)
                 p.wait_for_timeout(800)
+            self._wait_dropdown_loading()
 
-        option = p.get_by_test_id("form-wizard-children").get_by_text(
-            option_text, exact=True)
+        # The input also contains option_text after typing — do not click that.
+        opt = p.locator("[role='option']").filter(
+            has_text=re.compile(rf"^{re.escape(option_text)}$", re.I)).first
         try:
-            if not option.is_visible(timeout=2000):
-                option = p.get_by_text(option_text, exact=True).last
+            if opt.is_visible(timeout=4000):
+                opt.click()
+                p.wait_for_timeout(500)
+                self.shot(shot_name)
+                return
         except Exception:
-            option = p.get_by_text(option_text, exact=True).last
-        try:
-            option.click(timeout=8000)
-        except Exception:
-            p.keyboard.press("Enter")
+            pass
+        p.keyboard.press("Enter")
         p.wait_for_timeout(500)
         self.shot(shot_name)
 
