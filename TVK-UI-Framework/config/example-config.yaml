@@ -1,4 +1,6 @@
-# Example config file — pass with: pytest --config-file config/example-config.yaml
+# Generic OpenShift config. Copy and fill <your-cluster> + password.
+#   pytest --tvk-config config/example-config.yaml
+# For qa-manual / master.k8strilio.net use config/qa-manual-config.yaml instead.
 cluster:
   cluster_type: ocp
   trilio_url: https://trilio-system.apps.<your-cluster>/#/login
@@ -6,6 +8,7 @@ cluster:
   username: kubeadmin
   password: "<CLUSTER_PASSWORD>"
   kubeconfig: ""
+  credentials_db: ""
 
 target:
   name: auto-target
@@ -13,11 +16,11 @@ target:
   type: nfs   # objectstore | s3 | nfs
   vendor: AWS         # ObjectStore vendor dropdown: AWS (default) | Ceph | MinIO | ...
   s3_url: https://s3.amazonaws.com
-  bucket: qa-manual-s3
+  bucket: <s3_bucket>
   region: us-east-1
   access_key: ""      # or env TVK_S3_ACCESS_KEY      # or set env TVK_S3_ACCESS_KEY
   secret_key: ""      # or env TVK_S3_SECRET_KEY      # or set env TVK_S3_SECRET_KEY
-  nfs_path: <nfs_serve_ip>:/src/nfs/new-rhu
+  nfs_path: <nfs_server_ip>:/src/nfs/new-rhu
   # Namespace to create the target in. Empty = app namespace (integrated);
   # set explicitly for standalone target runs.
   namespace: ""
@@ -46,6 +49,22 @@ helm_app:
   # without admin (no 'oc adm policy' steps)
   openshift: false
   ready_timeout_s: 1200
+
+# Cassandra operator flow (pytest -m cassandra). Namespace is not suffixed.
+cassandra:
+  namespace: cass-oper-ns
+  operator_namespace: openshift-operators
+  dc_name: dc1
+  cluster_name: cassandra
+  # Empty = cluster default StorageClass. Set only to pin a class (e.g. csi-gce-pd-tru).
+  storage_class: ""
+  operator_name: cass-operator
+  pull_secret_name: dockerhub-pull
+  target_size_mb: 500
+  if_exists_proceed: true
+  openshift: true
+  ready_timeout_s: 1200
+  insert_timeout_s: 3600
 
 # Namespace the backup plan protects. Leave empty to use the auto-created
 # demo-app namespace (tvk-test-app-<suffix>). Set to an EXISTING namespace

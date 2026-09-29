@@ -19,6 +19,9 @@ class ClusterConfig:
     password: str = ""
     # kubeconfig path for CLI-level operations (app install, verification)
     kubeconfig: str = os.environ.get("KUBECONFIG", "")
+    # credentials.db for cluster_type=master (https://master.k8strilio.net/).
+    # Relative paths are resolved from the TVK-UI-Framework root.
+    credentials_db: str = os.environ.get("TVK_CREDENTIALS_DB", "")
 
 
 @dataclass
@@ -80,11 +83,33 @@ class HelmAppConfig:
 
 
 @dataclass
+class CassandraAppConfig:
+    """Cassandra operator + datacenter used by the standalone cassandra flow.
+    Install applies the YAMLs in utils/cassandra/; data seed runs
+    insert-verify-data-500MB.sh. Namespace is NOT auto-suffixed."""
+    namespace: str = "cass-oper-ns"
+    operator_namespace: str = "openshift-operators"
+    dc_name: str = "dc1"
+    cluster_name: str = "cassandra"
+    storage_class: str = ""          # empty = cluster default StorageClass
+    operator_name: str = "cass-operator"
+    pull_secret_name: str = "dockerhub-pull"
+    # Seed size for insert-verify-data-500MB.sh (override for a faster dry run).
+    target_size_mb: int = 500
+    payload_size_bytes: int = 262144
+    if_exists_proceed: bool = True
+    openshift: bool = True          # grant anyuid + apply OLM subscription
+    ready_timeout_s: int = 1200     # operator CSV + CassandraDatacenter
+    insert_timeout_s: int = 3600
+
+
+@dataclass
 class FrameworkConfig:
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     target: TargetConfig = field(default_factory=TargetConfig)
     app: TestAppConfig = field(default_factory=TestAppConfig)
     helm_app: HelmAppConfig = field(default_factory=HelmAppConfig)
+    cassandra: CassandraAppConfig = field(default_factory=CassandraAppConfig)
     backupplan_name: str = "auto-backupplan"
     # Namespace the backup plan should protect. Leave empty to use the
     # auto-created demo-app namespace; set it (in the YAML) to an EXISTING

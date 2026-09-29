@@ -187,6 +187,52 @@ class KubeconfigLoginPage(BaseLoginPage):
         )
 
 
+class CredentialsDbLoginPage(BaseLoginPage):
+    """Trilio Manager (master.k8strilio.net) -> upload credentials.db -> Sign in.
+
+    The hosted console has no OpenShift OAuth and does not take a kubeconfig.
+    It takes the credentials.db file (same flow as upload_credentials + sign_in
+    in the sample LoginPage). After login the UI lands on Cluster Management.
+    """
+
+    FILE_INPUT = "input.custom-file-input, input[type='file']"
+    SUBMIT = "button"
+    CLUSTER_MANAGEMENT = re.compile(r"cluster\s*management", re.I)
+
+    def login(self):
+        p = self.page
+        creds = self.cfg.cluster.credentials_db
+        assert creds, (
+            "cluster.credentials_db must point at a credentials.db file for "
+            f"'{self.cfg.cluster.cluster_type}' login")
+        assert os.path.isfile(creds), f"credentials.db not found: {creds}"
+
+        p.goto(self.cfg.cluster.trilio_url, wait_until="networkidle")
+        self.shot("login-01-credentials-page")
+
+        p.locator(self.FILE_INPUT).first.set_input_files(os.path.abspath(creds))
+        self.shot("login-02-credentials-attached")
+
+        p.locator(self.SUBMIT).filter(
+            has_text=re.compile(r"sign[\s\-]*in", re.I)).first.click()
+        settle(p)
+
+        self._accept_license_if_present()
+        self.shot("login-03-logged-in")
+
+        cluster_mgmt = p.get_by_text(self.CLUSTER_MANAGEMENT).first
+        try:
+            cluster_mgmt.wait_for(state="visible", timeout=30000)
+        except Exception:
+            self.shot("login-cluster-management-missing")
+            raise AssertionError(
+                "credentials.db login did not reach Cluster Management — still on: "
+                f"{p.url} (file={creds})")
+
+        assert "#/login" not in p.url, (
+            f"credentials.db login failed, still on the login page: {p.url}")
+
+
 LOGIN_STRATEGIES = {
     "ocp": OCPLoginPage,
     "vanilla": VanillaLoginPage,
@@ -194,6 +240,9 @@ LOGIN_STRATEGIES = {
     "aks": KubeconfigLoginPage,
     "eks": KubeconfigLoginPage,
     "gke": KubeconfigLoginPage,
+    # Hosted manager: upload credentials.db (https://master.k8strilio.net/).
+    "master": CredentialsDbLoginPage,
+    "credentials_db": CredentialsDbLoginPage,
 }
 
 

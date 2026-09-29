@@ -19,27 +19,6 @@ class TargetsPage(BasePage):
         from pages.dashboard_page import DashboardPage
         DashboardPage(self.page, self.cfg).goto_section("targets")
 
-    # ---------- react-select helper (options live in form-wizard-children) ----
-
-    def _react_select(self, placeholder_regex: str, option_text: str,
-                      type_filter: str | None = None):
-        p = self.page
-        p.get_by_text(re.compile(placeholder_regex)).last.click()
-        p.wait_for_timeout(600)
-        if type_filter:
-            rs = p.locator("input[id^='react-select'][id$='-input']").last
-            try:
-                if rs.is_visible(timeout=1500):
-                    rs.fill(type_filter[:12])
-                    p.wait_for_timeout(800)
-            except Exception:
-                pass
-        opt = p.get_by_test_id("form-wizard-children").get_by_text(option_text, exact=True)
-        if not opt.is_visible(timeout=2000):
-            opt = p.get_by_text(option_text, exact=True).last
-        opt.click()
-        p.wait_for_timeout(500)
-
     # ---------- create ----------
 
     def create_target(self):
@@ -55,8 +34,8 @@ class TargetsPage(BasePage):
         self.shot("target-create-form")
 
         # 1. Namespace (react-select) — the app namespace
-        self._react_select(r"^Select Namespace$", ns, type_filter=ns)
-        self.shot("target-namespace-selected")
+        self.select_react_dropdown(r"^Select Namespace$", ns, type_filter=ns,
+                                   shot_name="target-namespace-selected")
 
         if t.type.lower() in ("s3", "objectstore", "object-store", "object_store"):
             # 2. ObjectStore tab — must be clicked inside form-wizard-children
@@ -66,7 +45,8 @@ class TargetsPage(BasePage):
             self.shot("target-objectstore-tab")
 
             # 3. Vendor: 'Select Option' -> AWS
-            self._react_select(r"^Select Option$", t.vendor)
+            self.select_react_dropdown(r"^Select Option$", t.vendor,
+                                       shot_name="target-vendor")
 
             # 4. Bucket Name, Region, URL
             p.get_by_role("textbox", name=re.compile(r"Bucket Name", re.I)).fill(t.bucket)

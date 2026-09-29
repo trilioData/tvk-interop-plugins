@@ -101,6 +101,12 @@ class KubeClient:
             self.api_client = client.ApiClient()
             self._token = None
             return
+        if self.cfg.cluster.cluster_type in ("master", "credentials_db") or not self.cfg.cluster.console_url:
+            raise RuntimeError(
+                "No kubeconfig set. cluster_type "
+                f"'{self.cfg.cluster.cluster_type}' cannot derive an OpenShift "
+                "API from the manager URL. Set cluster.kubeconfig (or --kubeconfig) "
+                "to the managed cluster so app/helm/restore CR waits can run.")
         # Username/password -> bearer token (OCP)
         token = self._get_ocp_token()
         self._token = token

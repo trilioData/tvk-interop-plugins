@@ -18,6 +18,7 @@ from pages.targets_page import TargetsPage
 from pages.nfs_target_page import NFSTargetPage
 from pages.backupplans_page import BackupPlansPage
 from pages.helm_backupplan_page import HelmBackupPlanPage
+from pages.cassandra_backupplan_page import CassandraBackupPlanPage
 from pages.backup_summary_page import BackupSummaryPage
 from pages.restore_helm_trans_page import RestoreHelmTransPage
 from pages.restore_custom_trans_page import RestoreCustomTransPage
@@ -28,9 +29,11 @@ from pages.restore_page import RestorePage
 from pages.restore_status_page import RestoreStatusPage
 from utils.kube_client import KubeClient
 from utils.helm_app import HelmApp
+from utils.cassandra_app import CassandraApp
 from utils.helm_verify import (wait_for_helm_backup, wait_for_helm_restore,
                                 helm_restore_verify)
 from utils.storage_class import ensure_trans_storageclass, verify_pvc_storageclass
+from conftest import standalone_markers_requested
 
 
 @pytest.fixture(scope="session")
@@ -313,6 +316,208 @@ def test_custom_transformation(logged_in_page, kube, cfg):
     verify_pvc_storageclass(kube, restore_ns, sc_name)
     print(f"[custom_transform] restore '{restore_name}' completed with custom "
           f"transform (/spec/storageClassName -> '{sc_name}') into '{restore_ns}'")
+
+
+def _ensure_cassandra_app(kube, cfg):
+    """Install cass-operator + dc1 + seed once per session.
+
+    Called by test_cassandra_install and by the plan tests so a standalone
+    -m cassandra_backupplan run still has an operator to back up.
+    """
+    if getattr(cfg, "_cassandra_app_ready", False):
+        print(f"[cassandra] reusing app in '{cfg.cassandra.namespace}'")
+        return
+    cass = CassandraApp(cfg, kube)
+    if cass.is_datacenter_ready():
+        print(f"[cassandra] operator + '{cfg.cassandra.dc_name}' already Ready "
+              f"in '{cfg.cassandra.namespace}' — skip install/seed")
+        cfg._cassandra_app_ready = True
+        return
+    cass.install()
+    cass.insert_and_verify()
+    cfg._cassandra_app_ready = True
+    print(f"[cassandra] app ready in '{cfg.cassandra.namespace}'")
+
+
+def _ensure_cassandra_target(logged_in_page, kube, cfg):
+    """Create the Cassandra target once per session; later tests reuse it."""
+    if getattr(cfg, "_cassandra_target_ready", False):
+        print(f"[cassandra] reusing target '{cfg.target.name}'")
+        return cfg.target.name
+    ns = cfg.cassandra.namespace
+    kube.create_namespace(ns)
+    cfg.target.namespace = ns
+    cfg.target.enable_browsing = True
+    tpage = (NFSTargetPage(logged_in_page, cfg)
+             if cfg.target.type.lower() == "nfs"
+             else TargetsPage(logged_in_page, cfg))
+    tpage.create_target()
+    tpage.verify_target_available()
+    cfg._cassandra_target_ready = True
+    print(f"[cassandra] target '{cfg.target.name}' created in '{ns}'")
+    return cfg.target.name
+
+
+@pytest.mark.cassandra
+@pytest.mark.cassandra_app
+@pytest.mark.run(order=20)
+def test_cassandra_install(kube, cfg):
+    """Install cass-operator + CassandraDatacenter, then seed/verify data.
+    Run with:  pytest -m cassandra_app   or   pytest -m cassandra"""
+    _ensure_cassandra_app(kube, cfg)
+
+
+@pytest.mark.cassandra
+@pytest.mark.cassandra_backupplan
+@pytest.mark.run(order=21)
+def test_cassandra_backupplan(logged_in_page, kube, cfg):
+    """Single-namespace plan (target created once). Backup is test_cassandra_backup.
+    Run with:  pytest -m cassandra_backupplan"""
+    _ensure_cassandra_app(kube, cfg)
+    ns = cfg.cassandra.namespace
+    suffix = cfg.run_suffix
+    plan = f"cassandra-bp-{suffix}"
+    target_name = _ensure_cassandra_target(logged_in_page, kube, cfg)
+
+    cfg.backup_namespace = ns
+    cfg.backup_from_plan = plan
+    page = CassandraBackupPlanPage(logged_in_page, cfg)
+    page.create(namespace=ns, plan_name=plan, target=target_name)
+    page.verify_plan_available(plan)
+    cfg._cassandra_ns_plan_created = True
+    print(f"[cassandra] namespace plan '{plan}' created")
+
+
+@pytest.mark.cassandra
+@pytest.mark.cassandra_application_backupplan
+@pytest.mark.run(order=22)
+def test_cassandra_application_backupplan(logged_in_page, kube, cfg):
+    """Application plan (reuses the same target). Backup is test_cassandra_backup.
+    Run with:  pytest -m cassandra_application_backupplan"""
+    _ensure_cassandra_app(kube, cfg)
+    ns = cfg.cassandra.namespace
+    suffix = cfg.run_suffix
+    plan = f"cassandra-app-bp-{suffix}"
+    target_name = _ensure_cassandra_target(logged_in_page, kube, cfg)
+    cfg.backup_namespace = ns
+    cfg.backup_from_plan = plan
+    page = CassandraBackupPlanPage(logged_in_page, cfg)
+    page.create_application(namespace=ns, plan_name=plan, target=target_name)
+    page.verify_plan_available(plan)
+    cfg._cassandra_app_plan_created = True
+    print(f"[cassandra] Application plan '{plan}' created")
+
+
+@pytest.mark.cassandra
+@pytest.mark.cassandra_backup
+@pytest.mark.run(order=23)
+def test_cassandra_backup(logged_in_page, kube, cfg, request):
+    """Backup plans created in this run (or selected by marker).
+
+    - cassandra_backupplan + cassandra_backup → namespace plan backup
+    - cassandra_application_backupplan + cassandra_backup → application plan backup
+    - -m cassandra → both, after the plan tests
+    """
+    selected = standalone_markers_requested(request.config.getoption("-m") or "")
+    want_ns = (
+        "cassandra_backupplan" in selected
+        or getattr(cfg, "_cassandra_ns_plan_created", False)
+    )
+    want_app = (
+        "cassandra_application_backupplan" in selected
+        or getattr(cfg, "_cassandra_app_plan_created", False)
+    )
+    ns = cfg.cassandra.namespace
+    suffix = cfg.run_suffix
+    jobs = []
+    if want_ns and not getattr(cfg, "_cassandra_ns_backed_up", False):
+        jobs.append((f"cassandra-bp-{suffix}", f"cassandra-backup-{suffix}"))
+    if want_app and not getattr(cfg, "_cassandra_app_backed_up", False):
+        jobs.append((f"cassandra-app-bp-{suffix}", f"cassandra-app-backup-{suffix}"))
+    if not jobs:
+        pytest.skip("no pending Cassandra plan backup for the selected markers")
+    page = CassandraBackupPlanPage(logged_in_page, cfg)
+    for plan, backup_name in jobs:
+        page.create_backup_and_wait(plan, backup_name, namespace=ns)
+        if plan.startswith("cassandra-app-bp-"):
+            cfg._cassandra_app_backed_up = True
+        else:
+            cfg._cassandra_ns_backed_up = True
+
+
+@pytest.mark.cassandra
+@pytest.mark.cassandra_restore
+@pytest.mark.run(order=24)
+def test_cassandra_restore(logged_in_page, kube, cfg, request):
+    """Restore into a new namespace. Source cass-oper-ns is left as-is.
+
+    Namespace plan: create CM, include it in the restore wizard.
+    Application plan: create CM, exclude it in the restore wizard.
+    After restore: DC Ready, secret, configmap, and seed data.
+    """
+    selected = standalone_markers_requested(request.config.getoption("-m") or "")
+    suffix = cfg.run_suffix
+    ns = cfg.cassandra.namespace
+    ns_plan = f"cassandra-bp-{suffix}"
+    app_plan = f"cassandra-app-bp-{suffix}"
+    cass = CassandraApp(cfg, kube)
+    restore = RestorePage(logged_in_page, cfg)
+    did = False
+
+    want_ns = (
+        getattr(cfg, "_cassandra_ns_backed_up", False)
+        or "cassandra_backupplan" in selected
+        or "cassandra" in selected
+    )
+    want_app = (
+        getattr(cfg, "_cassandra_app_backed_up", False)
+        or "cassandra_application_backupplan" in selected
+        or "cassandra" in selected
+    )
+    # Later standalone restore from an existing plan (new run_suffix).
+    existing = cfg.restore_from_plan
+    if existing and not want_ns and not want_app:
+        if "app-bp" in existing:
+            want_app = True
+            app_plan = existing
+        else:
+            want_ns = True
+            ns_plan = existing
+
+    if want_ns:
+        restore_ns = cfg.restore_target_namespace or f"{ns}-ret"
+        kube.create_namespace(restore_ns)
+        cass.create_configmap(restore_ns)
+        cfg.backup_namespace = ns
+        cfg.restore_from_plan = ns_plan
+        cfg.restore_target_namespace = restore_ns
+        cfg.restore_name = f"cassandra-ns-restore-{suffix}"
+        restore.start_restore_including_configmap()
+        restore.wait_restore_done()
+        print(f"[cassandra] namespace restore '{cfg.restore_name}' from "
+              f"'{ns_plan}' into '{restore_ns}'")
+        cass.wait_restore_verified(restore_ns)
+        print(f"[cassandra] namespace restore verified in '{restore_ns}'")
+        did = True
+
+    if want_app:
+        app_restore_ns = f"{ns}-app-ret"
+        kube.create_namespace(app_restore_ns)
+        cass.create_configmap(app_restore_ns)
+        cfg.backup_namespace = ns
+        cfg.restore_from_plan = app_plan
+        cfg.restore_target_namespace = app_restore_ns
+        cfg.restore_name = f"cassandra-app-restore-{suffix}"
+        restore.start_restore_excluding_configmap()
+        restore.wait_restore_done()
+        print(f"[cassandra] application restore '{cfg.restore_name}' from "
+              f"'{app_plan}' into '{app_restore_ns}'")
+        cass.wait_restore_verified(app_restore_ns)
+        print(f"[cassandra] application restore verified in '{app_restore_ns}'")
+        did = True
+
+    if not did:
+        pytest.skip("no Cassandra backup in this run to restore from")
 
 
 @pytest.mark.run(order=12)
