@@ -23,6 +23,17 @@ from config.settings import FrameworkConfig
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+def _scc_subject(kind: str, name: str, namespace: str | None = None):
+    """RBAC subject. Newer clients name the model RbacV1Subject."""
+    cls = getattr(client, "RbacV1Subject", None) or client.V1Subject
+    kwargs = {"kind": kind, "name": name}
+    if namespace:
+        kwargs["namespace"] = namespace
+    if kind == "Group":
+        kwargs["api_group"] = "rbac.authorization.k8s.io"
+    return cls(**kwargs)
+
+
 class KubeClient:
     def __init__(self, cfg: FrameworkConfig):
         self.cfg = cfg
@@ -33,6 +44,7 @@ class KubeClient:
         # TVK compiles Schedule Policies into CronJobs, so the batch API is
         # needed to inspect what a schedule actually registered.
         self.batch = client.BatchV1Api(self.api_client)
+        self.rbac = client.RbacAuthorizationV1Api(self.api_client)
 
     def grant_anyuid(self, namespace: str):
         """Allow every SA in the namespace to run as the image's own UID.
@@ -57,6 +69,104 @@ class KubeClient:
             "security.openshift.io", "v1", "securitycontextconstraints", "anyuid",
             {"groups": groups + [group]})
         print(f"[kube] granted anyuid to {group}")
+
+    def grant_hook_app_sccs(self, namespace: str):
+        """Namespace-scoped SCC grants for the sample PVC workload.
+
+        Matches the OpenShift setup for this app:
+          oc adm policy add-scc-to-user anyuid -z default -n <ns>
+          oc adm policy add-scc-to-group privileged system:authenticated -n <ns>
+        Both are RoleBindings onto system:openshift:scc:* in that namespace.
+        Safe to call repeatedly.
+        """
+        self._bind_scc(namespace, "anyuid", _scc_subject(
+            "ServiceAccount", "default", namespace=namespace))
+        self._bind_scc(namespace, "privileged", _scc_subject(
+            "Group", "system:authenticated"))
+
+    def _bind_scc(self, namespace: str, scc: str, subject):
+        role = f"system:openshift:scc:{scc}"
+        binding = client.V1RoleBinding(
+            metadata=client.V1ObjectMeta(name=role, namespace=namespace),
+            role_ref=client.V1RoleRef(
+                api_group="rbac.authorization.k8s.io",
+                kind="ClusterRole", name=role),
+            subjects=[subject],
+        )
+        try:
+            self.rbac.create_namespaced_role_binding(namespace, binding)
+            print(f"[kube] bound {role} in '{namespace}' to "
+                  f"{subject.kind}/{subject.name}")
+            return
+        except ApiException as e:
+            if e.status != 409:
+                raise AssertionError(
+                    f"Could not grant SCC '{scc}' in namespace '{namespace}' "
+                    f"({e.status} {e.reason}). The sample PVC app needs the "
+                    f"OpenShift grants "
+                    f"`oc adm policy add-scc-to-user anyuid -z default -n {namespace}` "
+                    f"and `oc adm policy add-scc-to-group privileged "
+                    f"system:authenticated -n {namespace}`.") from e
+        current = self.rbac.read_namespaced_role_binding(role, namespace)
+        subjects = list(current.subjects or [])
+        already = any(
+            s.kind == subject.kind and s.name == subject.name
+            and (s.namespace or None) == (subject.namespace or None)
+            for s in subjects)
+        if already:
+            print(f"[kube] {role} in '{namespace}' already covers "
+                  f"{subject.kind}/{subject.name}")
+            return
+        subjects.append(subject)
+        current.subjects = subjects
+        self.rbac.replace_namespaced_role_binding(role, namespace, current)
+        print(f"[kube] added {subject.kind}/{subject.name} to {role} in '{namespace}'")
+
+    def wait_labeled_pod_ready(self, namespace: str, label: str,
+                               timeout_s: int = 600) -> str:
+        """Wait until a pod matching `label` is Running and Ready.
+
+        Raises AssertionError (not a generic timeout) so a hooks run stops
+        before any console work when the sample workload did not come up.
+        """
+        deadline = time.time() + timeout_s
+        last = "no pods"
+        while time.time() < deadline:
+            pods = self.core.list_namespaced_pod(
+                namespace, label_selector=label).items
+            if not pods:
+                last = "no pods"
+            else:
+                parts = []
+                for pod in pods:
+                    statuses = pod.status.container_statuses or []
+                    ready = bool(statuses) and all(c.ready for c in statuses)
+                    parts.append(
+                        f"{pod.metadata.name}={pod.status.phase} ready={ready}")
+                    if pod.status.phase == "Running" and ready:
+                        print(f"[kube] {namespace}/{pod.metadata.name} is Running")
+                        return pod.metadata.name
+                last = "; ".join(parts)
+            time.sleep(5)
+        events = self._recent_warning_events(namespace)
+        raise AssertionError(
+            f"sample PVC app is not Running in namespace '{namespace}' "
+            f"({last}). {events}")
+
+    def _recent_warning_events(self, namespace: str) -> str:
+        try:
+            items = self.core.list_namespaced_event(namespace).items
+        except ApiException as e:
+            return f"Could not list events ({e.status})."
+        warnings = [
+            f"{ev.reason}: {ev.message}" for ev in items
+            if (ev.type or "").lower() == "warning" or ev.reason in
+            ("Failed", "FailedScheduling", "FailedMount", "BackOff")
+        ]
+        tail = warnings[-6:] or [
+            f"{ev.reason}: {ev.message}" for ev in items[-4:]
+        ]
+        return "Recent events: " + " | ".join(tail) if tail else "No events."
 
     # ---------- connectivity ----------
 

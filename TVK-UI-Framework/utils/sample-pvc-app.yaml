@@ -1,0 +1,55 @@
+# Sample PVC workload for the hooks suites.
+#
+# Equivalent of:
+#   kubectl create ns pvc-ns
+#   oc adm policy add-scc-to-user anyuid -z default -n pvc-ns
+#   oc adm policy add-scc-to-group privileged system:authenticated -n pvc-ns
+#   kubectl apply -n pvc-ns -f this file
+#
+# The pasted manifest repeated the PVC label key `run` (backup1, then
+# backup1an). YAML keeps the last value, so the label applied here is
+# run=backup1an. The Deployment pod labels (app=redis, run=backup1a) are
+# what the hook's pod selector matches.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sample-pvc
+  labels:
+    run: backup1an
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-pvc-deploy
+  labels:
+    run: backup1a
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+      run: backup1a
+  template:
+    metadata:
+      name: www-nginx-vol
+      labels:
+        run: backup1a
+        app: redis
+    spec:
+      containers:
+        - name: nginx
+          image: docker.io/library/nginx:1.25
+          volumeMounts:
+            - mountPath: /ocp/data
+              name: nfs-vol1a
+      volumes:
+        - name: nfs-vol1a
+          persistentVolumeClaim:
+            claimName: sample-pvc

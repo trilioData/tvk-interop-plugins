@@ -11,7 +11,7 @@ class RestorePage(BasePage):
         DashboardPage(self.page, self.cfg).goto_section("backupplans")
         self.page.wait_for_timeout(1000)
 
-    def start_restore_from_backup(self):
+    def start_restore_from_backup(self, hook: dict | None = None):
         """
         Restore the chosen backup plan's backup into the restore namespace.
 
@@ -92,6 +92,12 @@ class RestorePage(BasePage):
             print(f"[restore] Could not select namespace '{target_ns}' — using default")
 
         self.shot("restore-form-filled")
+
+        # Hooks configuration, when this restore should run the hook against
+        # the restored pods. Omitted by the main lifecycle.
+        if hook:
+            from pages.hooks_page import HooksPage
+            HooksPage(self.page, self.cfg).add_restore_hook(hook)
 
         # Finish: 'Create' then 'Create Restore' inside the restore wizard
         wizard = p.get_by_test_id("restore-wizard-container")

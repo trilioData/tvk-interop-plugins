@@ -74,7 +74,7 @@ class BackupPlansPage(BasePage):
         # Finish wizard
         self._finish_wizard()
 
-    def create_backupplan(self, with_policy: bool = False):
+    def create_backupplan(self, with_policy: bool = False, hook: dict | None = None):
         c = self.cfg
         p = self.page
         self.open()
@@ -122,6 +122,13 @@ class BackupPlansPage(BasePage):
             bp_policy = c.backup_scheduling_policy or c.policy_name
             if bp_policy:
                 self._select_scheduling_policy(bp_policy)
+
+        # 4c. Advanced -> Add Hook. Same step-1 form, before Next. `hook`
+        # is the hooks-suite payload (name, labels, regexes). Left unset by
+        # every other caller, so this is a no-op for the main lifecycle.
+        if hook:
+            from pages.hooks_page import HooksPage
+            HooksPage(self.page, self.cfg).add_plan_hook(hook)
 
         # 5. Next -> component selection
         p.get_by_role("button", name=re.compile(r"^\s*Next\s*$", re.I)).click()
