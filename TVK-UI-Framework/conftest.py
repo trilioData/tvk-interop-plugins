@@ -122,18 +122,22 @@ def dashboard(logged_in_page, cfg) -> DashboardPage:
 # Tests that are self-contained flows, not part of the main ordered E2E
 # chain. They must be selected explicitly (e.g. `-m helm_transform`) and
 # never run just because someone did a bare `pytest` / `-m "not cleanup"`.
-STANDALONE_ONLY_MARKERS = {"target_browsing", "helm_transform", "custom_transform"}
+STANDALONE_ONLY_MARKERS = {
+    "target_browsing", "helm_transform", "custom_transform",
+    "hooks", "hooks_backend",
+}
 
 
 def pytest_collection_modifyitems(config, items):
     requested = config.getoption("-m") or ""
     explicitly_requested = {m for m in STANDALONE_ONLY_MARKERS if m in requested}
-    skip_standalone = pytest.mark.skip(
-        reason="standalone-only test — select explicitly, e.g. -m helm_transform")
     for item in items:
         item_markers = {m.name for m in item.iter_markers()}
-        if item_markers & STANDALONE_ONLY_MARKERS and not (item_markers & explicitly_requested):
-            item.add_marker(skip_standalone)
+        standalone = item_markers & STANDALONE_ONLY_MARKERS
+        if standalone and not (standalone & explicitly_requested):
+            marker = sorted(standalone)[0]
+            item.add_marker(pytest.mark.skip(
+                reason=f"standalone-only test — select explicitly, e.g. -m {marker}"))
 
 
 @pytest.hookimpl(hookwrapper=True)

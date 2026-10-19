@@ -215,6 +215,39 @@ Three further flows are self-contained and must be selected explicitly:
 Both transformation flows assert the change actually landed on the restored
 workload, not merely that the restore reported `Completed`.
 
+### Hooks
+
+Two suites cover one lifecycle: install a PVC-backed nginx, create a pre/post
+hook, attach it to a namespace backup plan (the same `hookConfig` shape as the
+Cassandra hook example), take a backup, and restore with the hook.
+
+The application is `utils/sample-pvc-app.yaml` in namespace `pvc-ns`:
+
+- `oc adm policy add-scc-to-user anyuid -z default -n pvc-ns`
+- `oc adm policy add-scc-to-group privileged system:authenticated -n pvc-ns`
+- PVC `sample-pvc` (10Gi) mounted at `/ocp/data` on Deployment `sample-pvc-deploy`
+
+If that pod is not Running, the suite stops there.
+
+The console suite logs in, opens **Hooks** under Backup & Recovery, and creates
+`sample-pvc-hook` (namespace `pvc-ns`, PRE and POST `/bin/sh -c sync`, timeout
+300, max retry 0). It then creates the backup plan in `pvc-ns` with that hook
+selected for pods labeled `app=redis` / `run=backup1a`, runs the backup, and
+restores it. The backup and the restore must both report the hook Completed,
+and the restored pod must still contain the marker file written before backup.
+
+```bash
+# browser
+.venv\Scripts\python -m pytest tests/test_hooks.py -m hooks --headed --tvk-config <cfg>
+
+# custom resources, no browser
+.venv\Scripts\python -m pytest tests/test_hooks_backend.py -m hooks_backend --tvk-config <cfg>
+```
+
+`tests/test_hooks_backend.py` also contains cluster-free checks of the Hook and
+BackupPlan bodies. Those run under a normal `pytest` invocation; the two
+markers above do not.
+
 ### Feature integration (no browser)
 
 ```bash

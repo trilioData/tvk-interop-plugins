@@ -80,11 +80,34 @@ class HelmAppConfig:
 
 
 @dataclass
+class HookSuiteConfig:
+    """PVC application + hook used by the hooks suites.
+
+    The console steps type these strings as-is (namespace placeholder
+    'Select Namespace', name placeholder 'Enter Hook Name'), so they are
+    not given the run suffix the other generated names get.
+    """
+    namespace: str = "pvc-ns"
+    name: str = "sample-pvc-hook"
+    timeout_seconds: int = 300
+    max_retry_count: int = 0
+    # PRE and POST both run this argv. nginx:1.25 has /bin/sh and sync.
+    commands: list = field(default_factory=lambda: ["/bin/sh", "-c", "sync"])
+    # Pod template labels on sample-pvc-deploy. Same shape as the Cassandra
+    # hook example: matchLabels plus a pod regex and a container regex.
+    pod_labels: dict = field(default_factory=lambda: {"app": "redis", "run": "backup1a"})
+    pod_regex: str = "sample-pvc-deploy.*"
+    container_regex: str = "nginx"
+    mode: str = "Sequential"
+
+
+@dataclass
 class FrameworkConfig:
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     target: TargetConfig = field(default_factory=TargetConfig)
     app: TestAppConfig = field(default_factory=TestAppConfig)
     helm_app: HelmAppConfig = field(default_factory=HelmAppConfig)
+    hooks: HookSuiteConfig = field(default_factory=HookSuiteConfig)
     backupplan_name: str = "auto-backupplan"
     # Namespace the backup plan should protect. Leave empty to use the
     # auto-created demo-app namespace; set it (in the YAML) to an EXISTING

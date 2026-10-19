@@ -17,11 +17,12 @@ class DashboardPage(BasePage):
         "policies":    (r"^\s*Polic(y|ies)\s*$",),
         "backups":     (r"^\s*Backups?\s*$",),
         "restores":    (r"^\s*Restores?\s*$",),
+        "hooks":       (r"^\s*Hooks?\s*$",),
         "monitoring":  (r"^\s*(Monitoring|Dashboard|Overview)\s*$",),
     }
 
     PARENT_GROUP = r"^\s*Backup\s*(and|&)\s*Recovery\s*$"
-    NEEDS_PARENT = {"backupplans", "targets", "policies", "backups", "restores"}
+    NEEDS_PARENT = {"backupplans", "targets", "policies", "backups", "restores", "hooks"}
 
     def _exact_text(self, pattern: str):
         """Smallest element whose own text matches the anchored pattern."""

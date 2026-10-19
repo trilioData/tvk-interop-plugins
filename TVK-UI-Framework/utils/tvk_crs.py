@@ -22,6 +22,7 @@ BACKUPPLAN = "backupplans"
 BACKUP = "backups"
 RESTORE = "restores"
 TARGET = "targets"
+HOOK = "hooks"
 
 # statuses that mean "stop waiting"
 TERMINAL_OK = {"Available", "Completed", "Ready"}
@@ -119,6 +120,36 @@ class TvkCRs:
             f"(last status={last})")
 
     @staticmethod
+    def assert_hooks_completed(obj: dict, hook_name: str) -> None:
+        """Both the pre and post command finished Completed, and the status
+        names this hook.
+
+        TVK records that under status.hookStatus.hookPriorityStatus[].hooks[].
+        hookTarget[].podHookStatus[].containerHookStatus[] as preHookStatus /
+        postHookStatus. Walking the tree avoids depending on every intermediate
+        key staying stable.
+        """
+        hook_status = ((obj or {}).get("status") or {}).get("hookStatus") or {}
+        phases = _hook_phases(hook_status)
+        if not phases:
+            raise AssertionError(
+                f"backup/restore status has no pre/post hook results for "
+                f"'{hook_name}': {hook_status}")
+        bad = [p for p in phases if p.get("status") != "Completed"]
+        if bad:
+            raise AssertionError(
+                f"hook '{hook_name}' did not complete: {bad}")
+        seen = {p["phase"] for p in phases}
+        missing = {"pre", "post"} - seen
+        if missing:
+            raise AssertionError(
+                f"hook '{hook_name}' missing {sorted(missing)} results; "
+                f"saw {sorted(seen)}")
+        if not _tree_has_name(hook_status, hook_name):
+            raise AssertionError(
+                f"hookStatus does not reference hook '{hook_name}'")
+
+    @staticmethod
     def last_reason(obj: dict) -> str:
         conds = ((obj or {}).get("status") or {}).get("condition") or []
         return (conds[-1].get("reason") if conds else "") or ""
@@ -150,11 +181,60 @@ class TvkCRs:
         }
 
     @staticmethod
+    def hook(name: str, namespace: str, commands: list[str],
+             timeout_seconds: int = 300, max_retry_count: int = 0,
+             ignore_failure: bool = False) -> dict:
+        """PRE and POST hook. Same command shape as the Cassandra example
+        (`bash -c ...`), with the PVC suite's `/bin/sh -c sync` argv."""
+        def action() -> dict:
+            return {
+                "execAction": {"command": list(commands)},
+                "ignoreFailure": ignore_failure,
+                "maxRetryCount": max_retry_count,
+                "timeoutSeconds": timeout_seconds,
+            }
+        return {
+            "apiVersion": f"{GROUP}/{VERSION}",
+            "kind": "Hook",
+            "metadata": {"name": name, "namespace": namespace},
+            "spec": {"pre": action(), "post": action()},
+        }
+
+    @staticmethod
+    def hook_config(hook_name: str, hook_namespace: str, match_labels: dict,
+                    pod_regex: str, container_regex: str,
+                    mode: str = "Sequential") -> dict:
+        """BackupPlan / Restore hookConfig.
+
+        Mirrors the documented Cassandra backup plan: Sequential mode, one
+        hook, podSelector matchLabels + regex, and a container regex.
+        """
+        return {
+            "mode": mode,
+            "hooks": [{
+                "hook": {"name": hook_name, "namespace": hook_namespace},
+                "podSelector": {
+                    "labels": [{"matchLabels": dict(match_labels)}],
+                    "regex": pod_regex,
+                },
+                "containerRegex": container_regex,
+            }],
+        }
+
+    @staticmethod
+    def hook_commands(obj: dict) -> tuple[list, list]:
+        spec = (obj or {}).get("spec") or {}
+        def cmds(side: str) -> list:
+            return (((spec.get(side) or {}).get("execAction") or {}).get("command") or [])
+        return cmds("pre"), cmds("post")
+
+    @staticmethod
     def backupplan(name: str, namespace: str, target: tuple[str, str],
                    schedule_policy: tuple[str, str] | None = None,
                    retention_policy: tuple[str, str] | None = None,
                    helm_releases: list[str] | None = None,
-                   match_labels: dict | None = None) -> dict:
+                   match_labels: dict | None = None,
+                   hook_config: dict | None = None) -> dict:
         """Namespace-scoped plan when neither helm_releases nor match_labels given.
 
         target / policies are (name, namespace) pairs — cross-namespace refs work,
@@ -177,6 +257,8 @@ class TvkCRs:
             spec["backupPlanComponents"] = {
                 "customSelector": {
                     "selectResources": {"labelSelector": [{"matchLabels": match_labels}]}}}
+        if hook_config:
+            spec["hookConfig"] = hook_config
         return {
             "apiVersion": f"{GROUP}/{VERSION}",
             "kind": "BackupPlan",
@@ -199,7 +281,8 @@ class TvkCRs:
     def restore(name: str, namespace: str, backup: tuple[str, str],
                 skip_if_exists: bool = True,
                 transform_custom: list[dict] | None = None,
-                extra_flags: dict | None = None) -> dict:
+                extra_flags: dict | None = None,
+                hook_config: dict | None = None) -> dict:
         """The Restore CR's own namespace is the restore target namespace.
 
         skip_if_exists defaults True because on OpenShift every namespace is
@@ -217,6 +300,8 @@ class TvkCRs:
         }
         if transform_custom:
             spec["transformComponents"] = {"custom": transform_custom}
+        if hook_config:
+            spec["hookConfig"] = hook_config
         return {
             "apiVersion": f"{GROUP}/{VERSION}",
             "kind": "Restore",
@@ -260,3 +345,114 @@ class TvkCRs:
         return [b for b in self.list_all(BACKUP, namespace)
                 if b["metadata"]["name"].startswith(f"{plan}-")
                 and len(b["metadata"]["name"]) > len(plan) + 8]
+
+    def ensure_target(self, cfg, namespace: str) -> tuple[str, str]:
+        """Create the configured target in `namespace` if it is not already there.
+
+        Object-store targets take their keys from cfg (or TVK_S3_ACCESS_KEY /
+        TVK_S3_SECRET_KEY). NFS targets use cfg.target.nfs_path. Returns
+        (name, namespace) for BackupPlan.spec.backupConfig.target.
+        """
+        import base64
+
+        from kubernetes import client
+        from kubernetes.client.rest import ApiException
+
+        t = cfg.target
+        name = t.name
+        kind = (t.type or "").lower()
+        if kind == "nfs":
+            if not t.nfs_path:
+                raise AssertionError(
+                    "target.nfs_path is required to create the NFS target "
+                    "used by the hooks suite")
+            body = {
+                "apiVersion": f"{GROUP}/{VERSION}",
+                "kind": "Target",
+                "metadata": {"name": name, "namespace": namespace},
+                "spec": {
+                    "type": "NFS",
+                    "vendor": "Other",
+                    "thresholdCapacity": t.threshold_capacity or "10Gi",
+                    "nfsCredentials": {
+                        "nfsExport": t.nfs_path,
+                        "nfsOptions": "nfsvers=4",
+                    },
+                },
+            }
+        else:
+            if not (t.bucket and t.access_key and t.secret_key):
+                raise AssertionError(
+                    "Object-store target needs target.bucket plus "
+                    "TVK_S3_ACCESS_KEY and TVK_S3_SECRET_KEY")
+            secret_name = f"{name}-secret"
+            def encoded(value: str) -> str:
+                return base64.b64encode(value.encode()).decode()
+            secret = client.V1Secret(
+                metadata=client.V1ObjectMeta(name=secret_name, namespace=namespace),
+                data={"accessKey": encoded(t.access_key),
+                      "secretKey": encoded(t.secret_key)},
+            )
+            try:
+                self.kube.core.create_namespaced_secret(namespace, secret)
+                print(f"[tvk] secret '{secret_name}' created in '{namespace}'")
+            except ApiException as e:
+                if e.status != 409:
+                    raise
+                print(f"[tvk] secret '{secret_name}' already exists")
+            creds = {
+                "bucketName": t.bucket,
+                "credentialSecret": {"name": secret_name, "namespace": namespace},
+            }
+            if t.region:
+                creds["region"] = t.region
+            if t.s3_url:
+                creds["url"] = t.s3_url
+            body = {
+                "apiVersion": f"{GROUP}/{VERSION}",
+                "kind": "Target",
+                "metadata": {"name": name, "namespace": namespace},
+                "spec": {
+                    "type": "ObjectStore",
+                    "vendor": t.vendor or "AWS",
+                    "thresholdCapacity": t.threshold_capacity or "10Gi",
+                    "objectStoreCredentials": creds,
+                },
+            }
+        if not self.get(TARGET, name, namespace):
+            self.create(TARGET, namespace, body)
+            print(f"[tvk] target '{name}' created in '{namespace}'")
+        else:
+            print(f"[tvk] target '{name}' already exists in '{namespace}'")
+        self.wait_status(TARGET, name, namespace, timeout_s=600, poll_s=10)
+        return name, namespace
+
+
+def _hook_phases(node) -> list[dict]:
+    """Every preHookStatus / postHookStatus dict under a hookStatus tree."""
+    found: list[dict] = []
+
+    def walk(current):
+        if isinstance(current, dict):
+            for key, phase in (("preHookStatus", "pre"), ("postHookStatus", "post")):
+                side = current.get(key)
+                if isinstance(side, dict) and "status" in side:
+                    found.append({"phase": phase, **side})
+            for value in current.values():
+                walk(value)
+        elif isinstance(current, list):
+            for item in current:
+                walk(item)
+
+    walk(node)
+    return found
+
+
+def _tree_has_name(node, name: str) -> bool:
+    if isinstance(node, dict):
+        if node.get("name") == name:
+            return True
+        return any(_tree_has_name(v, name) for v in node.values())
+    if isinstance(node, list):
+        return any(_tree_has_name(item, name) for item in node)
+    return False

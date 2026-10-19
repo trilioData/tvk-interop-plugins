@@ -105,3 +105,21 @@ policy_namespace: ""
 # If true, delete all resources created in the run (target, policy, backup
 # plan, backup, restore, secret, namespaces). If false, cleanup is skipped.
 cleanup_enabled: false
+
+# Hooks suites (pytest -m hooks / pytest -m hooks_backend).
+# Namespace and hook name are typed into the console as-is.
+hooks:
+  namespace: pvc-ns
+  name: sample-pvc-hook
+  timeout_seconds: 300
+  max_retry_count: 0
+  commands:
+    - /bin/sh
+    - -c
+    - sync
+  pod_labels:
+    app: redis
+    run: backup1a
+  pod_regex: sample-pvc-deploy.*
+  container_regex: nginx
+  mode: Sequential
